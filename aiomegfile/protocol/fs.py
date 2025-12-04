@@ -1,4 +1,5 @@
 import asyncio
+import glob
 import os
 import stat
 import typing as T
@@ -8,7 +9,6 @@ import aiofiles.os
 import aiofiles.ospath
 
 from aiomegfile.interfaces import BaseProtocol, StatResult
-from aiomegfile.lib.fnmatch import fnmatch
 
 
 class FSProtocol(BaseProtocol):
@@ -87,7 +87,7 @@ class FSProtocol(BaseProtocol):
             if not exist_ok:
                 raise
 
-    async def open(
+    def open(
         self,
         mode: str = "r",
         buffering: int = -1,
@@ -95,9 +95,9 @@ class FSProtocol(BaseProtocol):
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
         closefd: bool = True,
-    ):
+    ) -> T.AsyncContextManager:
         """Open the file with mode."""
-        return aiofiles.open(
+        return aiofiles.open(  # pytype: disable=wrong-arg-types
             self.path_without_protocol,
             mode=mode,
             buffering=buffering,
@@ -111,8 +111,8 @@ class FSProtocol(BaseProtocol):
         self, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree."""
-        for root, dirs, files in await asyncio.to_thread(
-            lambda: list(os.walk(self.path_without_protocol, followlinks=followlinks))
+        for root, dirs, files in os.walk(
+            self.path_without_protocol, followlinks=followlinks
         ):
             yield root, dirs, files
 
@@ -121,29 +121,13 @@ class FSProtocol(BaseProtocol):
     ) -> T.AsyncIterator[str]:
         """Return an iterator of files whose paths match the glob pattern."""
 
-        async def _glob_recursive(base_path: str, pattern: str):
-            try:
-                entries = await aiofiles.os.listdir(base_path)
-            except OSError:
-                if not missing_ok:
-                    raise
-                return
+        # FIXME: support more glob features like [] and {}
+        for path in glob.iglob(
+            os.path.join(self.path_without_protocol, pattern), recursive=recursive
+        ):
+            yield path
 
-            for entry in sorted(entries):
-                entry_path = os.path.join(base_path, entry)
-                rel_path = os.path.relpath(entry_path, self.path_without_protocol)
-
-                if fnmatch(rel_path, pattern):
-                    yield entry_path
-
-                if recursive and await aiofiles.ospath.isdir(entry_path):
-                    async for match in _glob_recursive(entry_path, pattern):
-                        yield match
-
-        async for match in _glob_recursive(self.path_without_protocol, pattern):
-            yield match
-
-    async def chmod(self, mode: int, *, follow_symlinks: bool = True) -> None:
+    async def chmod(self, mode: int, *, follow_symlinks: bool = True):
         """Change the access permissions of a file."""
         if follow_symlinks:
             await asyncio.to_thread(os.chmod, self.path_without_protocol, mode)
@@ -171,6 +155,10 @@ class FSProtocol(BaseProtocol):
         """Return a new path representing the symbolic link's target."""
         return await aiofiles.os.readlink(self.path_without_protocol)
 
+    async def is_symlink(self) -> bool:
+        """Return True if the path points to a symbolic link."""
+        return await aiofiles.ospath.islink(self.path_without_protocol)
+
     async def iterdir(self) -> T.AsyncIterator[str]:
         """
         Get all contents of given fs path.
@@ -178,9 +166,9 @@ class FSProtocol(BaseProtocol):
 
         :returns: All contents have in the path in ascending alphabetical order
         """
-        entries = await aiofiles.os.listdir(self.path_without_protocol)
-        for entry in sorted(entries):
-            yield os.path.join(self.path_without_protocol, entry)
+        files = await aiofiles.os.listdir(self.path_without_protocol)
+        for filename in sorted(files):
+            yield os.path.join(self.path_without_protocol, filename)
 
     async def absolute(self) -> str:
         """
@@ -188,3 +176,9 @@ class FSProtocol(BaseProtocol):
         Returns a new path object.
         """
         return os.path.abspath(self.path_without_protocol)
+
+    def __eq__(self, other: BaseProtocol) -> bool:
+        """Return True if the path points to the same file as other_path."""
+        if other.protocol_name != self.protocol_name:
+            return False
+        return os.path.samefile(self.path_without_protocol, other.path_without_protocol)
