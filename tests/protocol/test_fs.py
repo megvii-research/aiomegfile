@@ -92,8 +92,7 @@ class TestFSProtocol:
     async def test_open_read(self, temp_file):
         """Test open method for reading."""
         protocol = self._create_protocol(temp_file)
-        cm = await protocol.open("r")
-        async with cm as f:
+        async with protocol.open("r") as f:
             content = await f.read()
         assert content == "Hello, World!"
 
@@ -102,8 +101,7 @@ class TestFSProtocol:
         """Test open method for writing."""
         file_path = os.path.join(temp_dir, "new_file.txt")
         protocol = self._create_protocol(file_path)
-        cm = await protocol.open("w")
-        async with cm as f:
+        async with protocol.open("w") as f:
             await f.write("New content")
 
         with open(file_path) as f:

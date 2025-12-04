@@ -171,7 +171,7 @@ PROTOCOLS = {}
 
 
 class BaseProtocol:
-    profile_name = ""
+    protocol_name = ""
 
     def __init__(
         self,
@@ -182,11 +182,11 @@ class BaseProtocol:
         self.profile_name = profile_name
 
     def __init_subclass__(cls):
-        if not cls.profile_name:
+        if not cls.protocol_name:
             raise ValueError(
                 f"Subclasses({cls.__name__}) of BaseProtocol must define a profile_name"
             )
-        PROTOCOLS[cls.profile_name] = cls
+        PROTOCOLS[cls.protocol_name] = cls
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""
@@ -214,7 +214,15 @@ class BaseProtocol:
         """Create a directory."""
         raise NotImplementedError('method "mkdir" not implemented: %r' % self)
 
-    async def open(self, mode: str = "r", **kwargs) -> T.IO:
+    def open(
+        self,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
+        closefd: bool = True,
+    ) -> T.AsyncContextManager:
         """Open the file with mode."""
         raise NotImplementedError('method "open" not implemented: %r' % self)
 
@@ -223,12 +231,14 @@ class BaseProtocol:
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree."""
         raise NotImplementedError('method "walk" not implemented: %r' % self)
+        yield
 
     async def iglob(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.AsyncIterator[str]:
         """Return an iterator of files whose paths match the glob pattern."""
         raise NotImplementedError('method "iglob" not implemented: %r' % self)
+        yield
 
     async def chmod(self, mode: int, *, follow_symlinks: bool = True):
         raise NotImplementedError(f"'chmod' is unsupported on '{type(self)}'")
@@ -251,6 +261,12 @@ class BaseProtocol:
         """
         raise NotImplementedError(f"'readlink' is unsupported on '{type(self)}'")
 
+    async def is_symlink(self) -> bool:
+        """
+        Return True if the path points to a symbolic link.
+        """
+        raise NotImplementedError(f"'is_symlink' is unsupported on '{type(self)}'")
+
     async def iterdir(self) -> T.AsyncIterator[str]:
         """
         Get all contents of given fs path.
@@ -259,6 +275,7 @@ class BaseProtocol:
         :returns: All contents have in the path in ascending alphabetical order
         """
         raise NotImplementedError(f"'iterdir' is unsupported on '{type(self)}'")
+        yield
 
     async def absolute(self) -> str:
         """
@@ -266,3 +283,10 @@ class BaseProtocol:
         Returns a new path object
         """
         raise NotImplementedError(f"'absolute' is unsupported on '{type(self)}'")
+
+    def __eq__(self, other: "BaseProtocol") -> bool:
+        return (
+            self.protocol_name == other.protocol_name
+            and self.profile_name == other.profile_name
+            and self.path_without_protocol == other.path_without_protocol
+        )

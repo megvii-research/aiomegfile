@@ -1,0 +1,15 @@
+{
+  "site_package_search_strategy": "pep561",
+  "search_path": [
+    {
+      "site-package": "aiofiles"
+    }
+  ],
+  "source_directories": [
+    {
+      "import_root": ".",
+      "source": "aiomegfile"
+    }
+  ],
+  "strict": false
+}

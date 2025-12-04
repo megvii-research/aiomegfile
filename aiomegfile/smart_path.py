@@ -1,3 +1,4 @@
+import asyncio
 import os
 import typing as T
 from collections.abc import Sequence
@@ -20,7 +21,7 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.protocol + "://":
+        if len(parts) > 0 and parts[0] == path.protocol.protocol_name + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -46,7 +47,7 @@ class URIPathParents(Sequence):
 class SmartPath:
     def __init__(self, path: T.Union[str, "SmartPath", os.PathLike]):
         if isinstance(path, SmartPath):
-            self.path = path._path
+            self.path = path.path
         else:
             self.path = fspath(path)
         self.protocol = self._create_protocol(self.path)
@@ -92,27 +93,29 @@ class SmartPath:
         return str(self).encode()
 
     def __fspath__(self) -> str:
-        return self.as_uri()
+        return self.path
 
     def __hash__(self) -> int:
         return hash(fspath(self))
 
-    def __eq__(self, other_path: "SmartPath") -> bool:
-        return self.protocol == other_path._protocol
+    def __eq__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
+        if isinstance(other_path, str):
+            other_path = self.from_path(other_path)
+        return self.protocol == other_path.protocol
 
-    def __lt__(self, other_path: "SmartPath") -> bool:
-        if not isinstance(other_path, SmartPath):
-            raise TypeError("%r is not 'SmartPath'" % other_path)
-        if self.protocol.protocol_name != other_path._protocol.protocol_name:
+    def __lt__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
+        if isinstance(other_path, str):
+            other_path = self.from_path(other_path)
+        if self.protocol.protocol_name != other_path.protocol.protocol_name:
             raise TypeError(
                 "'<' not supported between instances of %r and %r"
                 % (type(self), type(other_path))
             )
         return fspath(self) < fspath(other_path)
 
-    def __le__(self, other_path: "SmartPath") -> bool:
-        if not isinstance(other_path, SmartPath):
-            raise TypeError("%r is not 'SmartPath'" % other_path)
+    def __le__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
+        if isinstance(other_path, str):
+            other_path = self.from_path(other_path)
         if self.protocol.protocol_name != other_path.protocol.protocol_name:
             raise TypeError(
                 "'<=' not supported between instances of %r and %r"
@@ -120,9 +123,9 @@ class SmartPath:
             )
         return str(self) <= str(other_path)
 
-    def __gt__(self, other_path: "SmartPath") -> bool:
-        if not isinstance(other_path, SmartPath):
-            raise TypeError("%r is not 'SmartPath'" % other_path)
+    def __gt__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
+        if isinstance(other_path, str):
+            other_path = self.from_path(other_path)
         if self.protocol.protocol_name != other_path.protocol.protocol_name:
             raise TypeError(
                 "'>' not supported between instances of %r and %r"
@@ -130,12 +133,12 @@ class SmartPath:
             )
         return str(self) > str(other_path)
 
-    def __ge__(self, other_path: "SmartPath") -> bool:
-        if not isinstance(other_path, SmartPath):
-            raise TypeError("%r is not 'SmartPath'" % other_path)
+    def __ge__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
+        if isinstance(other_path, str):
+            other_path = self.from_path(other_path)
         if self.protocol.protocol_name != other_path.protocol.protocol_name:
             raise TypeError(
-                "'>=' not supported between instances of %r and %r"
+                ">= not supported between instances of %r and %r"
                 % (type(self), type(other_path))
             )
         return str(self) >= str(other_path)
@@ -153,13 +156,13 @@ class SmartPath:
             other_path = fspath(other_path)
         elif not isinstance(other_path, str):
             raise TypeError("%r is not 'PathLike' object" % other_path)
-        return self.joinpath(other_path)
+        return asyncio.get_event_loop().run_until_complete(self.joinpath(other_path))
 
     @cached_property
     def path_with_protocol(self) -> str:
         """Return path with protocol, like file:///root, s3://bucket/key"""
         path = self.path
-        protocol_prefix = self.protocol + "://"
+        protocol_prefix = self.protocol.protocol_name + "://"
         if path.startswith(protocol_prefix):
             return path
         return protocol_prefix + path.lstrip("/")
@@ -171,7 +174,7 @@ class SmartPath:
         return bucket/key
         """
         path = self.path
-        protocol_prefix = self.protocol + "://"
+        protocol_prefix = self.protocol.protocol_name + "://"
         if path.startswith(protocol_prefix):
             path = path[len(protocol_prefix) :]
         return path
@@ -196,13 +199,7 @@ class SmartPath:
 
     @classmethod
     def from_uri(cls, path: T.Union[str, "SmartPath", os.PathLike]) -> "SmartPath":
-        path = fspath(path)
-        protocol_prefix = cls.protocol + "://"
-        if path[: len(protocol_prefix)] != protocol_prefix:
-            raise ValueError(
-                "protocol not match, expected: %r, got: %r" % (cls.protocol, path)
-            )
-        return cls.from_path(path[len(protocol_prefix) :])
+        return cls.from_path(path)
 
     @cached_property
     def name(self) -> str:
@@ -210,7 +207,7 @@ class SmartPath:
         A string representing the final path component, excluding the drive and root
         """
         parts = self.parts
-        if len(parts) == 1 and parts[0] == self.protocol + "://":
+        if len(parts) == 1 and parts[0] == self.protocol.protocol_name + "://":
             return ""
         return parts[-1]
 
@@ -241,10 +238,6 @@ class SmartPath:
             return name[:i]
         return name
 
-    # TODO: support fs
-    async def is_reserved(self) -> bool:
-        return False
-
     async def is_relative_to(self, *other) -> bool:
         try:
             await self.relative_to(*other)
@@ -255,19 +248,19 @@ class SmartPath:
     async def relative_to(self, *other: str) -> "SmartPath":
         """
         Compute a version of this path relative to the path represented by other.
-        If it’s impossible, ValueError is raised.
+        If it's impossible, ValueError is raised.
         """
         if not other:
             raise TypeError("need at least one argument")
 
         other_path = self.from_path(other[0])
-        if len(other) > 0:
-            other_path = other_path.joinpath(*other[1:])
-        other_path = other_path.path_with_protocol
+        if len(other) > 1:
+            other_path = await other_path.joinpath(*other[1:])
+        other_path_str = other_path.path_with_protocol
         path = self.path_with_protocol
 
-        if path.startswith(other_path):
-            relative = path[len(other_path) :]
+        if path.startswith(other_path_str):
+            relative = path[len(other_path_str) :]
             relative = relative.lstrip("/")
             return type(self)(relative)  # pyre-ignore[19]
 
@@ -304,76 +297,29 @@ class SmartPath:
 
         raise ValueError("%r does not start with %r" % (path, other_path))
 
-    async def is_absolute(self) -> bool:
-        return True
-
-    async def is_mount(self) -> bool:
-        """Test whether a path is a mount point
-
-        :returns: True if a path is a mount point, else False
-        """
-        return False
-
-    async def is_socket(self) -> bool:
-        """
-        Return True if the path points to a Unix socket (or a symbolic link pointing
-        to a Unix socket), False if it points to another kind of file.
-
-        False is also returned if the path doesn't exist or is a broken symlink;
-        other errors (such as permission errors) are propagated.
-        """
-        return False
-
-    async def is_fifo(self) -> bool:
-        """
-        Return True if the path points to a FIFO (or a symbolic link pointing to a
-        FIFO), False if it points to another kind of file.
-
-        False is also returned if the path doesn't exist or is a broken symlink;
-        other errors (such as permission errors) are propagated.
-        """
-        return False
-
-    async def is_block_device(self) -> bool:
-        """
-        Return True if the path points to a block device (or a symbolic link pointing
-        to a block device), False if it points to another kind of file.
-
-        False is also returned if the path doesn't exist or is a broken symlink;
-        other errors (such as permission errors) are propagated.
-        """
-        return False
-
-    async def is_char_device(self) -> bool:
-        """
-        Return True if the path points to a character device (or a symbolic link
-        pointing to a character device), False if it points to another kind of file.
-
-        False is also returned if the path doesn't exist or is a broken symlink;
-        other errors (such as permission errors) are propagated.
-        """
-        return False
-
-    async def abspath(self) -> str:
-        """Return a normalized absolute version of the path."""
-        return self.path_with_protocol
-
     async def realpath(self) -> str:
         """Return the canonical path of the path."""
         return self.path_with_protocol
 
     async def resolve(self, strict=False):
         """Alias of realpath."""
-        return self.path_with_protocol
+        path = self
+        while await path.is_symlink():
+            path = await path.readlink()
+            if path == self:
+                if strict:
+                    raise OSError("Symlink points to itself")
+                break
+        return await path.absolute()
 
     async def read_bytes(self) -> bytes:
         """Return the binary contents of the pointed-to file as a bytes object"""
-        async with await self.open(mode="rb") as f:
+        async with self.open(mode="rb") as f:
             return await f.read()  # pytype: disable=bad-return-type
 
     async def read_text(self) -> str:
         """Return the decoded contents of the pointed-to file as a string"""
-        async with await self.open(mode="r") as f:
+        async with self.open(mode="r") as f:
             return await f.read()  # pytype: disable=bad-return-type
 
     async def rglob(self, pattern: str) -> T.List["SmartPath"]:
@@ -386,30 +332,14 @@ class SmartPath:
         pattern = "**/" + pattern.lstrip("/")
         return await self.glob(pattern=pattern)
 
-    async def samefile(self, other_path) -> bool:
+    async def samefile(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         """
         Return whether this path points to the same file
         """
-        if hasattr(other_path, "protocol"):
-            if (
-                other_path.protocol.protocol_name != self.protocol.protocol_name
-                or other_path.protocol.profile_name != self.protocol.profile_name
-            ):
-                return False
-
-        stat = self.stat()
-        if hasattr(other_path, "stat"):
-            other_path_stat = other_path.stat()
-        else:
-            other_path_stat = self.from_path(other_path).stat()
-
-        return (
-            stat.st_ino == other_path_stat.st_ino
-            and stat.st_dev == other_path_stat.st_dev
-        )
+        return self == other_path
 
     async def touch(self):
-        async with await self.open("w"):
+        async with self.open("w"):
             pass
 
     async def makedirs(self, exist_ok: bool = False) -> None:
@@ -423,7 +353,7 @@ class SmartPath:
         """
         Open the file pointed to in bytes mode, write data to it, and close the file
         """
-        async with await self.open(mode="wb") as f:
+        async with self.open(mode="wb") as f:
             return await f.write(data)
 
     async def write_text(self, data: str, encoding=None, errors=None, newline=None):
@@ -431,18 +361,14 @@ class SmartPath:
         Open the file pointed to in text mode, write data to it, and close the file.
         The optional parameters have the same meaning as in open().
         """
-        async with await self.open(
+        async with self.open(
             mode="w", encoding=encoding, errors=errors, newline=newline
         ) as f:
             return await f.write(data)
 
     @cached_property
-    def drive(self) -> str:
-        return ""
-
-    @cached_property
     def root(self) -> str:
-        return self.protocol + "://"
+        return self.protocol.protocol_name + "://"
 
     @cached_property
     def anchor(self) -> str:
@@ -456,7 +382,7 @@ class SmartPath:
         with each of the other arguments in turn
         """
         if len(other_paths) == 0:
-            return self.path
+            return self
 
         first_path = self.path
         if first_path.endswith("/"):
@@ -513,7 +439,8 @@ class SmartPath:
         return await self.protocol.is_file(followlinks=followlinks)
 
     async def is_symlink(self) -> bool:
-        return False
+        """Return True if the path points to a symbolic link."""
+        return await self.protocol.is_symlink()
 
     async def exists(self, followlinks: bool = False) -> bool:
         """Whether the path points to an existing file or directory."""
@@ -521,7 +448,10 @@ class SmartPath:
 
     async def listdir(self) -> T.List[str]:
         """Return the names of the entries in the directory the path points to."""
-        return list(await self.iterdir())
+        result = []
+        async for item in self.iterdir():
+            result.append(str(item))
+        return result
 
     async def stat(self, follow_symlinks=True) -> StatResult:
         """Get the status of the path."""
@@ -552,7 +482,9 @@ class SmartPath:
 
     async def unlink(self, missing_ok: bool = False) -> None:
         """Remove (delete) the file."""
-        return await self.protocol.unlink(missing_ok=missing_ok)
+        if not await self.protocol.is_file():
+            raise IsADirectoryError(f"Is a directory: {self.path_with_protocol}")
+        return await self.protocol.remove(missing_ok=missing_ok)
 
     async def mkdir(
         self, mode=0o777, parents: bool = False, exist_ok: bool = False
@@ -562,38 +494,67 @@ class SmartPath:
 
     async def rmdir(self) -> None:
         """Remove (delete) the directory."""
-        return await self.protocol.rmdir()
+        if not await self.protocol.is_dir():
+            raise NotADirectoryError(f"Not a directory: {self.path_with_protocol}")
+        return await self.protocol.remove()
 
-    async def open(self, mode: str = "r", **kwargs) -> T.IO:
+    def open(
+        self,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
+        closefd: bool = True,
+    ) -> T.AsyncContextManager:
         """Open the file with mode."""
-        return await self.protocol.open(mode=mode, **kwargs)
+        return self.protocol.open(
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+        )
 
     async def walk(
         self, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree."""
-        return await self.protocol.walk(followlinks=followlinks)
+        async for item in self.protocol.walk(followlinks=followlinks):
+            yield item
 
     async def glob(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern."""
-        return list(
-            await self.iglob(
-                pattern=pattern, recursive=recursive, missing_ok=missing_ok
-            )
-        )
+        result = []
+        async for item in self.iglob(
+            pattern=pattern, recursive=recursive, missing_ok=missing_ok
+        ):
+            result.append(item)
+        return result
 
     async def iglob(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern."""
-        return await self.protocol.iglob(
+        async for path_str in self.protocol.iglob(
             pattern=pattern, recursive=recursive, missing_ok=missing_ok
-        )
+        ):
+            yield self.from_path(path_str)
 
     async def chmod(self, mode: int, *, follow_symlinks: bool = True):
-        raise NotImplementedError(f"'chmod' is unsupported on '{type(self)}'")
+        if self.protocol.protocol_name == "file":
+            return await asyncio.to_thread(
+                os.chmod,
+                self.path_without_protocol,
+                mode,
+                follow_symlinks=follow_symlinks,
+            )
+        raise NotImplementedError(
+            f"'chmod' is unsupported on '{self.protocol.protocol_name}' protocol"
+        )
 
     async def lchmod(self, mode: int):
         """
@@ -601,6 +562,37 @@ class SmartPath:
         link's mode is changed rather than its target's.
         """
         return await self.chmod(mode=mode, follow_symlinks=False)
+
+    async def copy(
+        self,
+        dst_path: T.Union[str, "SmartPath", os.PathLike],
+        *,
+        follow_symlinks: bool = False,
+    ) -> "SmartPath":
+        """
+        copy file, if self is directory, copy directory
+
+        :param dst_path: Given destination path
+        :param follow_symlinks: whether or not follow symbolic link
+        """
+        # TODO: implement copy
+        raise NotImplementedError("copy is not implemented")
+
+    async def copy_into(
+        self,
+        dst_path: T.Union[str, "SmartPath", os.PathLike],
+        *,
+        follow_symlinks: bool = False,
+    ) -> "SmartPath":
+        """
+        copy file or directory into dst directory
+
+        :param dst_path: Given destination path
+        :param follow_symlinks: whether or not follow symbolic link
+        """
+        dst_path = await self.from_path(dst_path).joinpath(self.name)
+        await self.copy(dst_path=dst_path, follow_symlinks=follow_symlinks)
+        return dst_path
 
     async def rename(
         self, dst_path: T.Union[str, "SmartPath", os.PathLike], overwrite: bool = True
@@ -611,7 +603,10 @@ class SmartPath:
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
         """
-        return await self.protocol.rename(dst_path=dst_path, overwrite=overwrite)
+        result = await self.protocol.rename(
+            dst_path=fspath(dst_path), overwrite=overwrite
+        )
+        return self.from_path(result)
 
     async def replace(
         self, dst_path: T.Union[str, "SmartPath", os.PathLike], overwrite: bool = True
@@ -644,26 +639,18 @@ class SmartPath:
         """
         Return a new path representing the symbolic link's target.
         """
-        return await self.protocol.readlink()
+        result = await self.protocol.readlink()
+        return self.from_path(result)
 
     async def hardlink_to(self, target):
         """
         Make this path a hard link to the same file as target.
         """
-        raise NotImplementedError(f"'hardlink_to' is unsupported on '{type(self)}'")
-
-    async def home(self):
-        """Return the home directory
-
-        returns: Home directory path
-        """
-        raise NotImplementedError(f"'home' is unsupported on '{type(self)}'")
-
-    async def group(self):
-        """
-        Return the name of the group owning the file.
-        """
-        raise NotImplementedError(f"'group' is unsupported on '{type(self)}'")
+        if self.protocol.protocol_name == "file":
+            return await asyncio.to_thread(os.link, self.path_without_protocol, target)
+        raise NotImplementedError(
+            f"'hardlink_to' is unsupported on '{self.protocol.protocol_name}' protocol"
+        )
 
     async def expanduser(self):
         """
@@ -672,14 +659,21 @@ class SmartPath:
 
         Only fs path support this method.
         """
-        raise NotImplementedError(f"'expanduser' is unsupported on '{type(self)}'")
+        if self.protocol.protocol_name == "file":
+            path = await asyncio.to_thread(
+                os.path.expanduser, self.path_without_protocol
+            )
+            return self.from_path(path)
+        raise NotImplementedError(
+            f"'expanduser' is unsupported on '{self.protocol.protocol_name}' protocol"
+        )
 
     async def cwd(self) -> "SmartPath":
         """Return current working directory
 
         returns: Current working directory
         """
-        raise NotImplementedError(f"'cwd' is unsupported on '{type(self)}'")
+        return self.from_path(await asyncio.to_thread(os.getcwd))
 
     async def iterdir(self) -> T.AsyncIterator["SmartPath"]:
         """
@@ -688,20 +682,16 @@ class SmartPath:
 
         :returns: All contents have in the path in ascending alphabetical order
         """
-        return await self.protocol.iterdir()
-
-    async def owner(self) -> str:
-        """
-        Return the name of the user owning the file.
-        """
-        raise NotImplementedError(f"'owner' is unsupported on '{type(self)}'")
+        async for path_str in self.protocol.iterdir():
+            yield self.from_path(path_str)
 
     async def absolute(self) -> "SmartPath":
         """
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
         """
-        return await self.protocol.absolute()
+        result = await self.protocol.absolute()
+        return self.from_path(result)
 
     async def full_match(self, pattern, *, case_sensitive=None):
         """
@@ -719,13 +709,3 @@ class SmartPath:
         """
         match = _compile_pattern(pattern, case_sensitive=case_sensitive)
         return match(self.path) is not None
-
-    async def is_junction(self) -> bool:
-        """
-        Return True if the path points to a Windows junction (or a symbolic link
-        pointing to a Windows junction), False if it points to another kind of file.
-
-        False is also returned if the path doesn’t exist or is a broken symlink;
-        other errors (such as permission errors) are propagated.
-        """
-        return False
