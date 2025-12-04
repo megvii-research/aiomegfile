@@ -87,9 +87,25 @@ class FSProtocol(BaseProtocol):
             if not exist_ok:
                 raise
 
-    async def open(self, mode: str = "r", **kwargs):
+    async def open(
+        self,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
+        closefd: bool = True,
+    ):
         """Open the file with mode."""
-        return aiofiles.open(self.path_without_protocol, mode=mode, **kwargs)
+        return aiofiles.open(
+            self.path_without_protocol,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+        )
 
     async def walk(
         self, followlinks: bool = False

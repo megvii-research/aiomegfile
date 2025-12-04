@@ -20,7 +20,7 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.protocol + "://":
+        if len(parts) > 0 and parts[0] == path.protocol.protocol_name + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -92,7 +92,7 @@ class SmartPath:
         return str(self).encode()
 
     def __fspath__(self) -> str:
-        return self.as_uri()
+        return self.path
 
     def __hash__(self) -> int:
         return hash(fspath(self))
@@ -196,13 +196,7 @@ class SmartPath:
 
     @classmethod
     def from_uri(cls, path: T.Union[str, "SmartPath", os.PathLike]) -> "SmartPath":
-        path = fspath(path)
-        protocol_prefix = cls.protocol + "://"
-        if path[: len(protocol_prefix)] != protocol_prefix:
-            raise ValueError(
-                "protocol not match, expected: %r, got: %r" % (cls.protocol, path)
-            )
-        return cls.from_path(path[len(protocol_prefix) :])
+        return cls.from_path(path)
 
     @cached_property
     def name(self) -> str:
@@ -210,7 +204,7 @@ class SmartPath:
         A string representing the final path component, excluding the drive and root
         """
         parts = self.parts
-        if len(parts) == 1 and parts[0] == self.protocol + "://":
+        if len(parts) == 1 and parts[0] == self.protocol.protocol_name + "://":
             return ""
         return parts[-1]
 
@@ -255,19 +249,19 @@ class SmartPath:
     async def relative_to(self, *other: str) -> "SmartPath":
         """
         Compute a version of this path relative to the path represented by other.
-        If it’s impossible, ValueError is raised.
+        If it's impossible, ValueError is raised.
         """
         if not other:
             raise TypeError("need at least one argument")
 
         other_path = self.from_path(other[0])
-        if len(other) > 0:
-            other_path = other_path.joinpath(*other[1:])
-        other_path = other_path.path_with_protocol
+        if len(other) > 1:
+            other_path = await other_path.joinpath(*other[1:])
+        other_path_str = other_path.path_with_protocol
         path = self.path_with_protocol
 
-        if path.startswith(other_path):
-            relative = path[len(other_path) :]
+        if path.startswith(other_path_str):
+            relative = path[len(other_path_str) :]
             relative = relative.lstrip("/")
             return type(self)(relative)  # pyre-ignore[19]
 
@@ -397,15 +391,15 @@ class SmartPath:
             ):
                 return False
 
-        stat = self.stat()
+        stat_result = await self.stat()
         if hasattr(other_path, "stat"):
-            other_path_stat = other_path.stat()
+            other_path_stat = await other_path.stat()
         else:
-            other_path_stat = self.from_path(other_path).stat()
+            other_path_stat = await self.from_path(other_path).stat()
 
         return (
-            stat.st_ino == other_path_stat.st_ino
-            and stat.st_dev == other_path_stat.st_dev
+            stat_result.st_ino == other_path_stat.st_ino
+            and stat_result.st_dev == other_path_stat.st_dev
         )
 
     async def touch(self):
@@ -442,7 +436,7 @@ class SmartPath:
 
     @cached_property
     def root(self) -> str:
-        return self.protocol + "://"
+        return self.protocol.protocol_name + "://"
 
     @cached_property
     def anchor(self) -> str:
@@ -521,7 +515,10 @@ class SmartPath:
 
     async def listdir(self) -> T.List[str]:
         """Return the names of the entries in the directory the path points to."""
-        return list(await self.iterdir())
+        result = []
+        async for item in self.iterdir():
+            result.append(str(item))
+        return result
 
     async def stat(self, follow_symlinks=True) -> StatResult:
         """Get the status of the path."""
@@ -564,33 +561,51 @@ class SmartPath:
         """Remove (delete) the directory."""
         return await self.protocol.rmdir()
 
-    async def open(self, mode: str = "r", **kwargs) -> T.IO:
+    async def open(
+        self,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
+        closefd: bool = True,
+    ) -> T.IO:
         """Open the file with mode."""
-        return await self.protocol.open(mode=mode, **kwargs)
+        return await self.protocol.open(
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            closefd=closefd,
+        )
 
     async def walk(
         self, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree."""
-        return await self.protocol.walk(followlinks=followlinks)
+        async for item in self.protocol.walk(followlinks=followlinks):
+            yield item
 
     async def glob(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern."""
-        return list(
-            await self.iglob(
-                pattern=pattern, recursive=recursive, missing_ok=missing_ok
-            )
-        )
+        result = []
+        async for item in self.iglob(
+            pattern=pattern, recursive=recursive, missing_ok=missing_ok
+        ):
+            result.append(item)
+        return result
 
     async def iglob(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern."""
-        return await self.protocol.iglob(
+        async for path_str in self.protocol.iglob(
             pattern=pattern, recursive=recursive, missing_ok=missing_ok
-        )
+        ):
+            yield self.from_path(path_str)
 
     async def chmod(self, mode: int, *, follow_symlinks: bool = True):
         raise NotImplementedError(f"'chmod' is unsupported on '{type(self)}'")
@@ -611,7 +626,10 @@ class SmartPath:
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
         """
-        return await self.protocol.rename(dst_path=dst_path, overwrite=overwrite)
+        result = await self.protocol.rename(
+            dst_path=fspath(dst_path), overwrite=overwrite
+        )
+        return self.from_path(result)
 
     async def replace(
         self, dst_path: T.Union[str, "SmartPath", os.PathLike], overwrite: bool = True
@@ -644,7 +662,8 @@ class SmartPath:
         """
         Return a new path representing the symbolic link's target.
         """
-        return await self.protocol.readlink()
+        result = await self.protocol.readlink()
+        return self.from_path(result)
 
     async def hardlink_to(self, target):
         """
@@ -688,7 +707,8 @@ class SmartPath:
 
         :returns: All contents have in the path in ascending alphabetical order
         """
-        return await self.protocol.iterdir()
+        async for path_str in self.protocol.iterdir():
+            yield self.from_path(path_str)
 
     async def owner(self) -> str:
         """
@@ -701,7 +721,8 @@ class SmartPath:
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
         """
-        return await self.protocol.absolute()
+        result = await self.protocol.absolute()
+        return self.from_path(result)
 
     async def full_match(self, pattern, *, case_sensitive=None):
         """
