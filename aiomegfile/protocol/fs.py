@@ -16,7 +16,7 @@ class FSProtocol(BaseProtocol):
     Protocol for local filesystem operations.
     """
 
-    profile_name = "file"
+    protocol_name = "file"
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""

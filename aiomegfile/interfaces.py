@@ -171,7 +171,7 @@ PROTOCOLS = {}
 
 
 class BaseProtocol:
-    profile_name = ""
+    protocol_name = ""
 
     def __init__(
         self,
@@ -182,11 +182,11 @@ class BaseProtocol:
         self.profile_name = profile_name
 
     def __init_subclass__(cls):
-        if not cls.profile_name:
+        if not cls.protocol_name:
             raise ValueError(
                 f"Subclasses({cls.__name__}) of BaseProtocol must define a profile_name"
             )
-        PROTOCOLS[cls.profile_name] = cls
+        PROTOCOLS[cls.protocol_name] = cls
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""

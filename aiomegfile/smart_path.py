@@ -46,7 +46,7 @@ class URIPathParents(Sequence):
 class SmartPath:
     def __init__(self, path: T.Union[str, "SmartPath", os.PathLike]):
         if isinstance(path, SmartPath):
-            self.path = path._path
+            self.path = path.path
         else:
             self.path = fspath(path)
         self.protocol = self._create_protocol(self.path)
@@ -98,12 +98,12 @@ class SmartPath:
         return hash(fspath(self))
 
     def __eq__(self, other_path: "SmartPath") -> bool:
-        return self.protocol == other_path._protocol
+        return self.protocol == other_path.protocol
 
     def __lt__(self, other_path: "SmartPath") -> bool:
         if not isinstance(other_path, SmartPath):
             raise TypeError("%r is not 'SmartPath'" % other_path)
-        if self.protocol.protocol_name != other_path._protocol.protocol_name:
+        if self.protocol.protocol_name != other_path.protocol.protocol_name:
             raise TypeError(
                 "'<' not supported between instances of %r and %r"
                 % (type(self), type(other_path))
@@ -159,7 +159,7 @@ class SmartPath:
     def path_with_protocol(self) -> str:
         """Return path with protocol, like file:///root, s3://bucket/key"""
         path = self.path
-        protocol_prefix = self.protocol + "://"
+        protocol_prefix = self.protocol.protocol_name + "://"
         if path.startswith(protocol_prefix):
             return path
         return protocol_prefix + path.lstrip("/")
@@ -171,7 +171,7 @@ class SmartPath:
         return bucket/key
         """
         path = self.path
-        protocol_prefix = self.protocol + "://"
+        protocol_prefix = self.protocol.protocol_name + "://"
         if path.startswith(protocol_prefix):
             path = path[len(protocol_prefix) :]
         return path
@@ -456,7 +456,7 @@ class SmartPath:
         with each of the other arguments in turn
         """
         if len(other_paths) == 0:
-            return self.path
+            return self
 
         first_path = self.path
         if first_path.endswith("/"):
