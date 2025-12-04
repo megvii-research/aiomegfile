@@ -50,10 +50,9 @@ class FSProtocol(BaseProtocol):
 
     async def stat(self, follow_symlinks: bool = True) -> StatResult:
         """Get the status of the path."""
-        if follow_symlinks:
-            stat_result = await aiofiles.os.stat(self.path_without_protocol)
-        else:
-            stat_result = await asyncio.to_thread(os.lstat, self.path_without_protocol)
+        stat_result = await aiofiles.os.stat(
+            self.path_without_protocol, follow_symlinks=follow_symlinks
+        )
 
         return StatResult(
             size=stat_result.st_size,
@@ -129,10 +128,9 @@ class FSProtocol(BaseProtocol):
 
     async def chmod(self, mode: int, *, follow_symlinks: bool = True):
         """Change the access permissions of a file."""
-        if follow_symlinks:
-            await asyncio.to_thread(os.chmod, self.path_without_protocol, mode)
-        else:
-            await asyncio.to_thread(os.lchmod, self.path_without_protocol, mode)
+        await asyncio.to_thread(
+            os.chmod, self.path_without_protocol, mode, follow_symlinks=follow_symlinks
+        )
 
     async def rename(self, dst_path: str, overwrite: bool = True) -> str:
         """
