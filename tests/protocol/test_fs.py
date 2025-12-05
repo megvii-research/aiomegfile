@@ -1,15 +1,15 @@
-"""Tests for FSProtocol."""
+"""Tests for LocalFileSystem."""
 
 import os
 import tempfile
 
 import pytest
 
-from aiomegfile.protocol.fs import FSProtocol
+from aiomegfile.filesystem.local import LocalFileSystem
 
 
-class TestFSProtocol:
-    """Test cases for FSProtocol."""
+class TestLocalFileSystem:
+    """Test cases for LocalFileSystem."""
 
     @pytest.fixture
     def temp_dir(self):
@@ -25,9 +25,9 @@ class TestFSProtocol:
             f.write("Hello, World!")
         return file_path
 
-    def _create_protocol(self, path: str) -> FSProtocol:
-        """Create a FSProtocol instance for testing."""
-        return FSProtocol(path_without_protocol=path)
+    def _create_protocol(self, path: str) -> LocalFileSystem:
+        """Create a LocalFileSystem instance for testing."""
+        return LocalFileSystem(path_without_protocol=path)
 
     @pytest.mark.asyncio
     async def test_exists_file(self, temp_file):

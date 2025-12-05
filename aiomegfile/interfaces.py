@@ -167,11 +167,11 @@ class StatResult(T.NamedTuple):
         return 0
 
 
-PROTOCOLS = {}
+FILE_SYSTEMS = {}
 
 
-class BaseProtocol:
-    protocol_name = ""
+class BaseFileSystem:
+    protocol = ""
 
     def __init__(
         self,
@@ -182,11 +182,17 @@ class BaseProtocol:
         self.profile_name = profile_name
 
     def __init_subclass__(cls):
-        if not cls.protocol_name:
+        if not cls.protocol:
             raise ValueError(
-                f"Subclasses({cls.__name__}) of BaseProtocol must define a profile_name"
+                f"Subclasses({cls.__name__}) of "
+                "BaseFileSystem must define a profile_name"
             )
-        PROTOCOLS[cls.protocol_name] = cls
+        if cls.protocol in FILE_SYSTEMS:
+            raise ValueError(
+                f"File system protocol '{cls.protocol}' "
+                f"already registered by {FILE_SYSTEMS[cls.protocol]!r}"
+            )
+        FILE_SYSTEMS[cls.protocol] = cls
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""
@@ -284,9 +290,9 @@ class BaseProtocol:
         """
         raise NotImplementedError(f"'absolute' is unsupported on '{type(self)}'")
 
-    def __eq__(self, other: "BaseProtocol") -> bool:
+    def __eq__(self, other: "BaseFileSystem") -> bool:
         return (
-            self.protocol_name == other.protocol_name
+            self.protocol == other.protocol
             and self.profile_name == other.profile_name
             and self.path_without_protocol == other.path_without_protocol
         )
