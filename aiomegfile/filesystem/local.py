@@ -8,15 +8,15 @@ import aiofiles
 import aiofiles.os
 import aiofiles.ospath
 
-from aiomegfile.interfaces import BaseProtocol, StatResult
+from aiomegfile.interfaces import BaseFileSystem, StatResult
 
 
-class FSProtocol(BaseProtocol):
+class LocalFileSystem(BaseFileSystem):
     """
     Protocol for local filesystem operations.
     """
 
-    protocol_name = "file"
+    protocol = "file"
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""
@@ -175,8 +175,8 @@ class FSProtocol(BaseProtocol):
         """
         return os.path.abspath(self.path_without_protocol)
 
-    def __eq__(self, other: BaseProtocol) -> bool:
+    def __eq__(self, other: BaseFileSystem) -> bool:
         """Return True if the path points to the same file as other_path."""
-        if other.protocol_name != self.protocol_name:
+        if other.protocol != self.protocol:
             return False
         return os.path.samefile(self.path_without_protocol, other.path_without_protocol)

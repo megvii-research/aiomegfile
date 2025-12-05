@@ -120,9 +120,6 @@ disable = [
 # Don't report errors.
 report_errors = true
 
-# Experimental: solve unknown types to label with structural types.
-protocols = false
-
 # Experimental: Only load submodules that are explicitly imported.
 strict_import = false
 

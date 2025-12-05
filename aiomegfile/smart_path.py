@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from functools import cached_property
 
 from aiomegfile.errors import ProtocolNotFoundError
-from aiomegfile.interfaces import PROTOCOLS, BaseProtocol, StatResult
+from aiomegfile.interfaces import FILE_SYSTEMS, BaseFileSystem, StatResult
 from aiomegfile.lib.fnmatch import _compile_pattern
 
 
@@ -21,7 +21,7 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.protocol.protocol_name + "://":
+        if len(parts) > 0 and parts[0] == path.protocol.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -50,34 +50,30 @@ class SmartPath:
             self.path = path.path
         else:
             self.path = fspath(path)
-        self.protocol = self._create_protocol(self.path)
+        self.filesystem = self._create_filesystem(self.path)
 
     @classmethod
     def _split_path(cls, path: str) -> T.Tuple[str, T.Optional[str], str]:
         if isinstance(path, str):
             if "://" in path:
-                protocol_name, path_without_protocol = path.split("://", 1)
+                protocol, path_without_protocol = path.split("://", 1)
             else:
-                protocol_name = "file"
+                protocol = "file"
                 path_without_protocol = path
-            if "+" in protocol_name:
-                protocol_name, profile_name = protocol_name.split("+", 1)
+            if "+" in protocol:
+                protocol, profile_name = protocol.split("+", 1)
             else:
                 profile_name = None
-            return protocol_name, profile_name, path_without_protocol
+            return protocol, profile_name, path_without_protocol
         raise ProtocolNotFoundError("protocol not found: %r" % path)
 
     @classmethod
-    def _create_protocol(cls, path: str) -> BaseProtocol:
-        protocol_name, profile_name, path_without_protocol = cls._split_path(path)
-        if protocol_name.startswith("s3+"):
-            protocol_name = "s3"
+    def _create_filesystem(cls, path: str) -> BaseFileSystem:
+        protocol, profile_name, path_without_protocol = cls._split_path(path)
 
-        if protocol_name not in PROTOCOLS:
-            raise ProtocolNotFoundError(
-                "protocol %r not found: %r" % (protocol_name, path)
-            )
-        path_class = PROTOCOLS[protocol_name]
+        if protocol not in FILE_SYSTEMS:
+            raise ProtocolNotFoundError("protocol %r not found: %r" % (protocol, path))
+        path_class = FILE_SYSTEMS[protocol]
         return path_class(
             path_without_protocol,
             profile_name,
@@ -101,12 +97,12 @@ class SmartPath:
     def __eq__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         if isinstance(other_path, str):
             other_path = self.from_path(other_path)
-        return self.protocol == other_path.protocol
+        return self.filesystem == other_path.filesystem
 
     def __lt__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         if isinstance(other_path, str):
             other_path = self.from_path(other_path)
-        if self.protocol.protocol_name != other_path.protocol.protocol_name:
+        if self.filesystem.protocol != other_path.filesystem.protocol:
             raise TypeError(
                 "'<' not supported between instances of %r and %r"
                 % (type(self), type(other_path))
@@ -116,7 +112,7 @@ class SmartPath:
     def __le__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         if isinstance(other_path, str):
             other_path = self.from_path(other_path)
-        if self.protocol.protocol_name != other_path.protocol.protocol_name:
+        if self.filesystem.protocol != other_path.filesystem.protocol:
             raise TypeError(
                 "'<=' not supported between instances of %r and %r"
                 % (type(self), type(other_path))
@@ -126,7 +122,7 @@ class SmartPath:
     def __gt__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         if isinstance(other_path, str):
             other_path = self.from_path(other_path)
-        if self.protocol.protocol_name != other_path.protocol.protocol_name:
+        if self.filesystem.protocol != other_path.filesystem.protocol:
             raise TypeError(
                 "'>' not supported between instances of %r and %r"
                 % (type(self), type(other_path))
@@ -136,7 +132,7 @@ class SmartPath:
     def __ge__(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         if isinstance(other_path, str):
             other_path = self.from_path(other_path)
-        if self.protocol.protocol_name != other_path.protocol.protocol_name:
+        if self.filesystem.protocol != other_path.filesystem.protocol:
             raise TypeError(
                 ">= not supported between instances of %r and %r"
                 % (type(self), type(other_path))
@@ -147,7 +143,7 @@ class SmartPath:
         self, other_path: T.Union["SmartPath", os.PathLike, str]
     ) -> "SmartPath":
         if isinstance(other_path, SmartPath):
-            if self.protocol.protocol_name != other_path.protocol.protocol_name:
+            if self.filesystem.protocol != other_path.filesystem.protocol:
                 raise TypeError(
                     "'/' not supported between instances of %r and %r"
                     % (type(self), type(other_path))
@@ -162,7 +158,7 @@ class SmartPath:
     def path_with_protocol(self) -> str:
         """Return path with protocol, like file:///root, s3://bucket/key"""
         path = self.path
-        protocol_prefix = self.protocol.protocol_name + "://"
+        protocol_prefix = self.filesystem.protocol + "://"
         if path.startswith(protocol_prefix):
             return path
         return protocol_prefix + path.lstrip("/")
@@ -174,7 +170,7 @@ class SmartPath:
         return bucket/key
         """
         path = self.path
-        protocol_prefix = self.protocol.protocol_name + "://"
+        protocol_prefix = self.filesystem.protocol + "://"
         if path.startswith(protocol_prefix):
             path = path[len(protocol_prefix) :]
         return path
@@ -207,7 +203,7 @@ class SmartPath:
         A string representing the final path component, excluding the drive and root
         """
         parts = self.parts
-        if len(parts) == 1 and parts[0] == self.protocol.protocol_name + "://":
+        if len(parts) == 1 and parts[0] == self.filesystem.protocol + "://":
             return ""
         return parts[-1]
 
@@ -368,7 +364,7 @@ class SmartPath:
 
     @cached_property
     def root(self) -> str:
-        return self.protocol.protocol_name + "://"
+        return self.filesystem.protocol + "://"
 
     @cached_property
     def anchor(self) -> str:
@@ -432,19 +428,19 @@ class SmartPath:
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""
-        return await self.protocol.is_dir(followlinks=followlinks)
+        return await self.filesystem.is_dir(followlinks=followlinks)
 
     async def is_file(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file."""
-        return await self.protocol.is_file(followlinks=followlinks)
+        return await self.filesystem.is_file(followlinks=followlinks)
 
     async def is_symlink(self) -> bool:
         """Return True if the path points to a symbolic link."""
-        return await self.protocol.is_symlink()
+        return await self.filesystem.is_symlink()
 
     async def exists(self, followlinks: bool = False) -> bool:
         """Whether the path points to an existing file or directory."""
-        return await self.protocol.exists(followlinks=followlinks)
+        return await self.filesystem.exists(followlinks=followlinks)
 
     async def listdir(self) -> T.List[str]:
         """Return the names of the entries in the directory the path points to."""
@@ -455,7 +451,7 @@ class SmartPath:
 
     async def stat(self, follow_symlinks=True) -> StatResult:
         """Get the status of the path."""
-        return await self.protocol.stat(follow_symlinks=follow_symlinks)
+        return await self.filesystem.stat(follow_symlinks=follow_symlinks)
 
     async def lstat(self) -> StatResult:
         """
@@ -478,25 +474,27 @@ class SmartPath:
 
     async def remove(self, missing_ok: bool = False) -> None:
         """Remove (delete) the file."""
-        return await self.protocol.remove(missing_ok=missing_ok)
+        return await self.filesystem.remove(missing_ok=missing_ok)
 
     async def unlink(self, missing_ok: bool = False) -> None:
         """Remove (delete) the file."""
-        if not await self.protocol.is_file():
+        if not await self.filesystem.is_file():
             raise IsADirectoryError(f"Is a directory: {self.path_with_protocol}")
-        return await self.protocol.remove(missing_ok=missing_ok)
+        return await self.filesystem.remove(missing_ok=missing_ok)
 
     async def mkdir(
         self, mode=0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
         """Create a directory."""
-        return await self.protocol.mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
+        return await self.filesystem.mkdir(
+            mode=mode, parents=parents, exist_ok=exist_ok
+        )
 
     async def rmdir(self) -> None:
         """Remove (delete) the directory."""
-        if not await self.protocol.is_dir():
+        if not await self.filesystem.is_dir():
             raise NotADirectoryError(f"Not a directory: {self.path_with_protocol}")
-        return await self.protocol.remove()
+        return await self.filesystem.remove()
 
     def open(
         self,
@@ -508,7 +506,7 @@ class SmartPath:
         closefd: bool = True,
     ) -> T.AsyncContextManager:
         """Open the file with mode."""
-        return self.protocol.open(
+        return self.filesystem.open(
             mode=mode,
             buffering=buffering,
             encoding=encoding,
@@ -521,7 +519,7 @@ class SmartPath:
         self, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree."""
-        async for item in self.protocol.walk(followlinks=followlinks):
+        async for item in self.filesystem.walk(followlinks=followlinks):
             yield item
 
     async def glob(
@@ -539,13 +537,13 @@ class SmartPath:
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern."""
-        async for path_str in self.protocol.iglob(
+        async for path_str in self.filesystem.iglob(
             pattern=pattern, recursive=recursive, missing_ok=missing_ok
         ):
             yield self.from_path(path_str)
 
     async def chmod(self, mode: int, *, follow_symlinks: bool = True):
-        if self.protocol.protocol_name == "file":
+        if self.filesystem.protocol == "file":
             return await asyncio.to_thread(
                 os.chmod,
                 self.path_without_protocol,
@@ -553,7 +551,7 @@ class SmartPath:
                 follow_symlinks=follow_symlinks,
             )
         raise NotImplementedError(
-            f"'chmod' is unsupported on '{self.protocol.protocol_name}' protocol"
+            f"'chmod' is unsupported on '{self.filesystem.protocol}' protocol"
         )
 
     async def lchmod(self, mode: int):
@@ -603,7 +601,7 @@ class SmartPath:
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
         """
-        result = await self.protocol.rename(
+        result = await self.filesystem.rename(
             dst_path=fspath(dst_path), overwrite=overwrite
         )
         return self.from_path(result)
@@ -625,7 +623,7 @@ class SmartPath:
         :param dst_path: Given destination path
         :type dst_path: T.Union[str, SmartPath, os.PathLike]
         """
-        return await self.protocol.symlink(dst_path=dst_path)
+        return await self.filesystem.symlink(dst_path=dst_path)
 
     async def symlink_to(self, target, target_is_directory=False):
         """
@@ -639,17 +637,17 @@ class SmartPath:
         """
         Return a new path representing the symbolic link's target.
         """
-        result = await self.protocol.readlink()
+        result = await self.filesystem.readlink()
         return self.from_path(result)
 
     async def hardlink_to(self, target):
         """
         Make this path a hard link to the same file as target.
         """
-        if self.protocol.protocol_name == "file":
+        if self.filesystem.protocol == "file":
             return await asyncio.to_thread(os.link, self.path_without_protocol, target)
         raise NotImplementedError(
-            f"'hardlink_to' is unsupported on '{self.protocol.protocol_name}' protocol"
+            f"'hardlink_to' is unsupported on '{self.filesystem.protocol}' protocol"
         )
 
     async def expanduser(self):
@@ -659,13 +657,13 @@ class SmartPath:
 
         Only fs path support this method.
         """
-        if self.protocol.protocol_name == "file":
+        if self.filesystem.protocol == "file":
             path = await asyncio.to_thread(
                 os.path.expanduser, self.path_without_protocol
             )
             return self.from_path(path)
         raise NotImplementedError(
-            f"'expanduser' is unsupported on '{self.protocol.protocol_name}' protocol"
+            f"'expanduser' is unsupported on '{self.filesystem.protocol}' protocol"
         )
 
     async def cwd(self) -> "SmartPath":
@@ -682,7 +680,7 @@ class SmartPath:
 
         :returns: All contents have in the path in ascending alphabetical order
         """
-        async for path_str in self.protocol.iterdir():
+        async for path_str in self.filesystem.iterdir():
             yield self.from_path(path_str)
 
     async def absolute(self) -> "SmartPath":
@@ -690,7 +688,7 @@ class SmartPath:
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
         """
-        result = await self.protocol.absolute()
+        result = await self.filesystem.absolute()
         return self.from_path(result)
 
     async def full_match(self, pattern, *, case_sensitive=None):
