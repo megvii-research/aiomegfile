@@ -71,6 +71,10 @@ class LocalFileSystem(BaseFileSystem):
             if not missing_ok:
                 raise
 
+    async def rmdir(self) -> None:
+        """Remove (delete) the directory."""
+        await aiofiles.os.rmdir(self.path_without_protocol)
+
     async def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:

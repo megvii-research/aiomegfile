@@ -127,3 +127,7 @@ strict_import = false
 exclude_lines = [
     "pragma: no cover"
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

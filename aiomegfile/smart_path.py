@@ -21,7 +21,11 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.protocol.protocol + "://":
+        # path is a SmartPath instance. its filesystem stores the protocol
+        # (e.g. 'file', 's3') as `path.filesystem.protocol`.
+        # Previously this tried to access `path.protocol.protocol` which does
+        # not exist on SmartPath and raised AttributeError in some scenarios.
+        if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -161,7 +165,7 @@ class SmartPath:
         protocol_prefix = self.filesystem.protocol + "://"
         if path.startswith(protocol_prefix):
             return path
-        return protocol_prefix + path.lstrip("/")
+        return protocol_prefix + path
 
     @cached_property
     def path_without_protocol(self) -> str:
@@ -494,7 +498,7 @@ class SmartPath:
         """Remove (delete) the directory."""
         if not await self.filesystem.is_dir():
             raise NotADirectoryError(f"Not a directory: {self.path_with_protocol}")
-        return await self.filesystem.remove()
+        return await self.filesystem.rmdir()
 
     def open(
         self,

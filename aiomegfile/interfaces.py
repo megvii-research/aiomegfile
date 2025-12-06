@@ -214,6 +214,10 @@ class BaseFileSystem:
         """Remove (delete) the file."""
         raise NotImplementedError('method "remove" not implemented: %r' % self)
 
+    async def rmdir(self) -> None:
+        """Remove (delete) the directory."""
+        raise NotImplementedError('method "rmdir" not implemented: %r' % self)
+
     async def mkdir(
         self, mode=0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
