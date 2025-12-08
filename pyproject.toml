@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
+    "aiobotocore>=2.26.0",
     "aiofiles",
 ]
 
@@ -134,3 +135,8 @@ exclude_lines = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "types-aiobotocore[essential]>=2.26.0.post2",
+]
