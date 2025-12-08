@@ -23,7 +23,7 @@ class URIPathParents(Sequence):
         parts = path.parts
         # path is a SmartPath instance. its filesystem stores the protocol
         # (e.g. 'file', 's3') as `path.filesystem.protocol`.
-        # Previously this tried to access `path.protocol.protocol` which does
+        # Previously this tried to access `path.filesystem.protocol` which does
         # not exist on SmartPath and raised AttributeError in some scenarios.
         if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
             self.prefix = parts[0]
