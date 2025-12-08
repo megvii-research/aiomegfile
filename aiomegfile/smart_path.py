@@ -156,7 +156,7 @@ class SmartPath:
             other_path = fspath(other_path)
         elif not isinstance(other_path, str):
             raise TypeError("%r is not 'PathLike' object" % other_path)
-        return asyncio.get_event_loop().run_until_complete(self.joinpath(other_path))
+        return self.joinpath(other_path)
 
     @cached_property
     def path_with_protocol(self) -> str:
@@ -255,7 +255,7 @@ class SmartPath:
 
         other_path = self.from_path(other[0])
         if len(other) > 1:
-            other_path = await other_path.joinpath(*other[1:])
+            other_path = other_path.joinpath(*other[1:])
         other_path_str = other_path.path_with_protocol
         path = self.path_with_protocol
 
@@ -374,7 +374,7 @@ class SmartPath:
     def anchor(self) -> str:
         return self.root
 
-    async def joinpath(
+    def joinpath(
         self, *other_paths: T.Union[str, "SmartPath", os.PathLike]
     ) -> "SmartPath":
         """
@@ -592,7 +592,7 @@ class SmartPath:
         :param dst_path: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
         """
-        dst_path = await self.from_path(dst_path).joinpath(self.name)
+        dst_path = self.from_path(dst_path).joinpath(self.name)
         await self.copy(dst_path=dst_path, follow_symlinks=follow_symlinks)
         return dst_path
 

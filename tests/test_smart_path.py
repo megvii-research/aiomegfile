@@ -251,17 +251,17 @@ class TestSmartPathAsync:
 
     async def test_joinpath(self):
         p = SmartPath("file:///bucket/dir")
-        joined = await p.joinpath("sub", "file.txt")
+        joined = p.joinpath("sub", "file.txt")
         assert str(joined) == "file:///bucket/dir/sub/file.txt"
 
     async def test_joinpath_empty(self):
         p = SmartPath("file:///bucket/dir")
-        joined = await p.joinpath()
+        joined = p.joinpath()
         assert str(joined) == str(p)
 
     async def test_joinpath_with_leading_slash(self):
         p = SmartPath("file:///bucket/dir")
-        joined = await p.joinpath("/sub/", "/file.txt")
+        joined = p.joinpath("/sub/", "/file.txt")
         assert "sub" in str(joined)
         assert "file.txt" in str(joined)
 

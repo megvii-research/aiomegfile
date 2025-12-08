@@ -124,7 +124,7 @@ class LocalFileSystem(BaseFileSystem):
     ) -> T.AsyncIterator[str]:
         """Return an iterator of files whose paths match the glob pattern."""
 
-        # FIXME: support more glob features like [] and {}
+        # TODO: support more glob features like [] and {}
         for path in glob.iglob(
             os.path.join(self.path_without_protocol, pattern), recursive=recursive
         ):
