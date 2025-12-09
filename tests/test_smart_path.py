@@ -679,33 +679,6 @@ class TestSmartPathTrueDiv:
             p / 123
 
 
-class TestSmartPathCopyNotImplemented:
-    """Tests for copy methods that are not implemented."""
-
-    @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
-
-    async def test_copy_not_implemented(self, temp_dir):
-        test_file = os.path.join(temp_dir, "src.txt")
-        with open(test_file, "w") as f:
-            f.write("test")
-
-        p = SmartPath(test_file)
-        with pytest.raises(NotImplementedError):
-            await p.copy(os.path.join(temp_dir, "dst.txt"))
-
-    async def test_copy_into_not_implemented(self, temp_dir):
-        test_file = os.path.join(temp_dir, "src.txt")
-        with open(test_file, "w") as f:
-            f.write("test")
-
-        p = SmartPath(test_file)
-        with pytest.raises(NotImplementedError):
-            await p.copy_into(temp_dir)
-
-
 class TestSmartPathFromMethods:
     """Tests for from_path and from_uri class methods."""
 
