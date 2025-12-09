@@ -116,44 +116,44 @@ class TestLocalFileSystem:
         # Should not raise
         await protocol.mkdir(exist_ok=True)
 
-    async def test_remove(self, temp_file):
-        """Test remove method."""
+    async def test_unlink(self, temp_file):
+        """Test unlink method."""
         protocol = self._create_protocol(temp_file)
-        await protocol.remove()
+        await protocol.unlink()
         assert not os.path.exists(temp_file)
 
-    async def test_remove_missing_ok(self, temp_dir):
-        """Test remove method with missing_ok=True."""
+    async def test_unlink_missing_ok(self, temp_dir):
+        """Test unlink method with missing_ok=True."""
         file_path = os.path.join(temp_dir, "not_exist")
         protocol = self._create_protocol(file_path)
         # Should not raise
-        await protocol.remove(missing_ok=True)
+        await protocol.unlink(missing_ok=True)
 
-    async def test_remove_missing_raises(self, temp_dir):
-        """Test remove method raises FileNotFoundError."""
+    async def test_unlink_missing_raises(self, temp_dir):
+        """Test unlink method raises FileNotFoundError."""
         file_path = os.path.join(temp_dir, "not_exist")
         protocol = self._create_protocol(file_path)
         with pytest.raises(FileNotFoundError):
-            await protocol.remove(missing_ok=False)
+            await protocol.unlink(missing_ok=False)
 
-    async def test_rename(self, temp_file, temp_dir):
-        """Test rename method."""
-        dst_path = os.path.join(temp_dir, "renamed_file.txt")
+    async def test_move(self, temp_file, temp_dir):
+        """Test move method."""
+        dst_path = os.path.join(temp_dir, "moved_file.txt")
         protocol = self._create_protocol(temp_file)
-        result = await protocol.rename(dst_path)
+        result = await protocol.move(dst_path)
         assert result == dst_path
         assert os.path.exists(dst_path)
         assert not os.path.exists(temp_file)
 
-    async def test_rename_no_overwrite(self, temp_file, temp_dir):
-        """Test rename method with overwrite=False."""
+    async def test_move_no_overwrite(self, temp_file, temp_dir):
+        """Test move method with overwrite=False."""
         dst_path = os.path.join(temp_dir, "existing_file.txt")
         with open(dst_path, "w") as f:
             f.write("existing")
 
         protocol = self._create_protocol(temp_file)
         with pytest.raises(FileExistsError):
-            await protocol.rename(dst_path, overwrite=False)
+            await protocol.move(dst_path, overwrite=False)
 
     async def test_symlink_and_readlink(self, temp_file, temp_dir):
         """Test symlink and readlink methods."""

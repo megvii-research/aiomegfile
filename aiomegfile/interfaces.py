@@ -210,9 +210,9 @@ class BaseFileSystem:
         """Get the status of the path."""
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
-    async def remove(self, missing_ok: bool = False) -> None:
+    async def unlink(self, missing_ok: bool = False) -> None:
         """Remove (delete) the file."""
-        raise NotImplementedError('method "remove" not implemented: %r' % self)
+        raise NotImplementedError('method "unlink" not implemented: %r' % self)
 
     async def rmdir(self) -> None:
         """Remove (delete) the directory."""
@@ -253,14 +253,14 @@ class BaseFileSystem:
     async def chmod(self, mode: int, *, follow_symlinks: bool = True):
         raise NotImplementedError(f"'chmod' is unsupported on '{type(self)}'")
 
-    async def rename(self, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, dst_path: str, overwrite: bool = True) -> str:
         """
-        rename file
+        move file
 
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
         """
-        raise NotImplementedError(f"'rename' is unsupported on '{type(self)}'")
+        raise NotImplementedError(f"'move' is unsupported on '{type(self)}'")
 
     async def symlink(self, dst_path: str) -> None:
         raise NotImplementedError(f"'symlink' is unsupported on '{type(self)}'")

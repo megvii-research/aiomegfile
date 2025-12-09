@@ -63,10 +63,10 @@ class LocalFileSystem(BaseFileSystem):
             extra=stat_result,
         )
 
-    async def remove(self, missing_ok: bool = False) -> None:
+    async def unlink(self, missing_ok: bool = False) -> None:
         """Remove (delete) the file."""
         try:
-            await aiofiles.os.remove(self.path_without_protocol)
+            await aiofiles.os.unlink(self.path_without_protocol)
         except FileNotFoundError:
             if not missing_ok:
                 raise
@@ -136,9 +136,9 @@ class LocalFileSystem(BaseFileSystem):
             os.chmod, self.path_without_protocol, mode, follow_symlinks=follow_symlinks
         )
 
-    async def rename(self, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, dst_path: str, overwrite: bool = True) -> str:
         """
-        Rename file.
+        Move file.
 
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists

@@ -251,17 +251,17 @@ class TestSmartPathAsync:
 
     async def test_joinpath(self):
         p = SmartPath("file:///bucket/dir")
-        joined = p.joinpath("sub", "file.txt")
+        joined = await p.joinpath("sub", "file.txt")
         assert str(joined) == "file:///bucket/dir/sub/file.txt"
 
     async def test_joinpath_empty(self):
         p = SmartPath("file:///bucket/dir")
-        joined = p.joinpath()
+        joined = await p.joinpath()
         assert str(joined) == str(p)
 
     async def test_joinpath_with_leading_slash(self):
         p = SmartPath("file:///bucket/dir")
-        joined = p.joinpath("/sub/", "/file.txt")
+        joined = await p.joinpath("/sub/", "/file.txt")
         assert "sub" in str(joined)
         assert "file.txt" in str(joined)
 
@@ -299,25 +299,6 @@ class TestSmartPathAsync:
         p = SmartPath("file:///bucket/dir/file.txt")
         new_p = await p.with_suffix(".md")
         assert str(new_p) == "file:///bucket/dir/file.md"
-
-    async def test_relpath(self):
-        p = SmartPath("file:///bucket/dir/sub/file.txt")
-        rel = await p.relpath("file:///bucket/dir")
-        assert rel == "sub/file.txt"
-
-    async def test_relpath_raises_without_start(self):
-        p = SmartPath("file:///bucket/dir/file.txt")
-        with pytest.raises(TypeError):
-            await p.relpath()
-
-    async def test_relpath_raises_on_not_relative(self):
-        p = SmartPath("file:///bucket/dir/file.txt")
-        with pytest.raises(ValueError):
-            await p.relpath("file:///other/path")
-
-    async def test_realpath(self):
-        p = SmartPath("file:///bucket/dir/file.txt")
-        assert await p.realpath() == p.path_with_protocol
 
     async def test_match(self):
         p = SmartPath("file:///bucket/dir/sub/file.txt")
@@ -384,12 +365,6 @@ class TestSmartPathFileOperations:
         await p.mkdir(parents=True)
         assert os.path.isdir(new_dir)
 
-    async def test_makedirs(self, temp_dir):
-        new_dir = os.path.join(temp_dir, "parent2", "child2")
-        p = SmartPath(new_dir)
-        await p.makedirs()
-        assert os.path.isdir(new_dir)
-
     async def test_touch(self, temp_dir):
         test_file = os.path.join(temp_dir, "touched.txt")
         p = SmartPath(test_file)
@@ -409,20 +384,6 @@ class TestSmartPathFileOperations:
         data = "hello world"
         await p.write_text(data)
         assert await p.read_text() == data
-
-    async def test_remove(self, temp_dir):
-        test_file = os.path.join(temp_dir, "to_remove.txt")
-        with open(test_file, "w") as f:
-            f.write("delete me")
-
-        p = SmartPath(test_file)
-        await p.remove()
-        assert not os.path.exists(test_file)
-
-    async def test_remove_missing_ok(self, temp_dir):
-        test_file = os.path.join(temp_dir, "not_exists.txt")
-        p = SmartPath(test_file)
-        await p.remove(missing_ok=True)  # Should not raise
 
     async def test_unlink(self, temp_dir):
         test_file = os.path.join(temp_dir, "to_unlink.txt")
@@ -483,16 +444,6 @@ class TestSmartPathFileOperations:
         items = []
         async for item in p.iterdir():
             items.append(item)
-        assert len(items) == 3
-
-    async def test_listdir(self, temp_dir):
-        # Create some test files
-        for i in range(3):
-            with open(os.path.join(temp_dir, f"file{i}.txt"), "w") as f:
-                f.write(f"content {i}")
-
-        p = SmartPath(temp_dir)
-        items = await p.listdir()
         assert len(items) == 3
 
     async def test_walk(self, temp_dir):
@@ -598,19 +549,6 @@ class TestSmartPathSymlinks:
         tmpdir.mkdir()
         return str(tmpdir)
 
-    async def test_symlink_and_is_symlink(self, temp_dir):
-        src_file = os.path.join(temp_dir, "src.txt")
-        link_file = os.path.join(temp_dir, "link.txt")
-
-        with open(src_file, "w") as f:
-            f.write("content")
-
-        p_src = SmartPath(src_file)
-        await p_src.symlink(link_file)
-
-        p_link = SmartPath(link_file)
-        assert await p_link.is_symlink()
-
     async def test_symlink_to(self, temp_dir):
         src_file = os.path.join(temp_dir, "src.txt")
         link_file = os.path.join(temp_dir, "link2.txt")
@@ -683,11 +621,6 @@ class TestSmartPathTrueDiv:
 
 class TestSmartPathFromMethods:
     """Tests for from_path and from_uri class methods."""
-
-    def test_from_path(self):
-        p = SmartPath.from_path("/tmp/test.txt")
-        assert isinstance(p, SmartPath)
-        assert str(p) == "/tmp/test.txt"
 
     def test_from_uri(self):
         p = SmartPath.from_uri("file:///tmp/test.txt")
