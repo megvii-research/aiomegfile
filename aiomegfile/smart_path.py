@@ -17,7 +17,7 @@ def fspath(path: T.Union[str, os.PathLike]) -> str:
 
 
 class URIPathParents(Sequence):
-    def __init__(self, path):
+    def __init__(self, path: "SmartPath"):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
@@ -28,10 +28,10 @@ class URIPathParents(Sequence):
             self.prefix = ""
             self.parts = parts
 
-    def __len__(self):
+    def __len__(self) -> int:
         return max(len(self.parts) - 1, 0)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> "SmartPath":
         if idx < 0 or idx > len(self):
             raise IndexError(idx)
 
@@ -216,14 +216,16 @@ class SmartPath:
             return name[:i]
         return name
 
-    async def is_relative_to(self, *other) -> bool:
+    async def is_relative_to(
+        self, other: T.Union[str, "SmartPath", os.PathLike]
+    ) -> bool:
         try:
-            await self.relative_to(*other)
+            await self.relative_to(other)
             return True
         except Exception:
             return False
 
-    async def relative_to(self, other: str) -> str:
+    async def relative_to(self, other: T.Union[str, "SmartPath", os.PathLike]) -> str:
         """
         Compute a version of this path relative to the path represented by other.
         If it's impossible, ValueError is raised.
@@ -257,7 +259,7 @@ class SmartPath:
         raw_suffix = self.suffix
         return self.from_uri(path[: len(path) - len(raw_suffix)] + suffix)
 
-    async def resolve(self, strict=False):
+    async def resolve(self, strict: bool = False) -> "SmartPath":
         """Alias of realpath."""
         path = self
         while await path.is_symlink():
@@ -291,7 +293,7 @@ class SmartPath:
         """
         return self == other_path
 
-    async def touch(self, exist_ok=True):
+    async def touch(self, exist_ok: bool = True) -> None:
         if await self.exists():
             if not exist_ok:
                 raise FileExistsError(f"File exists: {self.path}")
@@ -395,7 +397,9 @@ class SmartPath:
         """
         return await self.stat(follow_symlinks=False)
 
-    async def match(self, pattern: str, *, case_sensitive=None) -> bool:
+    async def match(
+        self, pattern: str, *, case_sensitive: T.Optional[bool] = None
+    ) -> bool:
         """
         Match this path against the provided glob-style pattern.
         Return True if matching is successful, False otherwise.
@@ -415,7 +419,7 @@ class SmartPath:
         return await self.filesystem.unlink(missing_ok=missing_ok)
 
     async def mkdir(
-        self, mode=0o777, parents: bool = False, exist_ok: bool = False
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
         """Create a directory."""
         return await self.filesystem.mkdir(
@@ -558,7 +562,7 @@ class SmartPath:
         await self.move(target=target)
         return target
 
-    async def symlink_to(self, target):
+    async def symlink_to(self, target: T.Union[str, "SmartPath", os.PathLike]) -> None:
         """
         Make this path a symbolic link to target.
         symlink_to's arguments is the reverse of symlink's.
@@ -572,7 +576,7 @@ class SmartPath:
         result = await self.filesystem.readlink()
         return self.from_uri(result)
 
-    async def hardlink_to(self, target):
+    async def hardlink_to(self, target: T.Union[str, "SmartPath", os.PathLike]) -> None:
         """
         Make this path a hard link to the same file as target.
         """
@@ -602,7 +606,9 @@ class SmartPath:
         result = await self.filesystem.absolute()
         return self.from_uri(result)
 
-    async def full_match(self, pattern, *, case_sensitive=None) -> bool:
+    async def full_match(
+        self, pattern: str, *, case_sensitive: T.Optional[bool] = None
+    ) -> bool:
         """
         Return a function that matches the entire path against the provided
         glob-style pattern.

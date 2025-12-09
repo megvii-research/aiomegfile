@@ -213,7 +213,7 @@ class BaseFileSystem:
         """Whether the path points to an existing file or directory."""
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
-    async def stat(self, follow_symlinks=True) -> StatResult:
+    async def stat(self, follow_symlinks: bool = True) -> StatResult:
         """Get the status of the path."""
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
@@ -226,7 +226,7 @@ class BaseFileSystem:
         raise NotImplementedError('method "rmdir" not implemented: %r' % self)
 
     async def mkdir(
-        self, mode=0o777, parents: bool = False, exist_ok: bool = False
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
         """Create a directory."""
         raise NotImplementedError('method "mkdir" not implemented: %r' % self)
