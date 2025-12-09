@@ -11,11 +11,11 @@ class TestLocalFileSystem:
     """Test cases for LocalFileSystem."""
 
     @pytest.fixture
-    def temp_dir(self, fs):
+    def temp_dir(self, tmp_path):
         """Create a temporary directory for testing."""
-        tmpdir = "/tmp/test_dir"
-        fs.create_dir(tmpdir)
-        yield tmpdir
+        tmpdir = tmp_path / "test_dir"
+        tmpdir.mkdir()
+        return str(tmpdir)
 
     @pytest.fixture
     def temp_file(self, temp_dir):

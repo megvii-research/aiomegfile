@@ -235,11 +235,11 @@ class TestSmartPathAsync:
     """Tests for async methods."""
 
     @pytest.fixture
-    def temp_dir(self, fs):
+    def temp_dir(self, tmp_path):
         """Create a temporary directory for testing."""
-        tmpdir = "/tmp/test_dir"
-        fs.create_dir(tmpdir)
-        yield tmpdir
+        tmpdir = tmp_path / "test_dir"
+        tmpdir.mkdir()
+        return str(tmpdir)
 
     async def test_as_uri(self):
         p = SmartPath("file:///bucket/dir/file.txt")
@@ -342,11 +342,11 @@ class TestSmartPathFileOperations:
     """Tests for file operations with real filesystem."""
 
     @pytest.fixture
-    def temp_dir(self, fs):
+    def temp_dir(self, tmp_path):
         """Create a temporary directory for testing."""
-        tmpdir = "/tmp/test_dir"
-        fs.create_dir(tmpdir)
-        yield tmpdir
+        tmpdir = tmp_path / "test_dir"
+        tmpdir.mkdir()
+        return str(tmpdir)
 
     async def test_exists(self, temp_dir):
         # Create a test file
@@ -592,11 +592,11 @@ class TestSmartPathSymlinks:
     """Tests for symlink operations."""
 
     @pytest.fixture
-    def temp_dir(self, fs):
+    def temp_dir(self, tmp_path):
         """Create a temporary directory for testing."""
-        tmpdir = "/tmp/test_dir"
-        fs.create_dir(tmpdir)
-        yield tmpdir
+        tmpdir = tmp_path / "test_dir"
+        tmpdir.mkdir()
+        return str(tmpdir)
 
     async def test_symlink_and_is_symlink(self, temp_dir):
         src_file = os.path.join(temp_dir, "src.txt")
@@ -715,10 +715,10 @@ class TestSmartPathHardlink:
     """Tests for hardlink operations."""
 
     @pytest.fixture
-    def temp_dir(self, fs):
-        tmpdir = "/tmp/test_dir"
-        fs.create_dir(tmpdir)
-        yield tmpdir
+    def temp_dir(self, tmp_path):
+        tmpdir = tmp_path / "test_dir"
+        tmpdir.mkdir()
+        return str(tmpdir)
 
     async def test_hardlink_to(self, temp_dir):
         src_file = os.path.join(temp_dir, "src.txt")
