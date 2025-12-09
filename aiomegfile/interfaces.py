@@ -1,5 +1,6 @@
 import stat
 import typing as T
+from functools import cached_property
 
 
 class StatResult(T.NamedTuple):
@@ -193,6 +194,12 @@ class BaseFileSystem:
                 f"already registered by {FILE_SYSTEMS[cls.protocol]!r}"
             )
         FILE_SYSTEMS[cls.protocol] = cls
+
+    @cached_property
+    def path_with_protocol(self) -> str:
+        """Return path with protocol, like file:///root, s3://bucket/key"""
+        protocol_prefix = self.protocol + "://"
+        return protocol_prefix + self.path_without_protocol
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory."""

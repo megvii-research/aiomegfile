@@ -57,20 +57,20 @@ class TestSmartPathProtocolParsing:
     def test_file_protocol_implicit(self):
         p = SmartPath("/tmp/test.txt")
         assert p.filesystem.protocol == "file"
-        assert p.path_without_protocol == "/tmp/test.txt"
+        assert p.filesystem.path_without_protocol == "/tmp/test.txt"
 
     def test_file_protocol_explicit(self):
         p = SmartPath("file:///tmp/test.txt")
         assert p.filesystem.protocol == "file"
-        assert p.path_without_protocol == "/tmp/test.txt"
+        assert p.filesystem.path_without_protocol == "/tmp/test.txt"
 
     def test_path_with_protocol(self):
         p = SmartPath("/bucket/dir/file.txt")
-        assert p.path_with_protocol == "file:///bucket/dir/file.txt"
+        assert p.filesystem.path_with_protocol == "file:///bucket/dir/file.txt"
 
     def test_path_with_protocol_already_has_protocol(self):
         p = SmartPath("file:///bucket/dir/file.txt")
-        assert p.path_with_protocol == "file:///bucket/dir/file.txt"
+        assert p.filesystem.path_with_protocol == "file:///bucket/dir/file.txt"
 
     def test_protocol_with_profile(self):
         # Test that profile_name is correctly parsed
@@ -514,30 +514,6 @@ class TestSmartPathFileOperations:
         abs_p = await p.absolute()
         assert os.path.isabs(str(abs_p))
 
-    async def test_cwd(self, temp_dir):
-        p = SmartPath(temp_dir)
-        cwd = await p.cwd()
-        assert os.path.isabs(str(cwd))
-
-    async def test_chmod(self, temp_dir):
-        test_file = os.path.join(temp_dir, "chmod.txt")
-        with open(test_file, "w") as f:
-            f.write("test")
-
-        p = SmartPath(test_file)
-        await p.chmod(0o644)
-        # Verify mode was set (basic check)
-        stat_result = os.stat(test_file)
-        assert stat_result.st_mode & 0o777 == 0o644
-
-    async def test_lchmod(self, temp_dir):
-        test_file = os.path.join(temp_dir, "lchmod.txt")
-        with open(test_file, "w") as f:
-            f.write("test")
-
-        p = SmartPath(test_file)
-        await p.lchmod(0o644)
-
 
 class TestSmartPathSymlinks:
     """Tests for symlink operations."""
@@ -586,15 +562,6 @@ class TestSmartPathSymlinks:
         resolved = await p_link.resolve()
         # Should resolve to absolute path
         assert os.path.isabs(str(resolved))
-
-
-class TestSmartPathExpandUser:
-    """Tests for expanduser method."""
-
-    async def test_expanduser(self):
-        p = SmartPath("~/test.txt")
-        expanded = await p.expanduser()
-        assert "~" not in str(expanded)
 
 
 class TestSmartPathTrueDiv:

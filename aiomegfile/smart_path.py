@@ -161,33 +161,12 @@ class SmartPath:
 
         return self.from_uri("/".join([first_path, other_path]))
 
-    @cached_property
-    def path_with_protocol(self) -> str:
-        """Return path with protocol, like file:///root, s3://bucket/key"""
-        path = self.path
-        protocol_prefix = self.filesystem.protocol + "://"
-        if path.startswith(protocol_prefix):
-            return path
-        return protocol_prefix + path
-
-    @cached_property
-    def path_without_protocol(self) -> str:
-        """
-        Return path without protocol, example: if path is s3://bucket/key,
-        return bucket/key
-        """
-        path = self.path
-        protocol_prefix = self.filesystem.protocol + "://"
-        if path.startswith(protocol_prefix):
-            path = path[len(protocol_prefix) :]
-        return path
-
     async def as_uri(self) -> str:
-        return self.path_with_protocol
+        return self.filesystem.path_with_protocol
 
     async def as_posix(self) -> str:
         """Return a string representation of the path with forward slashes (/)"""
-        return self.path_with_protocol
+        return self.filesystem.path_with_protocol
 
     @classmethod
     def from_uri(cls, uri: T.Union[str, "SmartPath", os.PathLike]) -> "SmartPath":
@@ -252,8 +231,8 @@ class SmartPath:
         if not other:
             raise TypeError("other is required")
 
-        other_path_str = self.from_uri(other).path_with_protocol
-        path = self.path_with_protocol
+        other_path_str = self.from_uri(other).filesystem.path_with_protocol
+        path = self.filesystem.path_with_protocol
 
         if path.startswith(other_path_str):
             relative = path[len(other_path_str) :]
@@ -367,7 +346,7 @@ class SmartPath:
     def parts(self) -> T.Tuple[str, ...]:
         """A tuple giving access to the path’s various components"""
         parts = [self.root]
-        path = self.path_without_protocol
+        path = self.filesystem.path_without_protocol
         path = path.lstrip("/")
         if path != "":
             parts.extend(path.split("/"))
@@ -383,7 +362,7 @@ class SmartPath:
     @cached_property
     def parent(self) -> "SmartPath":
         """The logical parent of the path"""
-        if self.path_without_protocol == "/":
+        if self.filesystem.path_without_protocol == "/":
             return self
         elif len(self.parents) > 0:
             return self.parents[0]
@@ -430,7 +409,9 @@ class SmartPath:
     async def unlink(self, missing_ok: bool = False) -> None:
         """Remove (delete) the file."""
         if not await self.filesystem.is_file():
-            raise IsADirectoryError(f"Is a directory: {self.path_with_protocol}")
+            raise IsADirectoryError(
+                f"Is a directory: {self.filesystem.path_with_protocol}"
+            )
         return await self.filesystem.unlink(missing_ok=missing_ok)
 
     async def mkdir(
@@ -444,7 +425,9 @@ class SmartPath:
     async def rmdir(self) -> None:
         """Remove (delete) the directory."""
         if not await self.filesystem.is_dir():
-            raise NotADirectoryError(f"Not a directory: {self.path_with_protocol}")
+            raise NotADirectoryError(
+                f"Not a directory: {self.filesystem.path_with_protocol}"
+            )
         return await self.filesystem.rmdir()
 
     def open(
@@ -494,25 +477,6 @@ class SmartPath:
             pattern = ""
         pattern = "**/" + pattern.lstrip("/")
         return await self.glob(pattern=pattern)
-
-    async def chmod(self, mode: int, *, follow_symlinks: bool = True):
-        if self.filesystem.protocol == "file":
-            return await asyncio.to_thread(
-                os.chmod,
-                self.path_without_protocol,
-                mode,
-                follow_symlinks=follow_symlinks,
-            )
-        raise NotImplementedError(
-            f"'chmod' is unsupported on '{self.filesystem.protocol}' protocol"
-        )
-
-    async def lchmod(self, mode: int):
-        """
-        Like chmod() but, if the path points to a symbolic link, the symbolic
-        link's mode is changed rather than its target's.
-        """
-        return await self.chmod(mode=mode, follow_symlinks=False)
 
     async def copy(
         self,
@@ -613,33 +577,12 @@ class SmartPath:
         Make this path a hard link to the same file as target.
         """
         if self.filesystem.protocol == "file":
-            return await asyncio.to_thread(os.link, self.path_without_protocol, target)
+            return await asyncio.to_thread(
+                os.link, self.filesystem.path_without_protocol, target
+            )
         raise NotImplementedError(
             f"'hardlink_to' is unsupported on '{self.filesystem.protocol}' protocol"
         )
-
-    async def expanduser(self):
-        """
-        Return a new path with expanded ~ and ~user constructs, as returned by
-        os.path.expanduser().
-
-        Only fs path support this method.
-        """
-        if self.filesystem.protocol == "file":
-            path = await asyncio.to_thread(
-                os.path.expanduser, self.path_without_protocol
-            )
-            return self.from_uri(path)
-        raise NotImplementedError(
-            f"'expanduser' is unsupported on '{self.filesystem.protocol}' protocol"
-        )
-
-    async def cwd(self) -> "SmartPath":
-        """Return current working directory
-
-        returns: Current working directory
-        """
-        return self.from_uri(await asyncio.to_thread(os.getcwd))
 
     async def iterdir(self) -> T.AsyncIterator["SmartPath"]:
         """
@@ -673,5 +616,5 @@ class SmartPath:
         :rtype: bool
         """
         if case_sensitive is True:
-            return fnmatchcase(self.path_with_protocol, pattern)
-        return fnmatch(self.path_with_protocol, pattern)
+            return fnmatchcase(self.filesystem.path_with_protocol, pattern)
+        return fnmatch(self.filesystem.path_with_protocol, pattern)
