@@ -1,7 +1,6 @@
 """Tests for LocalFileSystem."""
 
 import os
-import tempfile
 
 import pytest
 
@@ -12,10 +11,11 @@ class TestLocalFileSystem:
     """Test cases for LocalFileSystem."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def temp_dir(self, fs):
         """Create a temporary directory for testing."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
+        tmpdir = "/tmp/test_dir"
+        fs.create_dir(tmpdir)
+        yield tmpdir
 
     @pytest.fixture
     def temp_file(self, temp_dir):
