@@ -52,9 +52,14 @@ def fnmatchcase(name: str, pat: str) -> bool:
 
 
 @functools.lru_cache(maxsize=256, typed=True)
-def _compile_pattern(pat: str) -> Callable[[str], Optional[Match[str]]]:
+def _compile_pattern(
+    pat: str, case_sensitive: Optional[bool] = None
+) -> Callable[[str], Optional[Match[str]]]:
     res = translate(pat)
-    return re.compile(res).match
+    flags = 0
+    if case_sensitive is False:
+        flags = re.IGNORECASE
+    return re.compile(res, flags).match
 
 
 def filter(names: List[str], pat: str) -> List[str]:

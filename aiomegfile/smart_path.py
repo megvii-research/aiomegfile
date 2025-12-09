@@ -21,7 +21,7 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.protocol.protocol + "://":
+        if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -152,7 +152,7 @@ class SmartPath:
             other_path = fspath(other_path)
         elif not isinstance(other_path, str):
             raise TypeError("%r is not 'PathLike' object" % other_path)
-        return asyncio.get_event_loop().run_until_complete(self.joinpath(other_path))
+        return self.joinpath(other_path)
 
     @cached_property
     def path_with_protocol(self) -> str:
@@ -161,7 +161,7 @@ class SmartPath:
         protocol_prefix = self.filesystem.protocol + "://"
         if path.startswith(protocol_prefix):
             return path
-        return protocol_prefix + path.lstrip("/")
+        return protocol_prefix + path
 
     @cached_property
     def path_without_protocol(self) -> str:
@@ -251,7 +251,7 @@ class SmartPath:
 
         other_path = self.from_path(other[0])
         if len(other) > 1:
-            other_path = await other_path.joinpath(*other[1:])
+            other_path = other_path.joinpath(*other[1:])
         other_path_str = other_path.path_with_protocol
         path = self.path_with_protocol
 
@@ -370,7 +370,7 @@ class SmartPath:
     def anchor(self) -> str:
         return self.root
 
-    async def joinpath(
+    def joinpath(
         self, *other_paths: T.Union[str, "SmartPath", os.PathLike]
     ) -> "SmartPath":
         """
@@ -494,7 +494,7 @@ class SmartPath:
         """Remove (delete) the directory."""
         if not await self.filesystem.is_dir():
             raise NotADirectoryError(f"Not a directory: {self.path_with_protocol}")
-        return await self.filesystem.remove()
+        return await self.filesystem.rmdir()
 
     def open(
         self,
@@ -588,7 +588,7 @@ class SmartPath:
         :param dst_path: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
         """
-        dst_path = await self.from_path(dst_path).joinpath(self.name)
+        dst_path = self.from_path(dst_path).joinpath(self.name)
         await self.copy(dst_path=dst_path, follow_symlinks=follow_symlinks)
         return dst_path
 

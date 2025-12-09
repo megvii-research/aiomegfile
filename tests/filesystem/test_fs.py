@@ -1,7 +1,6 @@
 """Tests for LocalFileSystem."""
 
 import os
-import tempfile
 
 import pytest
 
@@ -12,10 +11,11 @@ class TestLocalFileSystem:
     """Test cases for LocalFileSystem."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def temp_dir(self, tmp_path):
         """Create a temporary directory for testing."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
+        tmpdir = tmp_path / "test_dir"
+        tmpdir.mkdir()
+        return str(tmpdir)
 
     @pytest.fixture
     def temp_file(self, temp_dir):
@@ -29,49 +29,41 @@ class TestLocalFileSystem:
         """Create a LocalFileSystem instance for testing."""
         return LocalFileSystem(path_without_protocol=path)
 
-    @pytest.mark.asyncio
     async def test_exists_file(self, temp_file):
         """Test exists method for existing file."""
         protocol = self._create_protocol(temp_file)
         assert await protocol.exists() is True
 
-    @pytest.mark.asyncio
     async def test_exists_dir(self, temp_dir):
         """Test exists method for existing directory."""
         protocol = self._create_protocol(temp_dir)
         assert await protocol.exists() is True
 
-    @pytest.mark.asyncio
     async def test_exists_not_found(self, temp_dir):
         """Test exists method for non-existing path."""
         protocol = self._create_protocol(os.path.join(temp_dir, "not_exist"))
         assert await protocol.exists() is False
 
-    @pytest.mark.asyncio
     async def test_is_file(self, temp_file):
         """Test is_file method."""
         protocol = self._create_protocol(temp_file)
         assert await protocol.is_file() is True
 
-    @pytest.mark.asyncio
     async def test_is_file_on_dir(self, temp_dir):
         """Test is_file method on directory."""
         protocol = self._create_protocol(temp_dir)
         assert await protocol.is_file() is False
 
-    @pytest.mark.asyncio
     async def test_is_dir(self, temp_dir):
         """Test is_dir method."""
         protocol = self._create_protocol(temp_dir)
         assert await protocol.is_dir() is True
 
-    @pytest.mark.asyncio
     async def test_is_dir_on_file(self, temp_file):
         """Test is_dir method on file."""
         protocol = self._create_protocol(temp_file)
         assert await protocol.is_dir() is False
 
-    @pytest.mark.asyncio
     async def test_stat_file(self, temp_file):
         """Test stat method on file."""
         protocol = self._create_protocol(temp_file)
@@ -80,7 +72,6 @@ class TestLocalFileSystem:
         assert stat_result.isdir is False
         assert stat_result.islnk is False
 
-    @pytest.mark.asyncio
     async def test_stat_dir(self, temp_dir):
         """Test stat method on directory."""
         protocol = self._create_protocol(temp_dir)
@@ -88,7 +79,6 @@ class TestLocalFileSystem:
         assert stat_result.isdir is True
         assert stat_result.islnk is False
 
-    @pytest.mark.asyncio
     async def test_open_read(self, temp_file):
         """Test open method for reading."""
         protocol = self._create_protocol(temp_file)
@@ -96,7 +86,6 @@ class TestLocalFileSystem:
             content = await f.read()
         assert content == "Hello, World!"
 
-    @pytest.mark.asyncio
     async def test_open_write(self, temp_dir):
         """Test open method for writing."""
         file_path = os.path.join(temp_dir, "new_file.txt")
@@ -107,7 +96,6 @@ class TestLocalFileSystem:
         with open(file_path) as f:
             assert f.read() == "New content"
 
-    @pytest.mark.asyncio
     async def test_mkdir(self, temp_dir):
         """Test mkdir method."""
         new_dir = os.path.join(temp_dir, "new_dir")
@@ -115,7 +103,6 @@ class TestLocalFileSystem:
         await protocol.mkdir()
         assert os.path.isdir(new_dir)
 
-    @pytest.mark.asyncio
     async def test_mkdir_parents(self, temp_dir):
         """Test mkdir method with parents=True."""
         new_dir = os.path.join(temp_dir, "parent", "child")
@@ -123,21 +110,18 @@ class TestLocalFileSystem:
         await protocol.mkdir(parents=True)
         assert os.path.isdir(new_dir)
 
-    @pytest.mark.asyncio
     async def test_mkdir_exist_ok(self, temp_dir):
         """Test mkdir method with exist_ok=True."""
         protocol = self._create_protocol(temp_dir)
         # Should not raise
         await protocol.mkdir(exist_ok=True)
 
-    @pytest.mark.asyncio
     async def test_remove(self, temp_file):
         """Test remove method."""
         protocol = self._create_protocol(temp_file)
         await protocol.remove()
         assert not os.path.exists(temp_file)
 
-    @pytest.mark.asyncio
     async def test_remove_missing_ok(self, temp_dir):
         """Test remove method with missing_ok=True."""
         file_path = os.path.join(temp_dir, "not_exist")
@@ -145,7 +129,6 @@ class TestLocalFileSystem:
         # Should not raise
         await protocol.remove(missing_ok=True)
 
-    @pytest.mark.asyncio
     async def test_remove_missing_raises(self, temp_dir):
         """Test remove method raises FileNotFoundError."""
         file_path = os.path.join(temp_dir, "not_exist")
@@ -153,7 +136,6 @@ class TestLocalFileSystem:
         with pytest.raises(FileNotFoundError):
             await protocol.remove(missing_ok=False)
 
-    @pytest.mark.asyncio
     async def test_rename(self, temp_file, temp_dir):
         """Test rename method."""
         dst_path = os.path.join(temp_dir, "renamed_file.txt")
@@ -163,7 +145,6 @@ class TestLocalFileSystem:
         assert os.path.exists(dst_path)
         assert not os.path.exists(temp_file)
 
-    @pytest.mark.asyncio
     async def test_rename_no_overwrite(self, temp_file, temp_dir):
         """Test rename method with overwrite=False."""
         dst_path = os.path.join(temp_dir, "existing_file.txt")
@@ -174,7 +155,6 @@ class TestLocalFileSystem:
         with pytest.raises(FileExistsError):
             await protocol.rename(dst_path, overwrite=False)
 
-    @pytest.mark.asyncio
     async def test_symlink_and_readlink(self, temp_file, temp_dir):
         """Test symlink and readlink methods."""
         link_path = os.path.join(temp_dir, "link_to_file")
@@ -187,7 +167,6 @@ class TestLocalFileSystem:
         target = await link_protocol.readlink()
         assert target == temp_file
 
-    @pytest.mark.asyncio
     async def test_iterdir(self, temp_dir):
         """Test iterdir method."""
         # Create some files
@@ -208,7 +187,6 @@ class TestLocalFileSystem:
         ]
         assert entries == expected
 
-    @pytest.mark.asyncio
     async def test_walk(self, temp_dir):
         """Test walk method."""
         # Create directory structure
@@ -226,7 +204,6 @@ class TestLocalFileSystem:
 
         assert len(results) == 2
 
-    @pytest.mark.asyncio
     async def test_absolute(self, temp_file):
         """Test absolute method."""
         protocol = self._create_protocol(temp_file)
@@ -234,7 +211,6 @@ class TestLocalFileSystem:
         assert os.path.isabs(abs_path)
         assert abs_path == os.path.abspath(temp_file)
 
-    @pytest.mark.asyncio
     async def test_chmod(self, temp_file):
         """Test chmod method."""
         protocol = self._create_protocol(temp_file)

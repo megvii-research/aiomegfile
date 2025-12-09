@@ -71,6 +71,10 @@ class LocalFileSystem(BaseFileSystem):
             if not missing_ok:
                 raise
 
+    async def rmdir(self) -> None:
+        """Remove (delete) the directory."""
+        await aiofiles.os.rmdir(self.path_without_protocol)
+
     async def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
@@ -120,7 +124,7 @@ class LocalFileSystem(BaseFileSystem):
     ) -> T.AsyncIterator[str]:
         """Return an iterator of files whose paths match the glob pattern."""
 
-        # FIXME: support more glob features like [] and {}
+        # TODO: support more glob features like [] and {}
         for path in glob.iglob(
             os.path.join(self.path_without_protocol, pattern), recursive=recursive
         ):
