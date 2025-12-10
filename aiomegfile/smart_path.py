@@ -237,6 +237,8 @@ class SmartPath:
 
         :param other: Target path to compute the relative path against.
         :returns: Relative path string.
+        :raises TypeError: If other is missing.
+        :raises ValueError: If this path is not under the given other path.
         """
         if not other:
             raise TypeError("other is required")
@@ -268,7 +270,12 @@ class SmartPath:
         return self.from_uri(path[: len(path) - len(raw_suffix)] + suffix)
 
     async def resolve(self, strict: bool = False) -> "SmartPath":
-        """Alias of realpath."""
+        """Alias of realpath.
+
+        :param strict: Whether to raise if a symlink points to itself.
+        :returns: Resolved absolute SmartPath.
+        :raises OSError: If a symlink points to itself and strict is True.
+        """
         path = self
         while await path.is_symlink():
             path = await path.readlink()
@@ -298,6 +305,9 @@ class SmartPath:
     async def samefile(self, other_path: T.Union[str, "SmartPath"]) -> bool:
         """
         Return whether this path points to the same file
+
+        :param other_path: Path to compare.
+        :returns: True if both represent the same file.
         """
         return self == other_path
 
@@ -454,6 +464,7 @@ class SmartPath:
         """Remove (delete) the file.
 
         :param missing_ok: If False, raise when the path does not exist.
+        :raises IsADirectoryError: If the target is a directory.
         """
         if not await self.filesystem.is_file():
             raise IsADirectoryError(
@@ -475,7 +486,10 @@ class SmartPath:
         )
 
     async def rmdir(self) -> None:
-        """Remove (delete) the directory."""
+        """Remove (delete) the directory.
+
+        :raises NotADirectoryError: If the target is not a directory.
+        """
         if not await self.filesystem.is_dir():
             raise NotADirectoryError(
                 f"Not a directory: {self.filesystem.path_with_protocol}"
@@ -561,6 +575,7 @@ class SmartPath:
 
         :param target: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
+        :returns: Target SmartPath.
         """
         # TODO: implement copy
         raise NotImplementedError("copy is not implemented")
@@ -576,6 +591,7 @@ class SmartPath:
 
         :param target_dir: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
+        :returns: Target SmartPath.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
         await self.copy(target=target, follow_symlinks=follow_symlinks)
@@ -587,8 +603,9 @@ class SmartPath:
         """
         rename file
 
-        :param dst_path: Given destination path
-        :param overwrite: whether or not overwrite file when exists
+        :param target: Given destination path
+        :returns: Target SmartPath after rename.
+        :raises FileExistsError: If destination exists.
         """
         result = await self.filesystem.move(dst_path=fspath(target), overwrite=False)
         return self.from_uri(result)
@@ -599,8 +616,8 @@ class SmartPath:
         """
         move file
 
-        :param dst_path: Given destination path
-        :param overwrite: whether or not overwrite file when exists
+        :param target: Given destination path
+        :returns: Destination SmartPath after replace.
         """
         result = await self.filesystem.move(dst_path=fspath(target), overwrite=True)
         return self.from_uri(result)
@@ -613,7 +630,7 @@ class SmartPath:
         move file
 
         :param target: Given destination path
-        :param overwrite: whether or not overwrite file when exists
+        :returns: Destination SmartPath after move.
         """
         return await self.replace(target=target)
 

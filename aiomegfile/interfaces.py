@@ -205,6 +205,7 @@ class BaseFileSystem:
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links when checking.
+        :returns: True if the path is a directory, otherwise False.
         """
         raise NotImplementedError('method "is_dir" not implemented: %r' % self)
 
@@ -212,6 +213,7 @@ class BaseFileSystem:
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links when checking.
+        :returns: True if the path is a regular file, otherwise False.
         """
         raise NotImplementedError('method "is_file" not implemented: %r' % self)
 
@@ -219,6 +221,7 @@ class BaseFileSystem:
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links when checking.
+        :returns: True if the path exists, otherwise False.
         """
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
@@ -227,6 +230,7 @@ class BaseFileSystem:
 
         :param follow_symlinks: Whether to follow symbolic links when
             resolving the path.
+        :returns: StatResult information for the path.
         """
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
@@ -234,6 +238,7 @@ class BaseFileSystem:
         """Remove (delete) the file.
 
         :param missing_ok: If False, raise FileNotFoundError when the file is missing.
+        :raises FileNotFoundError: When file is missing and missing_ok is False.
         """
         raise NotImplementedError('method "unlink" not implemented: %r' % self)
 
@@ -267,6 +272,7 @@ class BaseFileSystem:
         :param encoding: Text encoding when opening in text mode.
         :param errors: Error handling strategy for encoding/decoding.
         :param newline: Newline handling in text mode.
+        :returns: Async file context manager.
         """
         raise NotImplementedError('method "open" not implemented: %r' % self)
 
@@ -276,6 +282,7 @@ class BaseFileSystem:
         """Generate the file names in a directory tree by walking the tree.
 
         :param followlinks: Whether to traverse symbolic links to directories.
+        :returns: Async iterator of (root, dirs, files).
         """
         raise NotImplementedError('method "walk" not implemented: %r' % self)
         yield
@@ -288,10 +295,10 @@ class BaseFileSystem:
         :param pattern: Glob pattern to match.
         :param recursive: Whether to allow recursive "**" matching.
         :param missing_ok: Whether to suppress errors when nothing matches.
+        :returns: Async iterator of matching path strings.
         """
         raise NotImplementedError('method "iglob" not implemented: %r' % self)
         yield
-
 
     async def move(self, dst_path: str, overwrite: bool = True) -> str:
         """
@@ -299,6 +306,8 @@ class BaseFileSystem:
 
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
+        :returns: Destination path after move.
+        :raises FileExistsError: If destination exists and overwrite is False.
         """
         raise NotImplementedError(f"'move' is unsupported on '{type(self)}'")
 
@@ -312,6 +321,8 @@ class BaseFileSystem:
     async def readlink(self) -> str:
         """
         Return a new path representing the symbolic link's target.
+
+        :returns: Target path of the symbolic link.
         """
         raise NotImplementedError(f"'readlink' is unsupported on '{type(self)}'")
 
@@ -335,6 +346,8 @@ class BaseFileSystem:
         """
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
+
+        :returns: Absolute path string.
         """
         raise NotImplementedError(f"'absolute' is unsupported on '{type(self)}'")
 

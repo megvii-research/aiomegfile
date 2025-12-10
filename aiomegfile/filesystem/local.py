@@ -22,6 +22,7 @@ class LocalFileSystem(BaseFileSystem):
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links.
+        :returns: True if the path is a directory, otherwise False.
         """
         try:
             if followlinks:
@@ -35,6 +36,7 @@ class LocalFileSystem(BaseFileSystem):
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links.
+        :returns: True if the path is a regular file, otherwise False.
         """
         try:
             if followlinks:
@@ -48,6 +50,7 @@ class LocalFileSystem(BaseFileSystem):
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links.
+        :returns: True if the path exists, otherwise False.
         """
         try:
             if followlinks:
@@ -80,6 +83,7 @@ class LocalFileSystem(BaseFileSystem):
         """Remove (delete) the file.
 
         :param missing_ok: If False, raise when the file does not exist.
+        :raises FileNotFoundError: When missing_ok is False and the file is absent.
         """
         try:
             await aiofiles.os.unlink(self.path_without_protocol)
@@ -99,6 +103,7 @@ class LocalFileSystem(BaseFileSystem):
         :param mode: Permission bits for the new directory.
         :param parents: Whether to create missing parents.
         :param exist_ok: Whether to ignore if the directory exists.
+        :raises FileExistsError: When directory exists and exist_ok is False.
         """
         try:
             if parents:
@@ -126,6 +131,7 @@ class LocalFileSystem(BaseFileSystem):
         :param encoding: Text encoding when using text modes.
         :param errors: Error handling strategy for encoding/decoding.
         :param newline: Newline handling in text mode.
+        :returns: Async file context manager.
         """
         return aiofiles.open(  # pytype: disable=wrong-arg-types
             self.path_without_protocol,
@@ -142,6 +148,7 @@ class LocalFileSystem(BaseFileSystem):
         """Generate the file names in a directory tree by walking the tree.
 
         :param followlinks: Whether to traverse symbolic links to directories.
+        :returns: Async iterator of (root, dirs, files).
         """
         for root, dirs, files in os.walk(
             self.path_without_protocol, followlinks=followlinks
@@ -156,6 +163,7 @@ class LocalFileSystem(BaseFileSystem):
         :param pattern: Glob pattern to match relative to the current path.
         :param recursive: Whether to enable recursive ** matching.
         :param missing_ok: Whether to suppress errors when no paths match.
+        :returns: Async iterator of matching path strings.
         """
 
         # TODO: support more glob features {}
