@@ -210,11 +210,3 @@ class TestLocalFileSystem:
         abs_path = await protocol.absolute()
         assert os.path.isabs(abs_path)
         assert abs_path == os.path.abspath(temp_file)
-
-    async def test_chmod(self, temp_file):
-        """Test chmod method."""
-        protocol = self._create_protocol(temp_file)
-        await protocol.chmod(0o644)
-        stat_result = os.stat(temp_file)
-        # Check file permission bits (ignore file type bits)
-        assert stat_result.st_mode & 0o777 == 0o644

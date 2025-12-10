@@ -162,6 +162,7 @@ class SmartPath:
         return self.from_uri("/".join([first_path, other_path]))
 
     async def as_uri(self) -> str:
+        """Return the path with its protocol prefix (e.g., file:///root)."""
         return self.filesystem.path_with_protocol
 
     async def as_posix(self) -> str:
@@ -219,6 +220,10 @@ class SmartPath:
     async def is_relative_to(
         self, other: T.Union[str, "SmartPath", os.PathLike]
     ) -> bool:
+        """Return True if this path is relative to the given path.
+
+        :param other: Target path to compare against.
+        """
         try:
             await self.relative_to(other)
             return True
@@ -229,6 +234,9 @@ class SmartPath:
         """
         Compute a version of this path relative to the path represented by other.
         If it's impossible, ValueError is raised.
+
+        :param other: Target path to compute the relative path against.
+        :returns: Relative path string.
         """
         if not other:
             raise TypeError("other is required")
@@ -294,6 +302,10 @@ class SmartPath:
         return self == other_path
 
     async def touch(self, exist_ok: bool = True) -> None:
+        """Create the file if missing, optionally raising on existence.
+
+        :param exist_ok: Whether to skip raising if the file already exists.
+        """
         if await self.exists():
             if not exist_ok:
                 raise FileExistsError(f"File exists: {self.path}")
@@ -304,6 +316,9 @@ class SmartPath:
     async def write_bytes(self, data: bytes):
         """
         Open the file pointed to in bytes mode, write data to it, and close the file
+
+        :param data: Bytes to write to the file.
+        :returns: Number of bytes written.
         """
         async with self.open(mode="wb") as f:
             return await f.write(data)
@@ -318,6 +333,12 @@ class SmartPath:
         """
         Open the file pointed to in text mode, write data to it, and close the file.
         The optional parameters have the same meaning as in open().
+
+        :param data: Text content to write.
+        :param encoding: Optional text encoding.
+        :param errors: Optional error handling strategy.
+        :param newline: Optional newline handling policy.
+        :returns: Number of characters written.
         """
         async with self.open(
             mode="w", encoding=encoding, errors=errors, newline=newline
@@ -338,6 +359,9 @@ class SmartPath:
         """
         Calling this method is equivalent to combining the path
         with each of the other arguments in turn
+
+        :param other_paths: Additional path components to join.
+        :returns: A new SmartPath representing the combined path.
         """
         path = self
         for other_path in other_paths:
@@ -371,11 +395,17 @@ class SmartPath:
         return self.from_uri("")
 
     async def is_dir(self, followlinks: bool = False) -> bool:
-        """Return True if the path points to a directory."""
+        """Return True if the path points to a directory.
+
+        :param followlinks: Whether to follow symbolic links.
+        """
         return await self.filesystem.is_dir(followlinks=followlinks)
 
     async def is_file(self, followlinks: bool = False) -> bool:
-        """Return True if the path points to a regular file."""
+        """Return True if the path points to a regular file.
+
+        :param followlinks: Whether to follow symbolic links.
+        """
         return await self.filesystem.is_file(followlinks=followlinks)
 
     async def is_symlink(self) -> bool:
@@ -383,11 +413,18 @@ class SmartPath:
         return await self.filesystem.is_symlink()
 
     async def exists(self, *, followlinks: bool = False) -> bool:
-        """Whether the path points to an existing file or directory."""
+        """Return whether the path points to an existing file or directory.
+
+        :param followlinks: Whether to follow symbolic links.
+        """
         return await self.filesystem.exists(followlinks=followlinks)
 
     async def stat(self, *, follow_symlinks=True) -> StatResult:
-        """Get the status of the path."""
+        """Get the status of the path.
+
+        :param follow_symlinks: Whether to follow symbolic links when resolving.
+        :returns: StatResult for the path.
+        """
         return await self.filesystem.stat(follow_symlinks=follow_symlinks)
 
     async def lstat(self) -> StatResult:
@@ -406,12 +443,18 @@ class SmartPath:
 
         This method is similar to ''full_match()'',
         but the recursive wildcard “**” isn’t supported (it acts like non-recursive “*”)
+
+        :param pattern: Glob pattern to match against the full URI.
+        :param case_sensitive: Whether matching should be case sensitive.
         """
         pattern = pattern.replace("**", "*")
         return await self.full_match(pattern=pattern, case_sensitive=case_sensitive)
 
     async def unlink(self, missing_ok: bool = False) -> None:
-        """Remove (delete) the file."""
+        """Remove (delete) the file.
+
+        :param missing_ok: If False, raise when the path does not exist.
+        """
         if not await self.filesystem.is_file():
             raise IsADirectoryError(
                 f"Is a directory: {self.filesystem.path_with_protocol}"
@@ -421,7 +464,12 @@ class SmartPath:
     async def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
-        """Create a directory."""
+        """Create a directory.
+
+        :param mode: Permission bits for the new directory.
+        :param parents: Whether to create parents as needed.
+        :param exist_ok: Whether to ignore if the directory exists.
+        """
         return await self.filesystem.mkdir(
             mode=mode, parents=parents, exist_ok=exist_ok
         )
@@ -442,7 +490,14 @@ class SmartPath:
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
     ) -> T.AsyncContextManager:
-        """Open the file with mode."""
+        """Open the file with mode.
+
+        :param mode: File open mode.
+        :param buffering: Buffering policy.
+        :param encoding: Text encoding in text mode.
+        :param errors: Error handling strategy.
+        :param newline: Newline handling policy in text mode.
+        """
         return self.filesystem.open(
             mode=mode,
             buffering=buffering,
@@ -454,19 +509,29 @@ class SmartPath:
     async def walk(
         self, follow_symlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
-        """Generate the file names in a directory tree by walking the tree."""
+        """Generate the file names in a directory tree by walking the tree.
+
+        :param follow_symlinks: Whether to traverse symbolic links to directories.
+        """
         async for item in self.filesystem.walk(followlinks=follow_symlinks):
             yield item
 
     async def iglob(self, pattern: str) -> T.AsyncIterator["SmartPath"]:
-        """Return an iterator of files whose paths match the glob pattern."""
+        """Return an iterator of files whose paths match the glob pattern.
+
+        :param pattern: Glob pattern to match relative to this path.
+        """
         async for path_str in self.filesystem.iglob(
             pattern=pattern, recursive=True, missing_ok=True
         ):
             yield self.from_uri(path_str)
 
     async def glob(self, pattern: str) -> T.List["SmartPath"]:
-        """Return files whose paths match the glob pattern."""
+        """Return files whose paths match the glob pattern.
+
+        :param pattern: Glob pattern to match relative to this path.
+        :returns: List of matching SmartPath instances.
+        """
         result = []
         async for item in self.iglob(pattern=pattern):
             result.append(item)
@@ -476,6 +541,9 @@ class SmartPath:
         """
         This is like calling Path.glob() with "**/" added in front of
         the given relative pattern
+
+        :param pattern: Glob pattern to match recursively.
+        :returns: List of matching SmartPath instances.
         """
         if not pattern:
             pattern = ""
@@ -566,6 +634,8 @@ class SmartPath:
         """
         Make this path a symbolic link to target.
         symlink_to's arguments is the reverse of symlink's.
+
+        :param target: Destination the new link should point to.
         """
         return await self.from_uri(target).filesystem.symlink(dst_path=self.path)
 
@@ -579,6 +649,8 @@ class SmartPath:
     async def hardlink_to(self, target: T.Union[str, "SmartPath", os.PathLike]) -> None:
         """
         Make this path a hard link to the same file as target.
+
+        :param target: Existing path to hard link to.
         """
         if self.filesystem.protocol == "file":
             return await asyncio.to_thread(

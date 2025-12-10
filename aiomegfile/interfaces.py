@@ -202,23 +202,39 @@ class BaseFileSystem:
         return protocol_prefix + self.path_without_protocol
 
     async def is_dir(self, followlinks: bool = False) -> bool:
-        """Return True if the path points to a directory."""
+        """Return True if the path points to a directory.
+
+        :param followlinks: Whether to follow symbolic links when checking.
+        """
         raise NotImplementedError('method "is_dir" not implemented: %r' % self)
 
     async def is_file(self, followlinks: bool = False) -> bool:
-        """Return True if the path points to a regular file."""
+        """Return True if the path points to a regular file.
+
+        :param followlinks: Whether to follow symbolic links when checking.
+        """
         raise NotImplementedError('method "is_file" not implemented: %r' % self)
 
     async def exists(self, followlinks: bool = False) -> bool:
-        """Whether the path points to an existing file or directory."""
+        """Return whether the path points to an existing file or directory.
+
+        :param followlinks: Whether to follow symbolic links when checking.
+        """
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
     async def stat(self, follow_symlinks: bool = True) -> StatResult:
-        """Get the status of the path."""
+        """Get the status of the path.
+
+        :param follow_symlinks: Whether to follow symbolic links when
+            resolving the path.
+        """
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
     async def unlink(self, missing_ok: bool = False) -> None:
-        """Remove (delete) the file."""
+        """Remove (delete) the file.
+
+        :param missing_ok: If False, raise FileNotFoundError when the file is missing.
+        """
         raise NotImplementedError('method "unlink" not implemented: %r' % self)
 
     async def rmdir(self) -> None:
@@ -228,7 +244,12 @@ class BaseFileSystem:
     async def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
     ) -> None:
-        """Create a directory."""
+        """Create a directory.
+
+        :param mode: Permission bits for the new directory.
+        :param parents: Whether to create parent directories as needed.
+        :param exist_ok: Whether to ignore if the directory already exists.
+        """
         raise NotImplementedError('method "mkdir" not implemented: %r' % self)
 
     def open(
@@ -238,27 +259,39 @@ class BaseFileSystem:
         encoding: T.Optional[str] = None,
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
-        closefd: bool = True,
     ) -> T.AsyncContextManager:
-        """Open the file with mode."""
+        """Open the file with mode.
+
+        :param mode: File open mode.
+        :param buffering: Buffering policy.
+        :param encoding: Text encoding when opening in text mode.
+        :param errors: Error handling strategy for encoding/decoding.
+        :param newline: Newline handling in text mode.
+        """
         raise NotImplementedError('method "open" not implemented: %r' % self)
 
     async def walk(
         self, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
-        """Generate the file names in a directory tree by walking the tree."""
+        """Generate the file names in a directory tree by walking the tree.
+
+        :param followlinks: Whether to traverse symbolic links to directories.
+        """
         raise NotImplementedError('method "walk" not implemented: %r' % self)
         yield
 
     async def iglob(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.AsyncIterator[str]:
-        """Return an iterator of files whose paths match the glob pattern."""
+        """Return an iterator of files whose paths match the glob pattern.
+
+        :param pattern: Glob pattern to match.
+        :param recursive: Whether to allow recursive "**" matching.
+        :param missing_ok: Whether to suppress errors when nothing matches.
+        """
         raise NotImplementedError('method "iglob" not implemented: %r' % self)
         yield
 
-    async def chmod(self, mode: int, *, follow_symlinks: bool = True):
-        raise NotImplementedError(f"'chmod' is unsupported on '{type(self)}'")
 
     async def move(self, dst_path: str, overwrite: bool = True) -> str:
         """
@@ -270,6 +303,10 @@ class BaseFileSystem:
         raise NotImplementedError(f"'move' is unsupported on '{type(self)}'")
 
     async def symlink(self, dst_path: str) -> None:
+        """Create a symbolic link pointing to self named dst_path.
+
+        :param dst_path: The symbolic link path.
+        """
         raise NotImplementedError(f"'symlink' is unsupported on '{type(self)}'")
 
     async def readlink(self) -> str:
