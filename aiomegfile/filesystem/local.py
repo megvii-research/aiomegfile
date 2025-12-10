@@ -1,5 +1,4 @@
 import asyncio
-import glob
 import os
 import stat
 import typing as T
@@ -9,6 +8,7 @@ import aiofiles.os
 import aiofiles.ospath
 
 from aiomegfile.interfaces import BaseFileSystem, StatResult
+from aiomegfile.lib.url import split_uri
 
 
 class LocalFileSystem(BaseFileSystem):
@@ -18,7 +18,10 @@ class LocalFileSystem(BaseFileSystem):
 
     protocol = "file"
 
-    async def is_dir(self, followlinks: bool = False) -> bool:
+    def __init__(self, protocol_in_path: bool):
+        self.protocol_in_path = protocol_in_path
+
+    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links.
@@ -26,13 +29,13 @@ class LocalFileSystem(BaseFileSystem):
         """
         try:
             if followlinks:
-                return await aiofiles.ospath.isdir(self.path_without_protocol)
-            stat_result = await asyncio.to_thread(os.lstat, self.path_without_protocol)
+                return await aiofiles.ospath.isdir(path)
+            stat_result = await asyncio.to_thread(os.lstat, path)
             return stat.S_ISDIR(stat_result.st_mode)
         except OSError:
             return False
 
-    async def is_file(self, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links.
@@ -40,13 +43,13 @@ class LocalFileSystem(BaseFileSystem):
         """
         try:
             if followlinks:
-                return await aiofiles.ospath.isfile(self.path_without_protocol)
-            stat_result = await asyncio.to_thread(os.lstat, self.path_without_protocol)
+                return await aiofiles.ospath.isfile(path)
+            stat_result = await asyncio.to_thread(os.lstat, path)
             return stat.S_ISREG(stat_result.st_mode)
         except OSError:
             return False
 
-    async def exists(self, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links.
@@ -54,21 +57,19 @@ class LocalFileSystem(BaseFileSystem):
         """
         try:
             if followlinks:
-                return await aiofiles.ospath.exists(self.path_without_protocol)
-            await asyncio.to_thread(os.lstat, self.path_without_protocol)
+                return await aiofiles.ospath.exists(path)
+            await asyncio.to_thread(os.lstat, path)
             return True
         except OSError:
             return False
 
-    async def stat(self, follow_symlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, follow_symlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links.
         :return: Populated StatResult for the path.
         """
-        stat_result = await aiofiles.os.stat(
-            self.path_without_protocol, follow_symlinks=follow_symlinks
-        )
+        stat_result = await aiofiles.os.stat(path, follow_symlinks=follow_symlinks)
 
         return StatResult(
             size=stat_result.st_size,
@@ -79,24 +80,28 @@ class LocalFileSystem(BaseFileSystem):
             extra=stat_result,
         )
 
-    async def unlink(self, missing_ok: bool = False) -> None:
+    async def unlink(self, path: str, missing_ok: bool = False) -> None:
         """Remove (delete) the file.
 
         :param missing_ok: If False, raise when the file does not exist.
         :raises FileNotFoundError: When missing_ok is False and the file is absent.
         """
         try:
-            await aiofiles.os.unlink(self.path_without_protocol)
+            await aiofiles.os.unlink(path)
         except FileNotFoundError:
             if not missing_ok:
                 raise
 
-    async def rmdir(self) -> None:
+    async def rmdir(self, path: str) -> None:
         """Remove (delete) the directory."""
-        await aiofiles.os.rmdir(self.path_without_protocol)
+        await aiofiles.os.rmdir(path)
 
     async def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
+        self,
+        path: str,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ) -> None:
         """Create a directory.
 
@@ -107,17 +112,16 @@ class LocalFileSystem(BaseFileSystem):
         """
         try:
             if parents:
-                await aiofiles.os.makedirs(
-                    self.path_without_protocol, mode=mode, exist_ok=exist_ok
-                )
+                await aiofiles.os.makedirs(path, mode=mode, exist_ok=exist_ok)
             else:
-                await aiofiles.os.mkdir(self.path_without_protocol, mode=mode)
+                await aiofiles.os.mkdir(path, mode=mode)
         except FileExistsError:
             if not exist_ok:
                 raise
 
     def open(
         self,
+        path: str,
         mode: str = "r",
         buffering: int = -1,
         encoding: T.Optional[str] = None,
@@ -134,7 +138,7 @@ class LocalFileSystem(BaseFileSystem):
         :return: Async file context manager.
         """
         return aiofiles.open(  # pytype: disable=wrong-arg-types
-            self.path_without_protocol,
+            path,
             mode=mode,
             buffering=buffering,
             encoding=encoding,
@@ -143,36 +147,17 @@ class LocalFileSystem(BaseFileSystem):
         )
 
     async def walk(
-        self, followlinks: bool = False
+        self, path: str, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree.
 
         :param followlinks: Whether to traverse symbolic links to directories.
         :return: Async iterator of (root, dirs, files).
         """
-        for root, dirs, files in os.walk(
-            self.path_without_protocol, followlinks=followlinks
-        ):
+        for root, dirs, files in os.walk(path, followlinks=followlinks):
             yield root, dirs, files
 
-    async def iglob(
-        self, pattern: str, recursive: bool = True, missing_ok: bool = True
-    ) -> T.AsyncIterator[str]:
-        """Return an iterator of files whose paths match the glob pattern.
-
-        :param pattern: Glob pattern to match relative to the current path.
-        :param recursive: Whether to enable recursive ** matching.
-        :param missing_ok: Whether to suppress errors when no paths match.
-        :return: Async iterator of matching path strings.
-        """
-
-        # TODO: support more glob features {}
-        for path in glob.iglob(
-            os.path.join(self.path_without_protocol, pattern), recursive=recursive
-        ):
-            yield path
-
-    async def move(self, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
         Move file.
 
@@ -182,44 +167,93 @@ class LocalFileSystem(BaseFileSystem):
         """
         if not overwrite and await aiofiles.ospath.exists(dst_path):
             raise FileExistsError(f"Destination path already exists: {dst_path}")
-        await aiofiles.os.rename(self.path_without_protocol, dst_path)
+        await aiofiles.os.rename(src_path, dst_path)
         return dst_path
 
-    async def symlink(self, dst_path: str) -> None:
+    async def symlink(self, src_path: str, dst_path: str) -> None:
         """Create a symbolic link pointing to self named dst_path.
 
         :param dst_path: The symbolic link path.
         """
-        await aiofiles.os.symlink(self.path_without_protocol, dst_path)
+        await aiofiles.os.symlink(src_path, dst_path)
 
-    async def readlink(self) -> str:
+    async def readlink(self, path: str) -> str:
         """Return a new path representing the symbolic link's target."""
-        return await aiofiles.os.readlink(self.path_without_protocol)
+        return await aiofiles.os.readlink(path)
 
-    async def is_symlink(self) -> bool:
+    async def is_symlink(self, path: str) -> bool:
         """Return True if the path points to a symbolic link."""
-        return await aiofiles.ospath.islink(self.path_without_protocol)
+        return await aiofiles.ospath.islink(path)
 
-    async def iterdir(self) -> T.AsyncIterator[str]:
+    async def iterdir(self, path: str) -> T.AsyncIterator[str]:
         """
         Get all contents of given fs path.
         The result is in ascending alphabetical order.
 
         :return: All contents have in the path in ascending alphabetical order
         """
-        files = await aiofiles.os.listdir(self.path_without_protocol)
+        files = await aiofiles.os.listdir(path)
         for filename in sorted(files):
-            yield os.path.join(self.path_without_protocol, filename)
+            yield os.path.join(path, filename)
 
-    async def absolute(self) -> str:
+    async def absolute(self, path: str) -> str:
         """
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object.
         """
-        return os.path.abspath(self.path_without_protocol)
+        return os.path.abspath(path)
 
-    def __eq__(self, other: BaseFileSystem) -> bool:
-        """Return True if the path points to the same file as other_path."""
-        if other.protocol != self.protocol:
+    async def samefile(self, path: str, other_path: str) -> bool:
+        """
+        Return True if the path points to the same file as other_path.
+
+        :param path: First path to compare.
+        :param other_path: Other path to compare.
+        :return: True if both paths point to the same file, otherwise False.
+        """
+        try:
+            return await asyncio.to_thread(os.path.samefile, path, other_path)
+        except FileNotFoundError:
             return False
-        return os.path.samefile(self.path_without_protocol, other.path_without_protocol)
+
+    def same_endpoint(self, other_filesystem: "LocalFileSystem") -> bool:
+        """
+        Local filesystem endpoints match when protocols match.
+
+        :param other_filesystem: Filesystem to compare.
+        :return: True if both represent the same endpoint.
+        """
+        if isinstance(other_filesystem, LocalFileSystem):
+            return True
+        return False
+
+    def get_path_from_uri(self, uri: str) -> str:
+        """
+        Extract path component from uri.
+
+        :param uri: URI string.
+        :return: Path part string.
+        """
+        _, path, _ = split_uri(uri)
+        return path
+
+    def generate_uri(self, path: str) -> str:
+        """
+        Generate file URI from path without protocol.
+
+        :param path: Path without protocol.
+        :return: URI string.
+        """
+        if not self.protocol_in_path:
+            return path
+        return f"{self.protocol}://{path}"
+
+    @classmethod
+    def from_uri(cls, uri: str) -> "LocalFileSystem":
+        """
+        Create LocalFileSystem from uri string.
+
+        :param uri: URI string.
+        :return: LocalFileSystem instance.
+        """
+        return cls(protocol_in_path="file://" in uri)

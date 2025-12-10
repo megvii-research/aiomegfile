@@ -357,6 +357,7 @@ class BaseFileSystem(ABC):
         """
         Get the path part from uri.
 
+        :param uri: URI string.
         :return: Path part string.
         """
 
@@ -378,8 +379,7 @@ class BaseFileSystem(ABC):
     ) -> Self:
         """Return new instance of this class
 
-        :param path: path without protocol
-
+        :param uri: URI string.
         :return: new instance of new path
         """
 
@@ -391,6 +391,6 @@ def get_filesystem_by_uri(
     if protocol not in FILE_SYSTEMS:
         raise ProtocolNotFoundError(f"protocol {protocol:!r} not found")
     path_class = FILE_SYSTEMS[protocol]
-    return path_class.from_url(
+    return path_class.from_uri(
         uri,
     )
