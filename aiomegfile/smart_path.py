@@ -38,12 +38,9 @@ class URIPathParents(Sequence):
         return self.cls(self.prefix + other_path)
 
 
-class SmartPath:
-    def __init__(self, path: T.Union[str, "SmartPath", os.PathLike]):
-        if isinstance(path, SmartPath):
-            self.path = path.path
-        else:
-            self.path = fspath(path)
+class SmartPath(os.PathLike):
+    def __init__(self, path: T.Union[str, os.PathLike]):
+        self.path = fspath(path)
         self.filesystem = self._create_filesystem(self.path)
 
     @classmethod
@@ -133,9 +130,7 @@ class SmartPath:
             )
         return str(self) >= str(other_path)
 
-    def __truediv__(
-        self, other_path: T.Union["SmartPath", os.PathLike, str]
-    ) -> "SmartPath":
+    def __truediv__(self, other_path: T.Union[os.PathLike, str]) -> "SmartPath":
         if isinstance(other_path, SmartPath):
             if self.filesystem.protocol != other_path.filesystem.protocol:
                 raise TypeError(
@@ -164,7 +159,7 @@ class SmartPath:
         return self.filesystem.path_with_protocol
 
     @classmethod
-    def from_uri(cls, uri: T.Union[str, "SmartPath", os.PathLike]) -> "SmartPath":
+    def from_uri(cls, uri: T.Union[str, os.PathLike]) -> "SmartPath":
         """Return new instance of this class
 
         :param uri: new path
@@ -211,9 +206,7 @@ class SmartPath:
             return name[:i]
         return name
 
-    async def is_relative_to(
-        self, other: T.Union[str, "SmartPath", os.PathLike]
-    ) -> bool:
+    async def is_relative_to(self, other: T.Union[str, os.PathLike]) -> bool:
         """Return True if this path is relative to the given path.
 
         :param other: Target path to compare against.
@@ -225,7 +218,7 @@ class SmartPath:
         except Exception:
             return False
 
-    async def relative_to(self, other: T.Union[str, "SmartPath", os.PathLike]) -> str:
+    async def relative_to(self, other: T.Union[str, os.PathLike]) -> str:
         """
         Compute a version of this path relative to the path represented by other.
         If it's impossible, ValueError is raised.
@@ -379,9 +372,7 @@ class SmartPath:
     def anchor(self) -> str:
         return self.root
 
-    async def joinpath(
-        self, *other_paths: T.Union[str, "SmartPath", os.PathLike]
-    ) -> "SmartPath":
+    async def joinpath(self, *other_paths: T.Union[str, os.PathLike]) -> "SmartPath":
         """
         Calling this method is equivalent to combining the path
         with each of the other arguments in turn
@@ -593,7 +584,7 @@ class SmartPath:
 
     async def copy(
         self,
-        target: T.Union[str, "SmartPath", os.PathLike],
+        target: T.Union[str, os.PathLike],
         *,
         follow_symlinks: bool = False,
     ) -> "SmartPath":
@@ -609,7 +600,7 @@ class SmartPath:
 
     async def copy_into(
         self,
-        target_dir: T.Union[str, "SmartPath", os.PathLike],
+        target_dir: T.Union[str, os.PathLike],
         *,
         follow_symlinks: bool = False,
     ) -> "SmartPath":
@@ -624,9 +615,7 @@ class SmartPath:
         await self.copy(target=target, follow_symlinks=follow_symlinks)
         return target
 
-    async def rename(
-        self, target: T.Union[str, "SmartPath", os.PathLike]
-    ) -> "SmartPath":
+    async def rename(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
         """
         rename file
 
@@ -637,9 +626,7 @@ class SmartPath:
         result = await self.filesystem.move(dst_path=fspath(target), overwrite=False)
         return self.from_uri(result)
 
-    async def replace(
-        self, target: T.Union[str, "SmartPath", os.PathLike]
-    ) -> "SmartPath":
+    async def replace(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
         """
         move file
 
@@ -651,7 +638,7 @@ class SmartPath:
 
     async def move(
         self,
-        target: T.Union[str, "SmartPath", os.PathLike],
+        target: T.Union[str, os.PathLike],
     ) -> "SmartPath":
         """
         move file
@@ -663,7 +650,7 @@ class SmartPath:
 
     async def move_into(
         self,
-        target_dir: T.Union[str, "SmartPath", os.PathLike],
+        target_dir: T.Union[str, os.PathLike],
     ) -> "SmartPath":
         """
         move file or directory into dst directory
@@ -671,11 +658,11 @@ class SmartPath:
         :param target_dir: Given destination path
         :return: Destination SmartPath inside the target directory.
         """
-        target = self.from_uri(target_dir).joinpath(self.name)
+        target = await self.from_uri(target_dir).joinpath(self.name)
         await self.move(target=target)
         return target
 
-    async def symlink_to(self, target: T.Union[str, "SmartPath", os.PathLike]) -> None:
+    async def symlink_to(self, target: T.Union[str, os.PathLike]) -> None:
         """
         Make this path a symbolic link to target.
         symlink_to's arguments is the reverse of symlink's.
@@ -691,7 +678,7 @@ class SmartPath:
         result = await self.filesystem.readlink()
         return self.from_uri(result)
 
-    async def hardlink_to(self, target: T.Union[str, "SmartPath", os.PathLike]) -> None:
+    async def hardlink_to(self, target: T.Union[str, os.PathLike]) -> None:
         """
         Make this path a hard link to the same file as target.
 
