@@ -34,7 +34,7 @@ doc:
 release:
 	git tag ${VERSION}
 	git push origin ${VERSION}
-	
+
 	rm -rf build dist
 	uv build --wheel
 
