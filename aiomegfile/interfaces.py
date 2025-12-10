@@ -1,6 +1,11 @@
 import stat
 import typing as T
-from functools import cached_property
+from abc import ABC, abstractmethod
+
+from aiomegfile.errors import ProtocolNotFoundError
+from aiomegfile.lib.url import split_uri
+
+Self = T.TypeVar("Self")
 
 
 class StatResult(T.NamedTuple):
@@ -171,16 +176,8 @@ class StatResult(T.NamedTuple):
 FILE_SYSTEMS = {}
 
 
-class BaseFileSystem:
+class BaseFileSystem(ABC):
     protocol = ""
-
-    def __init__(
-        self,
-        path_without_protocol: str,
-        profile_name: T.Optional[str] = None,
-    ):
-        self.path_without_protocol = path_without_protocol
-        self.profile_name = profile_name
 
     def __init_subclass__(cls):
         if not cls.protocol:
@@ -195,13 +192,7 @@ class BaseFileSystem:
             )
         FILE_SYSTEMS[cls.protocol] = cls
 
-    @cached_property
-    def path_with_protocol(self) -> str:
-        """Return path with protocol, like file:///root, s3://bucket/key"""
-        protocol_prefix = self.protocol + "://"
-        return protocol_prefix + self.path_without_protocol
-
-    async def is_dir(self, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links when checking.
@@ -209,7 +200,7 @@ class BaseFileSystem:
         """
         raise NotImplementedError('method "is_dir" not implemented: %r' % self)
 
-    async def is_file(self, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links when checking.
@@ -217,7 +208,7 @@ class BaseFileSystem:
         """
         raise NotImplementedError('method "is_file" not implemented: %r' % self)
 
-    async def exists(self, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links when checking.
@@ -225,7 +216,7 @@ class BaseFileSystem:
         """
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
-    async def stat(self, follow_symlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, follow_symlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links when
@@ -234,7 +225,7 @@ class BaseFileSystem:
         """
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
-    async def unlink(self, missing_ok: bool = False) -> None:
+    async def unlink(self, path: str, missing_ok: bool = False) -> None:
         """Remove (delete) the file.
 
         :param missing_ok: If False, raise FileNotFoundError when the file is missing.
@@ -242,12 +233,16 @@ class BaseFileSystem:
         """
         raise NotImplementedError('method "unlink" not implemented: %r' % self)
 
-    async def rmdir(self) -> None:
+    async def rmdir(self, path: str) -> None:
         """Remove (delete) the directory."""
         raise NotImplementedError('method "rmdir" not implemented: %r' % self)
 
     async def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
+        self,
+        path: str,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ) -> None:
         """Create a directory.
 
@@ -259,6 +254,7 @@ class BaseFileSystem:
 
     def open(
         self,
+        path: str,
         mode: str = "r",
         buffering: int = -1,
         encoding: T.Optional[str] = None,
@@ -277,7 +273,7 @@ class BaseFileSystem:
         raise NotImplementedError('method "open" not implemented: %r' % self)
 
     async def walk(
-        self, followlinks: bool = False
+        self, path: str, followlinks: bool = False
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree.
 
@@ -287,20 +283,7 @@ class BaseFileSystem:
         raise NotImplementedError('method "walk" not implemented: %r' % self)
         yield
 
-    async def iglob(
-        self, pattern: str, recursive: bool = True, missing_ok: bool = True
-    ) -> T.AsyncIterator[str]:
-        """Return an iterator of files whose paths match the glob pattern.
-
-        :param pattern: Glob pattern to match.
-        :param recursive: Whether to allow recursive "**" matching.
-        :param missing_ok: Whether to suppress errors when nothing matches.
-        :return: Async iterator of matching path strings.
-        """
-        raise NotImplementedError('method "iglob" not implemented: %r' % self)
-        yield
-
-    async def move(self, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
         move file
 
@@ -311,14 +294,14 @@ class BaseFileSystem:
         """
         raise NotImplementedError(f"'move' is unsupported on '{type(self)}'")
 
-    async def symlink(self, dst_path: str) -> None:
+    async def symlink(self, src_path: str, dst_path: str) -> None:
         """Create a symbolic link pointing to self named dst_path.
 
         :param dst_path: The symbolic link path.
         """
         raise NotImplementedError(f"'symlink' is unsupported on '{type(self)}'")
 
-    async def readlink(self) -> str:
+    async def readlink(self, path: str) -> str:
         """
         Return a new path representing the symbolic link's target.
 
@@ -326,13 +309,13 @@ class BaseFileSystem:
         """
         raise NotImplementedError(f"'readlink' is unsupported on '{type(self)}'")
 
-    async def is_symlink(self) -> bool:
+    async def is_symlink(self, path: str) -> bool:
         """
         Return True if the path points to a symbolic link.
         """
         raise NotImplementedError(f"'is_symlink' is unsupported on '{type(self)}'")
 
-    async def iterdir(self) -> T.AsyncIterator[str]:
+    async def iterdir(self, path: str) -> T.AsyncIterator[str]:
         """
         Get all contents of given fs path.
         The result is in ascending alphabetical order.
@@ -342,7 +325,7 @@ class BaseFileSystem:
         raise NotImplementedError(f"'iterdir' is unsupported on '{type(self)}'")
         yield
 
-    async def absolute(self) -> str:
+    async def absolute(self, path: str) -> str:
         """
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
@@ -351,9 +334,63 @@ class BaseFileSystem:
         """
         raise NotImplementedError(f"'absolute' is unsupported on '{type(self)}'")
 
-    def __eq__(self, other: "BaseFileSystem") -> bool:
-        return (
-            self.protocol == other.protocol
-            and self.profile_name == other.profile_name
-            and self.path_without_protocol == other.path_without_protocol
-        )
+    async def samefile(self, path: str, other_path: str) -> bool:
+        """
+        Return whether this path points to the same file
+
+        :param other_path: Path to compare.
+        :return: True if both represent the same file.
+        """
+        raise NotImplementedError(f"'samefile' is unsupported on '{type(self)}'")
+
+    @abstractmethod
+    def same_endpoint(self, other_filesystem: "BaseFileSystem") -> bool:
+        """
+        Return whether this filesystem points to the same endpoint.
+
+        :param other_filesystem: Filesystem to compare.
+        :return: True if both represent the same endpoint.
+        """
+
+    @abstractmethod
+    def get_path_from_uri(self, uri: str) -> str:
+        """
+        Get the path part from uri.
+
+        :return: Path part string.
+        """
+
+    @abstractmethod
+    def generate_uri(self, path: str) -> str:
+        """
+        Generate URI for the filesystem.
+
+        :param path: Path without protocol.
+        :return: Generated URI string.
+        """
+        return f"{self.protocol}://{path}"
+
+    @classmethod
+    @abstractmethod
+    def from_uri(
+        cls: T.Type[Self],
+        uri: str,
+    ) -> Self:
+        """Return new instance of this class
+
+        :param path: path without protocol
+
+        :return: new instance of new path
+        """
+
+
+def get_filesystem_by_uri(
+    uri: str,
+) -> BaseFileSystem:
+    protocol, _, _ = split_uri(uri)
+    if protocol not in FILE_SYSTEMS:
+        raise ProtocolNotFoundError(f"protocol {protocol:!r} not found")
+    path_class = FILE_SYSTEMS[protocol]
+    return path_class.from_url(
+        uri,
+    )

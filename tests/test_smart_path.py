@@ -77,7 +77,7 @@ class TestSmartPathProtocolParsing:
         # Test that profile_name is correctly parsed
         # This requires a registered protocol; file protocol doesn't use profiles
         # but we can test the parsing logic
-        protocol, profile, path = SmartPath._split_path("s3+myprofile://bucket/key")
+        protocol, profile, path = SmartPath._split_uri("s3+myprofile://bucket/key")
         assert protocol == "s3"
         assert profile == "myprofile"
         assert path == "bucket/key"
@@ -605,11 +605,11 @@ class TestSmartPathErrors:
         with pytest.raises(ProtocolNotFoundError):
             SmartPath("unknown://bucket/key")
 
-    def test_split_path_non_string_raises(self):
+    def test_split_uri_non_string_raises(self):
         from aiomegfile.errors import ProtocolNotFoundError
 
         with pytest.raises(ProtocolNotFoundError):
-            SmartPath._split_path(123)
+            SmartPath._split_uri(123)
 
 
 class TestSmartPathHardlink:
