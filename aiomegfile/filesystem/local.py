@@ -22,7 +22,7 @@ class LocalFileSystem(BaseFileSystem):
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links.
-        :returns: True if the path is a directory, otherwise False.
+        :return: True if the path is a directory, otherwise False.
         """
         try:
             if followlinks:
@@ -36,7 +36,7 @@ class LocalFileSystem(BaseFileSystem):
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links.
-        :returns: True if the path is a regular file, otherwise False.
+        :return: True if the path is a regular file, otherwise False.
         """
         try:
             if followlinks:
@@ -50,7 +50,7 @@ class LocalFileSystem(BaseFileSystem):
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links.
-        :returns: True if the path exists, otherwise False.
+        :return: True if the path exists, otherwise False.
         """
         try:
             if followlinks:
@@ -64,7 +64,7 @@ class LocalFileSystem(BaseFileSystem):
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links.
-        :returns: Populated StatResult for the path.
+        :return: Populated StatResult for the path.
         """
         stat_result = await aiofiles.os.stat(
             self.path_without_protocol, follow_symlinks=follow_symlinks
@@ -131,7 +131,7 @@ class LocalFileSystem(BaseFileSystem):
         :param encoding: Text encoding when using text modes.
         :param errors: Error handling strategy for encoding/decoding.
         :param newline: Newline handling in text mode.
-        :returns: Async file context manager.
+        :return: Async file context manager.
         """
         return aiofiles.open(  # pytype: disable=wrong-arg-types
             self.path_without_protocol,
@@ -148,7 +148,7 @@ class LocalFileSystem(BaseFileSystem):
         """Generate the file names in a directory tree by walking the tree.
 
         :param followlinks: Whether to traverse symbolic links to directories.
-        :returns: Async iterator of (root, dirs, files).
+        :return: Async iterator of (root, dirs, files).
         """
         for root, dirs, files in os.walk(
             self.path_without_protocol, followlinks=followlinks
@@ -163,7 +163,7 @@ class LocalFileSystem(BaseFileSystem):
         :param pattern: Glob pattern to match relative to the current path.
         :param recursive: Whether to enable recursive ** matching.
         :param missing_ok: Whether to suppress errors when no paths match.
-        :returns: Async iterator of matching path strings.
+        :return: Async iterator of matching path strings.
         """
 
         # TODO: support more glob features {}
@@ -178,7 +178,7 @@ class LocalFileSystem(BaseFileSystem):
 
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
-        :returns: The destination path
+        :return: The destination path
         """
         if not overwrite and await aiofiles.ospath.exists(dst_path):
             raise FileExistsError(f"Destination path already exists: {dst_path}")
@@ -205,7 +205,7 @@ class LocalFileSystem(BaseFileSystem):
         Get all contents of given fs path.
         The result is in ascending alphabetical order.
 
-        :returns: All contents have in the path in ascending alphabetical order
+        :return: All contents have in the path in ascending alphabetical order
         """
         files = await aiofiles.os.listdir(self.path_without_protocol)
         for filename in sorted(files):

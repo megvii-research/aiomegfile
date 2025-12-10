@@ -3,7 +3,8 @@ import os
 import pytest
 
 from aiomegfile.interfaces import StatResult
-from aiomegfile.smart_path import SmartPath, URIPathParents, fspath
+from aiomegfile.lib.url import fspath
+from aiomegfile.smart_path import SmartPath, URIPathParents
 
 
 class TestFspath:

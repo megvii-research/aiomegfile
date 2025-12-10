@@ -7,13 +7,7 @@ from functools import cached_property
 
 from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.interfaces import FILE_SYSTEMS, BaseFileSystem, StatResult
-
-
-def fspath(path: T.Union[str, os.PathLike]) -> str:
-    path = os.fspath(path)
-    if isinstance(path, bytes):
-        path = path.decode()
-    return path
+from aiomegfile.lib.url import fspath
 
 
 class URIPathParents(Sequence):
@@ -223,6 +217,7 @@ class SmartPath:
         """Return True if this path is relative to the given path.
 
         :param other: Target path to compare against.
+        :return: True if relative, otherwise False.
         """
         try:
             await self.relative_to(other)
@@ -236,7 +231,7 @@ class SmartPath:
         If it's impossible, ValueError is raised.
 
         :param other: Target path to compute the relative path against.
-        :returns: Relative path string.
+        :return: Relative path string.
         :raises TypeError: If other is missing.
         :raises ValueError: If this path is not under the given other path.
         """
@@ -254,17 +249,29 @@ class SmartPath:
         raise ValueError("%r does not start with %r" % (path, other))
 
     async def with_name(self, name: str) -> "SmartPath":
-        """Return a new path with the name changed"""
+        """Return a new path with the name changed.
+
+        :param name: New file or directory name.
+        :return: SmartPath with the name changed.
+        """
         path = str(self)
         raw_name = self.name
         return self.from_uri(path[: len(path) - len(raw_name)] + name)
 
     async def with_stem(self, stem: str) -> "SmartPath":
-        """Return a new path with the stem changed"""
+        """Return a new path with the stem changed.
+
+        :param stem: New stem (basename without suffix).
+        :return: SmartPath with updated stem.
+        """
         return await self.with_name("".join([stem, self.suffix]))
 
     async def with_suffix(self, suffix: str) -> "SmartPath":
-        """Return a new path with the suffix changed"""
+        """Return a new path with the suffix changed.
+
+        :param suffix: New suffix including leading dot.
+        :return: SmartPath with the suffix changed.
+        """
         path = str(self)
         raw_suffix = self.suffix
         return self.from_uri(path[: len(path) - len(raw_suffix)] + suffix)
@@ -273,7 +280,7 @@ class SmartPath:
         """Alias of realpath.
 
         :param strict: Whether to raise if a symlink points to itself.
-        :returns: Resolved absolute SmartPath.
+        :return: Resolved absolute SmartPath.
         :raises OSError: If a symlink points to itself and strict is True.
         """
         path = self
@@ -286,7 +293,10 @@ class SmartPath:
         return await path.absolute()
 
     async def read_bytes(self) -> bytes:
-        """Return the binary contents of the pointed-to file as a bytes object"""
+        """Return the binary contents of the pointed-to file as a bytes object.
+
+        :return: File content in bytes.
+        """
         async with self.open(mode="rb") as f:
             return await f.read()  # pytype: disable=bad-return-type
 
@@ -296,7 +306,13 @@ class SmartPath:
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
     ) -> str:
-        """Return the decoded contents of the pointed-to file as a string"""
+        """Return the decoded contents of the pointed-to file as a string.
+
+        :param encoding: Optional text encoding.
+        :param errors: Optional error handling strategy.
+        :param newline: Optional newline handling policy.
+        :return: File content as text.
+        """
         async with self.open(
             mode="r", encoding=encoding, errors=errors, newline=newline
         ) as f:
@@ -307,7 +323,7 @@ class SmartPath:
         Return whether this path points to the same file
 
         :param other_path: Path to compare.
-        :returns: True if both represent the same file.
+        :return: True if both represent the same file.
         """
         return self == other_path
 
@@ -328,7 +344,7 @@ class SmartPath:
         Open the file pointed to in bytes mode, write data to it, and close the file
 
         :param data: Bytes to write to the file.
-        :returns: Number of bytes written.
+        :return: Number of bytes written.
         """
         async with self.open(mode="wb") as f:
             return await f.write(data)
@@ -348,7 +364,7 @@ class SmartPath:
         :param encoding: Optional text encoding.
         :param errors: Optional error handling strategy.
         :param newline: Optional newline handling policy.
-        :returns: Number of characters written.
+        :return: Number of characters written.
         """
         async with self.open(
             mode="w", encoding=encoding, errors=errors, newline=newline
@@ -371,7 +387,7 @@ class SmartPath:
         with each of the other arguments in turn
 
         :param other_paths: Additional path components to join.
-        :returns: A new SmartPath representing the combined path.
+        :return: A new SmartPath representing the combined path.
         """
         path = self
         for other_path in other_paths:
@@ -408,6 +424,7 @@ class SmartPath:
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links.
+        :return: True if the path is a directory, otherwise False.
         """
         return await self.filesystem.is_dir(followlinks=followlinks)
 
@@ -415,17 +432,22 @@ class SmartPath:
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links.
+        :return: True if the path is a regular file, otherwise False.
         """
         return await self.filesystem.is_file(followlinks=followlinks)
 
     async def is_symlink(self) -> bool:
-        """Return True if the path points to a symbolic link."""
+        """Return True if the path points to a symbolic link.
+
+        :return: True if the path is a symlink, otherwise False.
+        """
         return await self.filesystem.is_symlink()
 
     async def exists(self, *, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links.
+        :return: True if the path exists, otherwise False.
         """
         return await self.filesystem.exists(followlinks=followlinks)
 
@@ -433,7 +455,7 @@ class SmartPath:
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links when resolving.
-        :returns: StatResult for the path.
+        :return: StatResult for the path.
         """
         return await self.filesystem.stat(follow_symlinks=follow_symlinks)
 
@@ -441,6 +463,8 @@ class SmartPath:
         """
         Like stat() but, if the path points to a symbolic link,
         return the symbolic link's information rather than its target's.
+
+        :return: StatResult for the link itself.
         """
         return await self.stat(follow_symlinks=False)
 
@@ -451,11 +475,12 @@ class SmartPath:
         Match this path against the provided glob-style pattern.
         Return True if matching is successful, False otherwise.
 
-        This method is similar to ''full_match()'',
+        This method is similar to ``full_match()``,
         but the recursive wildcard “**” isn’t supported (it acts like non-recursive “*”)
 
         :param pattern: Glob pattern to match against the full URI.
         :param case_sensitive: Whether matching should be case sensitive.
+        :return: True if the path matches the pattern, otherwise False.
         """
         pattern = pattern.replace("**", "*")
         return await self.full_match(pattern=pattern, case_sensitive=case_sensitive)
@@ -526,6 +551,7 @@ class SmartPath:
         """Generate the file names in a directory tree by walking the tree.
 
         :param follow_symlinks: Whether to traverse symbolic links to directories.
+        :return: Async iterator of (root, dirs, files).
         """
         async for item in self.filesystem.walk(followlinks=follow_symlinks):
             yield item
@@ -534,6 +560,7 @@ class SmartPath:
         """Return an iterator of files whose paths match the glob pattern.
 
         :param pattern: Glob pattern to match relative to this path.
+        :return: Async iterator of matching SmartPath objects.
         """
         async for path_str in self.filesystem.iglob(
             pattern=pattern, recursive=True, missing_ok=True
@@ -544,7 +571,7 @@ class SmartPath:
         """Return files whose paths match the glob pattern.
 
         :param pattern: Glob pattern to match relative to this path.
-        :returns: List of matching SmartPath instances.
+        :return: List of matching SmartPath instances.
         """
         result = []
         async for item in self.iglob(pattern=pattern):
@@ -553,11 +580,11 @@ class SmartPath:
 
     async def rglob(self, pattern: str) -> T.List["SmartPath"]:
         """
-        This is like calling Path.glob() with "**/" added in front of
+        This is like calling ``Path.glob()`` with ``**/`` added in front of
         the given relative pattern
 
         :param pattern: Glob pattern to match recursively.
-        :returns: List of matching SmartPath instances.
+        :return: List of matching SmartPath instances.
         """
         if not pattern:
             pattern = ""
@@ -575,7 +602,7 @@ class SmartPath:
 
         :param target: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
-        :returns: Target SmartPath.
+        :return: Target SmartPath.
         """
         # TODO: implement copy
         raise NotImplementedError("copy is not implemented")
@@ -591,7 +618,7 @@ class SmartPath:
 
         :param target_dir: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
-        :returns: Target SmartPath.
+        :return: Target SmartPath.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
         await self.copy(target=target, follow_symlinks=follow_symlinks)
@@ -604,7 +631,7 @@ class SmartPath:
         rename file
 
         :param target: Given destination path
-        :returns: Target SmartPath after rename.
+        :return: Target SmartPath after rename.
         :raises FileExistsError: If destination exists.
         """
         result = await self.filesystem.move(dst_path=fspath(target), overwrite=False)
@@ -617,7 +644,7 @@ class SmartPath:
         move file
 
         :param target: Given destination path
-        :returns: Destination SmartPath after replace.
+        :return: Destination SmartPath after replace.
         """
         result = await self.filesystem.move(dst_path=fspath(target), overwrite=True)
         return self.from_uri(result)
@@ -630,7 +657,7 @@ class SmartPath:
         move file
 
         :param target: Given destination path
-        :returns: Destination SmartPath after move.
+        :return: Destination SmartPath after move.
         """
         return await self.replace(target=target)
 
@@ -642,6 +669,7 @@ class SmartPath:
         move file or directory into dst directory
 
         :param target_dir: Given destination path
+        :return: Destination SmartPath inside the target directory.
         """
         target = self.from_uri(target_dir).joinpath(self.name)
         await self.move(target=target)
@@ -668,6 +696,7 @@ class SmartPath:
         Make this path a hard link to the same file as target.
 
         :param target: Existing path to hard link to.
+        :raises NotImplementedError: If protocol does not support hard links.
         """
         if self.filesystem.protocol == "file":
             return await asyncio.to_thread(
@@ -682,7 +711,7 @@ class SmartPath:
         Get all contents of given fs path.
         The result is in ascending alphabetical order.
 
-        :returns: All contents have in the path in ascending alphabetical order
+        :return: All contents have in the path in ascending alphabetical order
         """
         async for path_str in self.filesystem.iterdir():
             yield self.from_uri(path_str)
@@ -691,6 +720,8 @@ class SmartPath:
         """
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
+
+        :return: Absolute SmartPath without symlink resolution.
         """
         result = await self.filesystem.absolute()
         return self.from_uri(result)
