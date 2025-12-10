@@ -389,7 +389,7 @@ def get_filesystem_by_uri(
 ) -> BaseFileSystem:
     protocol, _, _ = split_uri(uri)
     if protocol not in FILE_SYSTEMS:
-        raise ProtocolNotFoundError(f"protocol {protocol:!r} not found")
+        raise ProtocolNotFoundError(f"protocol {protocol!r} not found")
     path_class = FILE_SYSTEMS[protocol]
     return path_class.from_uri(
         uri,

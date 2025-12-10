@@ -25,72 +25,72 @@ class TestLocalFileSystem:
             f.write("Hello, World!")
         return file_path
 
-    def _create_protocol(self, path: str) -> LocalFileSystem:
+    def _create_protocol(self) -> LocalFileSystem:
         """Create a LocalFileSystem instance for testing."""
-        return LocalFileSystem(path_without_protocol=path)
+        return LocalFileSystem(protocol_in_path=False)
 
     async def test_exists_file(self, temp_file):
         """Test exists method for existing file."""
-        protocol = self._create_protocol(temp_file)
-        assert await protocol.exists() is True
+        protocol = self._create_protocol()
+        assert await protocol.exists(temp_file) is True
 
     async def test_exists_dir(self, temp_dir):
         """Test exists method for existing directory."""
-        protocol = self._create_protocol(temp_dir)
-        assert await protocol.exists() is True
+        protocol = self._create_protocol()
+        assert await protocol.exists(temp_dir) is True
 
     async def test_exists_not_found(self, temp_dir):
         """Test exists method for non-existing path."""
-        protocol = self._create_protocol(os.path.join(temp_dir, "not_exist"))
-        assert await protocol.exists() is False
+        protocol = self._create_protocol()
+        assert await protocol.exists(os.path.join(temp_dir, "not_exist")) is False
 
     async def test_is_file(self, temp_file):
         """Test is_file method."""
-        protocol = self._create_protocol(temp_file)
-        assert await protocol.is_file() is True
+        protocol = self._create_protocol()
+        assert await protocol.is_file(temp_file) is True
 
     async def test_is_file_on_dir(self, temp_dir):
         """Test is_file method on directory."""
-        protocol = self._create_protocol(temp_dir)
-        assert await protocol.is_file() is False
+        protocol = self._create_protocol()
+        assert await protocol.is_file(temp_dir) is False
 
     async def test_is_dir(self, temp_dir):
         """Test is_dir method."""
-        protocol = self._create_protocol(temp_dir)
-        assert await protocol.is_dir() is True
+        protocol = self._create_protocol()
+        assert await protocol.is_dir(temp_dir) is True
 
     async def test_is_dir_on_file(self, temp_file):
         """Test is_dir method on file."""
-        protocol = self._create_protocol(temp_file)
-        assert await protocol.is_dir() is False
+        protocol = self._create_protocol()
+        assert await protocol.is_dir(temp_file) is False
 
     async def test_stat_file(self, temp_file):
         """Test stat method on file."""
-        protocol = self._create_protocol(temp_file)
-        stat_result = await protocol.stat()
+        protocol = self._create_protocol()
+        stat_result = await protocol.stat(temp_file)
         assert stat_result.size == 13  # len("Hello, World!")
         assert stat_result.isdir is False
         assert stat_result.islnk is False
 
     async def test_stat_dir(self, temp_dir):
         """Test stat method on directory."""
-        protocol = self._create_protocol(temp_dir)
-        stat_result = await protocol.stat()
+        protocol = self._create_protocol()
+        stat_result = await protocol.stat(temp_dir)
         assert stat_result.isdir is True
         assert stat_result.islnk is False
 
     async def test_open_read(self, temp_file):
         """Test open method for reading."""
-        protocol = self._create_protocol(temp_file)
-        async with protocol.open("r") as f:
+        protocol = self._create_protocol()
+        async with protocol.open(temp_file, "r") as f:
             content = await f.read()
         assert content == "Hello, World!"
 
     async def test_open_write(self, temp_dir):
         """Test open method for writing."""
         file_path = os.path.join(temp_dir, "new_file.txt")
-        protocol = self._create_protocol(file_path)
-        async with protocol.open("w") as f:
+        protocol = self._create_protocol()
+        async with protocol.open(file_path, "w") as f:
             await f.write("New content")
 
         with open(file_path) as f:
@@ -99,48 +99,48 @@ class TestLocalFileSystem:
     async def test_mkdir(self, temp_dir):
         """Test mkdir method."""
         new_dir = os.path.join(temp_dir, "new_dir")
-        protocol = self._create_protocol(new_dir)
-        await protocol.mkdir()
+        protocol = self._create_protocol()
+        await protocol.mkdir(new_dir)
         assert os.path.isdir(new_dir)
 
     async def test_mkdir_parents(self, temp_dir):
         """Test mkdir method with parents=True."""
         new_dir = os.path.join(temp_dir, "parent", "child")
-        protocol = self._create_protocol(new_dir)
-        await protocol.mkdir(parents=True)
+        protocol = self._create_protocol()
+        await protocol.mkdir(new_dir, parents=True)
         assert os.path.isdir(new_dir)
 
     async def test_mkdir_exist_ok(self, temp_dir):
         """Test mkdir method with exist_ok=True."""
-        protocol = self._create_protocol(temp_dir)
+        protocol = self._create_protocol()
         # Should not raise
-        await protocol.mkdir(exist_ok=True)
+        await protocol.mkdir(temp_dir, exist_ok=True)
 
     async def test_unlink(self, temp_file):
         """Test unlink method."""
-        protocol = self._create_protocol(temp_file)
-        await protocol.unlink()
+        protocol = self._create_protocol()
+        await protocol.unlink(temp_file)
         assert not os.path.exists(temp_file)
 
     async def test_unlink_missing_ok(self, temp_dir):
         """Test unlink method with missing_ok=True."""
         file_path = os.path.join(temp_dir, "not_exist")
-        protocol = self._create_protocol(file_path)
+        protocol = self._create_protocol()
         # Should not raise
-        await protocol.unlink(missing_ok=True)
+        await protocol.unlink(file_path, missing_ok=True)
 
     async def test_unlink_missing_raises(self, temp_dir):
         """Test unlink method raises FileNotFoundError."""
         file_path = os.path.join(temp_dir, "not_exist")
-        protocol = self._create_protocol(file_path)
+        protocol = self._create_protocol()
         with pytest.raises(FileNotFoundError):
-            await protocol.unlink(missing_ok=False)
+            await protocol.unlink(file_path, missing_ok=False)
 
     async def test_move(self, temp_file, temp_dir):
         """Test move method."""
         dst_path = os.path.join(temp_dir, "moved_file.txt")
-        protocol = self._create_protocol(temp_file)
-        result = await protocol.move(dst_path)
+        protocol = self._create_protocol()
+        result = await protocol.move(temp_file, dst_path)
         assert result == dst_path
         assert os.path.exists(dst_path)
         assert not os.path.exists(temp_file)
@@ -151,20 +151,20 @@ class TestLocalFileSystem:
         with open(dst_path, "w") as f:
             f.write("existing")
 
-        protocol = self._create_protocol(temp_file)
+        protocol = self._create_protocol()
         with pytest.raises(FileExistsError):
-            await protocol.move(dst_path, overwrite=False)
+            await protocol.move(temp_file, dst_path, overwrite=False)
 
     async def test_symlink_and_readlink(self, temp_file, temp_dir):
         """Test symlink and readlink methods."""
         link_path = os.path.join(temp_dir, "link_to_file")
-        protocol = self._create_protocol(temp_file)
-        await protocol.symlink(link_path)
+        protocol = self._create_protocol()
+        await protocol.symlink(temp_file, link_path)
 
         assert os.path.islink(link_path)
 
-        link_protocol = self._create_protocol(link_path)
-        target = await link_protocol.readlink()
+        link_protocol = self._create_protocol()
+        target = await link_protocol.readlink(link_path)
         assert target == temp_file
 
     async def test_iterdir(self, temp_dir):
@@ -174,9 +174,9 @@ class TestLocalFileSystem:
             with open(os.path.join(temp_dir, name), "w") as f:
                 f.write(name)
 
-        protocol = self._create_protocol(temp_dir)
+        protocol = self._create_protocol()
         entries = []
-        async for entry in protocol.iterdir():
+        async for entry in protocol.iterdir(temp_dir):
             entries.append(entry)
 
         # Should be sorted
@@ -197,16 +197,16 @@ class TestLocalFileSystem:
         with open(os.path.join(subdir, "file2.txt"), "w") as f:
             f.write("file2")
 
-        protocol = self._create_protocol(temp_dir)
+        protocol = self._create_protocol()
         results = []
-        async for root, dirs, files in protocol.walk():
+        async for root, dirs, files in protocol.walk(temp_dir):
             results.append((root, dirs, files))
 
         assert len(results) == 2
 
     async def test_absolute(self, temp_file):
         """Test absolute method."""
-        protocol = self._create_protocol(temp_file)
-        abs_path = await protocol.absolute()
+        protocol = self._create_protocol()
+        abs_path = await protocol.absolute(temp_file)
         assert os.path.isabs(abs_path)
         assert abs_path == os.path.abspath(temp_file)

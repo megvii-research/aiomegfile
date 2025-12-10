@@ -225,7 +225,7 @@ class SmartPath(os.PathLike):
         if path.startswith(other_path_str):
             relative = path[len(other_path_str) :]
             relative = relative.lstrip("/")
-            return self.filesystem.generate_uri(relative)
+            return relative
 
         raise ValueError("%r does not start with %r" % (path, other))
 
@@ -380,12 +380,21 @@ class SmartPath(os.PathLike):
     @cached_property
     def parts(self) -> T.Tuple[str, ...]:
         """A tuple giving access to the path’s various components"""
-        parts = [self.root]
+        parts = []
         path = fspath(self)
         if path.startswith(self.root):
+            parts.append(self.root)
             path = path[len(self.root) :]
-        if path != "":
-            parts.extend(path.split("/"))
+
+        if path.startswith("/"):
+            if len(parts) == 0:
+                parts.append("/")
+            else:
+                parts[-1] += "/"
+        path = path.lstrip("/")
+
+        if path:
+            parts.extend([p for p in path.split("/") if p not in {"", "."}])
         return tuple(parts)
 
     @cached_property
@@ -398,7 +407,7 @@ class SmartPath(os.PathLike):
     @cached_property
     def parent(self) -> "SmartPath":
         """The logical parent of the path"""
-        if fspath(self) == "/":
+        if self._path in {"", "/"}:
             return self
         elif len(self.parents) > 0:
             return self.parents[0]
@@ -534,9 +543,7 @@ class SmartPath(os.PathLike):
         :param follow_symlinks: Whether to traverse symbolic links to directories.
         :return: Async iterator of (root, dirs, files).
         """
-        async for item in self.filesystem.walk(
-            self._path, follow_symlinks=follow_symlinks
-        ):
+        async for item in self.filesystem.walk(self._path, followlinks=follow_symlinks):
             yield item
 
     async def iglob(self, pattern: str) -> T.AsyncIterator["SmartPath"]:
