@@ -71,7 +71,7 @@ class SmartPath(os.PathLike):
         )
 
     def __str__(self) -> str:
-        return self.path
+        return fspath(self)
 
     def __repr__(self) -> str:
         return "%s(%r)" % (self.__class__.__name__, str(self))
@@ -137,12 +137,10 @@ class SmartPath(os.PathLike):
                     "'/' not supported between instances of %r and %r"
                     % (type(self), type(other_path))
                 )
-        elif isinstance(other_path, os.PathLike):
-            other_path = fspath(other_path)
-        elif not isinstance(other_path, str):
-            raise TypeError("%r is not 'PathLike' object" % other_path)
 
-        first_path = self.path
+        first_path = fspath(self)
+        other_path = fspath(other_path)
+
         if first_path.endswith("/"):
             first_path = first_path[:-1]
         if other_path.startswith("/"):
@@ -327,7 +325,7 @@ class SmartPath(os.PathLike):
         """
         if await self.exists():
             if not exist_ok:
-                raise FileExistsError(f"File exists: {self.path}")
+                raise FileExistsError(f"File exists: {fspath(self)}")
             return
         async with self.open("w"):
             pass
@@ -669,7 +667,7 @@ class SmartPath(os.PathLike):
 
         :param target: Destination the new link should point to.
         """
-        return await self.from_uri(target).filesystem.symlink(dst_path=self.path)
+        return await self.from_uri(target).filesystem.symlink(dst_path=fspath(self))
 
     async def readlink(self) -> "SmartPath":
         """
