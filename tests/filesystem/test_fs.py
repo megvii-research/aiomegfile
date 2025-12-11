@@ -184,7 +184,8 @@ class TestLocalFileSystem:
         names = {entry.name for entry in entries}
         assert names == {"a.txt", "b.txt", "folder"}
         assert all(
-            entry.path == os.path.join(temp_dir, entry.name) for entry in entries)
+            entry.path == os.path.join(temp_dir, entry.name) for entry in entries
+        )
         assert any(entry.is_dir() for entry in entries)
         assert any(entry.is_file() for entry in entries)
 

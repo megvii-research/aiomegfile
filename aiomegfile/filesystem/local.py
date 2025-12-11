@@ -55,8 +55,10 @@ class ScandirContextManager(AbstractAsyncContextManager):
 
     def __await__(self):
         """Return self to provide a minimal awaitable interface."""
+
         async def dummy():
             return self
+
         return dummy().__await__()
 
     async def __aexit__(self, exc_type, exc, tb):
