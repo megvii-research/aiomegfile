@@ -2,10 +2,10 @@ import asyncio
 import os
 import typing as T
 from collections.abc import Sequence
-from fnmatch import fnmatch, fnmatchcase
 from functools import cached_property
 
 from aiomegfile.interfaces import StatResult, get_filesystem_by_uri
+from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.url import fspath
 
 
@@ -39,9 +39,13 @@ class URIPathParents(Sequence):
 
 class SmartPath(os.PathLike):
     def __init__(self, uri: T.Union[str, os.PathLike]):
-        uri = fspath(uri)
-        self.filesystem = get_filesystem_by_uri(uri)
-        self._path = self.filesystem.get_path_from_uri(uri)
+        if isinstance(uri, SmartPath):
+            self.filesystem = uri.filesystem
+            self._path = uri._path
+        else:
+            uri = fspath(uri)
+            self.filesystem = get_filesystem_by_uri(uri)
+            self._path = self.filesystem.get_path_from_uri(uri)
 
     def __str__(self) -> str:
         return fspath(self)
@@ -450,7 +454,7 @@ class SmartPath(os.PathLike):
         :param follow_symlinks: Whether to follow symbolic links when resolving.
         :return: StatResult for the path.
         """
-        return await self.filesystem.stat(self._path, follow_symlinks=follow_symlinks)
+        return await self.filesystem.stat(self._path, followlinks=follow_symlinks)
 
     async def lstat(self) -> StatResult:
         """
@@ -554,6 +558,7 @@ class SmartPath(os.PathLike):
         """
         # TODO: implement iglob
         raise NotImplementedError("iglob is not implemented")
+        yield  # to make it an async generator
 
     async def glob(self, pattern: str) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern.
@@ -579,6 +584,52 @@ class SmartPath(os.PathLike):
         pattern = "**/" + pattern.lstrip("/")
         return await self.glob(pattern=pattern)
 
+    async def _copy_file(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
+        """
+        copy file only
+
+        :param target: Given destination path
+        :return: Target SmartPath.
+        """
+        target_path = self.from_uri(target)
+
+        if target_path.filesystem.same_endpoint(self.filesystem):
+            await self.filesystem.copy(
+                src_path=self._path,
+                dst_path=target_path._path,
+            )
+            return target_path
+
+        if self.filesystem.protocol == "file":
+            try:
+                await target_path.filesystem.upload(
+                    src_path=self._path,
+                    dst_path=target_path._path,
+                )
+                return target_path
+            except NotImplementedError:
+                pass
+
+        if target_path.filesystem.protocol == "file":
+            try:
+                await self.filesystem.download(
+                    src_path=self._path,
+                    dst_path=target_path._path,
+                )
+                return target_path
+            except NotImplementedError:
+                pass
+
+        async with self.open("rb") as src_file:
+            async with target_path.open("wb") as dst_file:
+                while True:
+                    chunk = await src_file.read(16 * 1024)  # 16KB, same as shutil
+                    if not chunk:
+                        break
+                    await dst_file.write(chunk)
+
+        return target_path
+
     async def copy(
         self,
         target: T.Union[str, os.PathLike],
@@ -592,8 +643,27 @@ class SmartPath(os.PathLike):
         :param follow_symlinks: whether or not follow symbolic link
         :return: Target SmartPath.
         """
-        # TODO: implement copy
-        raise NotImplementedError("copy is not implemented")
+
+        if follow_symlinks:
+            src_path = await self.resolve()
+            return await src_path.copy(target=target, follow_symlinks=False)
+
+        target_path = self.from_uri(target)
+
+        if await self.is_dir():
+            async with self.filesystem.scandir(self._path) as it:
+                async for current_entry in it:
+                    current_src = current_entry.path
+                    current_src_path = self.from_uri(
+                        self.filesystem.generate_uri(current_src)
+                    )
+                    relative_path = await current_src_path.relative_to(self)
+                current_target_path = await target_path.joinpath(relative_path)
+                await current_src_path._copy_file(target=current_target_path)
+            return target_path
+
+        await self._copy_file(target=target_path)
+        return target_path
 
     async def copy_into(
         self,

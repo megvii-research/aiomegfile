@@ -1,14 +1,49 @@
 import asyncio
 import os
+import shutil
 import stat
 import typing as T
+from contextlib import AbstractAsyncContextManager
 
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
 
-from aiomegfile.interfaces import BaseFileSystem, StatResult
+from aiomegfile.interfaces import BaseFileSystem, FileEntry, StatResult
 from aiomegfile.lib.url import split_uri
+
+
+class ScandirContextManager(AbstractAsyncContextManager):
+    def __init__(self, path: str):
+        self._sync_context = os.scandir(path)
+
+    def _build_entry(self, entry: os.DirEntry) -> FileEntry:
+        stat_result = entry.stat()
+        return FileEntry(
+            name=entry.name,
+            path=entry.path,
+            stat=StatResult(
+                st_size=stat_result.st_size,
+                st_ctime=stat_result.st_ctime,
+                st_mtime=stat_result.st_mtime,
+                isdir=stat.S_ISDIR(stat_result.st_mode),
+                islnk=stat.S_ISLNK(stat_result.st_mode),
+                extra=stat_result,
+            ),
+        )
+
+    def __anext__(self) -> FileEntry:
+        entry = next(self._sync_context)
+        return self._build_entry(entry)
+
+    def __aiter__(self):
+        return self
+
+    def __await__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self._sync_context.close()
 
 
 class LocalFileSystem(BaseFileSystem):
@@ -63,18 +98,18 @@ class LocalFileSystem(BaseFileSystem):
         except OSError:
             return False
 
-    async def stat(self, path: str, follow_symlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
-        :param follow_symlinks: Whether to follow symbolic links.
+        :param followlinks: Whether to follow symbolic links.
         :return: Populated StatResult for the path.
         """
-        stat_result = await aiofiles.os.stat(path, follow_symlinks=follow_symlinks)
+        stat_result = await aiofiles.os.stat(path, follow_symlinks=followlinks)
 
         return StatResult(
-            size=stat_result.st_size,
-            ctime=stat_result.st_ctime,
-            mtime=stat_result.st_mtime,
+            st_size=stat_result.st_size,
+            st_ctime=stat_result.st_ctime,
+            st_mtime=stat_result.st_mtime,
             isdir=stat.S_ISDIR(stat_result.st_mode),
             islnk=stat.S_ISLNK(stat_result.st_mode),
             extra=stat_result,
@@ -92,9 +127,19 @@ class LocalFileSystem(BaseFileSystem):
             if not missing_ok:
                 raise
 
-    async def rmdir(self, path: str) -> None:
-        """Remove (delete) the directory."""
-        await aiofiles.os.rmdir(path)
+    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
+        """
+        Remove (delete) the directory.
+
+        :param path: The directory path to remove.
+        :param missing_ok: If False, raise when the directory does not exist.
+        :raises FileNotFoundError: When missing_ok is False and the directory is absent.
+        """
+        try:
+            await aiofiles.os.rmdir(path)
+        except FileNotFoundError:
+            if not missing_ok:
+                raise
 
     async def mkdir(
         self,
@@ -157,6 +202,9 @@ class LocalFileSystem(BaseFileSystem):
         for root, dirs, files in os.walk(path, followlinks=followlinks):
             yield root, dirs, files
 
+    def scandir(self, path) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        return ScandirContextManager(path)
+
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
         Move file.
@@ -167,7 +215,7 @@ class LocalFileSystem(BaseFileSystem):
         """
         if not overwrite and await aiofiles.ospath.exists(dst_path):
             raise FileExistsError(f"Destination path already exists: {dst_path}")
-        await aiofiles.os.rename(src_path, dst_path)
+        shutil.move(src_path, dst_path)
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:

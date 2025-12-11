@@ -68,7 +68,7 @@ class TestLocalFileSystem:
         """Test stat method on file."""
         protocol = self._create_protocol()
         stat_result = await protocol.stat(temp_file)
-        assert stat_result.size == 13  # len("Hello, World!")
+        assert stat_result.st_size == 13  # len("Hello, World!")
         assert stat_result.isdir is False
         assert stat_result.islnk is False
 

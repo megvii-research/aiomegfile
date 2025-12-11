@@ -326,8 +326,8 @@ class TestSmartPathAsync:
 
     async def test_match(self):
         p = SmartPath("file:///bucket/dir/sub/file.txt")
-        assert await p.match("*.txt")
-        assert await p.match("**/file.txt")
+        assert await p.match("file:///bucket/dir/sub/*.txt")
+        assert await p.match("file:///bucket/dir/**/file.txt")
         assert not await p.match("*.md")
 
     async def test_samefile(self, temp_dir):
@@ -341,6 +341,7 @@ class TestSmartPathAsync:
     async def test_full_match(self):
         p = SmartPath("file:///bucket/dir/file.txt")
         assert await p.full_match("**/file.txt")
+        assert await p.match("*.txt") is False
 
 
 class TestSmartPathFileOperations:
@@ -447,7 +448,7 @@ class TestSmartPathFileOperations:
         p = SmartPath(test_file)
         stat_result = await p.stat()
         assert isinstance(stat_result, StatResult)
-        assert stat_result.size > 0
+        assert stat_result.st_size > 0
 
     async def test_lstat(self, temp_dir):
         test_file = os.path.join(temp_dir, "lstat.txt")

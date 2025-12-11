@@ -9,21 +9,12 @@ Self = T.TypeVar("Self")
 
 
 class StatResult(T.NamedTuple):
-    size: int = 0
-    ctime: float = 0.0
-    mtime: float = 0.0
+    st_size: int = 0
+    st_ctime: float = 0.0
+    st_mtime: float = 0.0
     isdir: bool = False
     islnk: bool = False
     extra: T.Any = None
-
-    def is_file(self) -> bool:
-        return not self.isdir or self.islnk
-
-    def is_dir(self) -> bool:
-        return self.isdir and not self.islnk
-
-    def is_symlink(self) -> bool:
-        return self.islnk
 
     @property
     def st_mode(self) -> int:
@@ -33,14 +24,14 @@ class StatResult(T.NamedTuple):
         """
         if self.extra and hasattr(self.extra, "st_mode"):
             return self.extra.st_mode
-        if self.is_symlink():
+        if self.islnk:
             return stat.S_IFLNK
-        elif self.is_dir():
+        elif self.isdir:
             return stat.S_IFDIR
         return stat.S_IFREG
 
     @property
-    def st_ino(self) -> int:
+    def st_ino(self) -> int | str:
         """
         Platform dependent, but if non-zero, uniquely identifies the file for
         a given value of st_dev. Typically:
@@ -97,15 +88,6 @@ class StatResult(T.NamedTuple):
         return 0
 
     @property
-    def st_size(self) -> int:
-        """
-        Size of the file in bytes.
-        """
-        if self.extra and hasattr(self.extra, "st_size"):
-            return self.extra.st_size
-        return self.size
-
-    @property
     def st_atime(self) -> float:
         """
         Time of most recent access expressed in seconds.
@@ -114,29 +96,6 @@ class StatResult(T.NamedTuple):
         if self.extra and hasattr(self.extra, "st_atime"):
             return self.extra.st_atime
         return 0.0
-
-    @property
-    def st_mtime(self) -> float:
-        """
-        Time of most recent content modification expressed in seconds.
-        """
-        if self.extra and hasattr(self.extra, "st_mtime"):
-            return self.extra.st_mtime
-        return self.mtime
-
-    @property
-    def st_ctime(self) -> float:
-        """
-        Platform dependent:
-
-            the time of most recent metadata change on Unix,
-            the time of creation on Windows, expressed in seconds,
-            the time of file created on oss;
-            if is dir, return the latest ctime of the files in dir.
-        """
-        if self.extra and hasattr(self.extra, "st_ctime"):
-            return self.extra.st_ctime
-        return self.ctime
 
     @property
     def st_atime_ns(self) -> int:
@@ -173,6 +132,24 @@ class StatResult(T.NamedTuple):
         return 0
 
 
+class FileEntry(T.NamedTuple):
+    name: str
+    path: str
+    stat: StatResult
+
+    def inode(self) -> T.Optional[T.Union[int, str]]:
+        return self.stat.st_ino
+
+    def is_file(self) -> bool:
+        return not self.stat.isdir or self.stat.islnk
+
+    def is_dir(self) -> bool:
+        return self.stat.isdir and not self.stat.islnk
+
+    def is_symlink(self) -> bool:
+        return self.stat.islnk
+
+
 FILE_SYSTEMS = {}
 
 
@@ -195,6 +172,7 @@ class BaseFileSystem(ABC):
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
 
+        :param path: The path to check.
         :param followlinks: Whether to follow symbolic links when checking.
         :return: True if the path is a directory, otherwise False.
         """
@@ -203,6 +181,7 @@ class BaseFileSystem(ABC):
     async def is_file(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file.
 
+        :param path: The path to check.
         :param followlinks: Whether to follow symbolic links when checking.
         :return: True if the path is a regular file, otherwise False.
         """
@@ -211,15 +190,17 @@ class BaseFileSystem(ABC):
     async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing file or directory.
 
+        :param path: The path to check.
         :param followlinks: Whether to follow symbolic links when checking.
         :return: True if the path exists, otherwise False.
         """
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
-    async def stat(self, path: str, follow_symlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
-        :param follow_symlinks: Whether to follow symbolic links when
+        :param path: File path.
+        :param followlinks: Whether to follow symbolic links when
             resolving the path.
         :return: StatResult information for the path.
         """
@@ -228,13 +209,21 @@ class BaseFileSystem(ABC):
     async def unlink(self, path: str, missing_ok: bool = False) -> None:
         """Remove (delete) the file.
 
+        :param path: The file path to remove.
         :param missing_ok: If False, raise FileNotFoundError when the file is missing.
         :raises FileNotFoundError: When file is missing and missing_ok is False.
         """
         raise NotImplementedError('method "unlink" not implemented: %r' % self)
 
-    async def rmdir(self, path: str) -> None:
-        """Remove (delete) the directory."""
+    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
+        """
+        Remove (delete) the directory.
+
+        :param path: The directory path to remove.
+        :param missing_ok: If False,
+            raise FileNotFoundError when the directory is missing.
+        :raises FileNotFoundError: When directory is missing and missing_ok is False.
+        """
         raise NotImplementedError('method "rmdir" not implemented: %r' % self)
 
     async def mkdir(
@@ -246,6 +235,7 @@ class BaseFileSystem(ABC):
     ) -> None:
         """Create a directory.
 
+        :param path: The directory path to create.
         :param mode: Permission bits for the new directory.
         :param parents: Whether to create parent directories as needed.
         :param exist_ok: Whether to ignore if the directory already exists.
@@ -263,6 +253,7 @@ class BaseFileSystem(ABC):
     ) -> T.AsyncContextManager:
         """Open the file with mode.
 
+        :param path: File path.
         :param mode: File open mode.
         :param buffering: Buffering policy.
         :param encoding: Text encoding when opening in text mode.
@@ -277,11 +268,53 @@ class BaseFileSystem(ABC):
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree.
 
+        :param path: Root directory path to start walking.
         :param followlinks: Whether to traverse symbolic links to directories.
         :return: Async iterator of (root, dirs, files).
         """
         raise NotImplementedError('method "walk" not implemented: %r' % self)
         yield
+
+    def scandir(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """Return an iterator of ``FileEntry`` objects corresponding to the entries
+            in the directory given by path.
+
+        :param path: Directory path to scan.
+        :type path: str
+        :return: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+        raise NotImplementedError('method "scandir" not implemented: %r' % self)
+
+    async def upload(self, src_path: str, dst_path: str) -> None:
+        """
+        upload file
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: ``None``.
+        """
+        raise NotImplementedError(f"'upload' is unsupported on '{type(self)}'")
+
+    async def download(self, src_path: str, dst_path: str) -> None:
+        """
+        download file
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: ``None``.
+        """
+        raise NotImplementedError(f"'download' is unsupported on '{type(self)}'")
+
+    async def copy(self, src_path: str, dst_path: str) -> str:
+        """
+        copy file
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: Destination path after copy.
+        """
+        raise NotImplementedError(f"'copy' is unsupported on '{type(self)}'")
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
@@ -297,6 +330,7 @@ class BaseFileSystem(ABC):
     async def symlink(self, src_path: str, dst_path: str) -> None:
         """Create a symbolic link pointing to self named dst_path.
 
+        :param src_path: The source path the symbolic link points to.
         :param dst_path: The symbolic link path.
         """
         raise NotImplementedError(f"'symlink' is unsupported on '{type(self)}'")
@@ -305,6 +339,7 @@ class BaseFileSystem(ABC):
         """
         Return a new path representing the symbolic link's target.
 
+        :param path: The symbolic link path.
         :return: Target path of the symbolic link.
         """
         raise NotImplementedError(f"'readlink' is unsupported on '{type(self)}'")
@@ -312,6 +347,9 @@ class BaseFileSystem(ABC):
     async def is_symlink(self, path: str) -> bool:
         """
         Return True if the path points to a symbolic link.
+
+        :param path: The path to check.
+        :return: True if the path is a symbolic link, otherwise False.
         """
         raise NotImplementedError(f"'is_symlink' is unsupported on '{type(self)}'")
 
@@ -320,6 +358,7 @@ class BaseFileSystem(ABC):
         Get all contents of given fs path.
         The result is in ascending alphabetical order.
 
+        :param path: The directory path to list contents.
         :return: All contents have in the path in ascending alphabetical order
         """
         raise NotImplementedError(f"'iterdir' is unsupported on '{type(self)}'")
@@ -330,6 +369,7 @@ class BaseFileSystem(ABC):
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object
 
+        :param path: The path to make absolute.
         :return: Absolute path string.
         """
         raise NotImplementedError(f"'absolute' is unsupported on '{type(self)}'")
@@ -338,6 +378,7 @@ class BaseFileSystem(ABC):
         """
         Return whether this path points to the same file
 
+        :param path: Path to compare.
         :param other_path: Path to compare.
         :return: True if both represent the same file.
         """
@@ -384,6 +425,7 @@ class BaseFileSystem(ABC):
         """
 
 
+# TODO: cache filesystem instances
 def get_filesystem_by_uri(
     uri: str,
 ) -> BaseFileSystem:
