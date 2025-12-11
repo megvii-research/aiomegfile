@@ -546,6 +546,48 @@ class TestSmartPathFileOperations:
             with open(copied_path) as f:
                 assert f.read() == content
 
+    async def test_copy_into_file(self, temp_dir):
+        src_file = os.path.join(temp_dir, "src.txt")
+        dst_dir = os.path.join(temp_dir, "dst")
+
+        with open(src_file, "w") as f:
+            f.write("content")
+
+        src_path = SmartPath(src_file)
+        result = await src_path.copy_into(dst_dir)
+
+        expected_target = os.path.join(dst_dir, "src.txt")
+        assert isinstance(result, SmartPath)
+        assert os.path.exists(expected_target)
+        with open(expected_target) as f:
+            assert f.read() == "content"
+
+    async def test_copy_into_directory(self, temp_dir):
+        src_dir = os.path.join(temp_dir, "src_dir")
+        os.makedirs(os.path.join(src_dir, "nested"))
+        dst_dir = os.path.join(temp_dir, "dst_dir")
+
+        files = {
+            os.path.join(src_dir, "root.txt"): "root",
+            os.path.join(src_dir, "nested", "child.txt"): "child",
+        }
+        for path, content in files.items():
+            with open(path, "w") as f:
+                f.write(content)
+
+        src_path = SmartPath(src_dir)
+        result = await src_path.copy_into(dst_dir)
+
+        expected_root = os.path.join(dst_dir, "src_dir", "root.txt")
+        expected_child = os.path.join(dst_dir, "src_dir", "nested", "child.txt")
+        assert isinstance(result, SmartPath)
+        assert os.path.exists(expected_root)
+        assert os.path.exists(expected_child)
+        with open(expected_root) as f:
+            assert f.read() == "root"
+        with open(expected_child) as f:
+            assert f.read() == "child"
+
     # async def test_glob(self, temp_dir):
     #     # Create some test files
     #     for i in range(3):

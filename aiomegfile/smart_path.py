@@ -681,6 +681,7 @@ class SmartPath(os.PathLike):
         :return: Target SmartPath.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
+        await target.parent.mkdir(parents=True, exist_ok=True)
         await self.copy(target=target, follow_symlinks=follow_symlinks)
         return target
 
@@ -732,6 +733,7 @@ class SmartPath(os.PathLike):
         :return: Destination SmartPath inside the target directory.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
+        await target.parent.mkdir(parents=True, exist_ok=True)
         await self.move(target=target)
         return target
 
