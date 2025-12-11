@@ -14,10 +14,19 @@ from aiomegfile.lib.url import split_uri
 
 
 class ScandirContextManager(AbstractAsyncContextManager):
+    """
+    Async-compatible wrapper around ``os.scandir`` that yields ``FileEntry`` objects.
+    """
+
     def __init__(self, path: str):
+        """Initialize the iterator for a directory path.
+
+        :param path: Directory path to scan.
+        """
         self._sync_context = os.scandir(path)
 
     def _build_entry(self, entry: os.DirEntry) -> FileEntry:
+        """Convert a synchronous ``DirEntry`` into a ``FileEntry``."""
         stat_result = entry.stat()
         return FileEntry(
             name=entry.name,
@@ -33,16 +42,20 @@ class ScandirContextManager(AbstractAsyncContextManager):
         )
 
     def __anext__(self) -> FileEntry:
+        """Return the next directory entry or raise ``StopAsyncIteration``."""
         entry = next(self._sync_context)
         return self._build_entry(entry)
 
     def __aiter__(self):
+        """Return self to support ``async for`` iteration."""
         return self
 
     def __await__(self):
+        """Return self to provide a minimal awaitable interface."""
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
+        """Close the underlying ``os.scandir`` iterator."""
         self._sync_context.close()
 
 
@@ -54,11 +67,16 @@ class LocalFileSystem(BaseFileSystem):
     protocol = "file"
 
     def __init__(self, protocol_in_path: bool):
+        """Create a LocalFileSystem instance.
+
+        :param protocol_in_path: Whether incoming paths include the ``file://`` prefix.
+        """
         self.protocol_in_path = protocol_in_path
 
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
 
+        :param path: Path to check.
         :param followlinks: Whether to follow symbolic links.
         :return: True if the path is a directory, otherwise False.
         """
@@ -73,6 +91,7 @@ class LocalFileSystem(BaseFileSystem):
     async def is_file(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file.
 
+        :param path: Path to check.
         :param followlinks: Whether to follow symbolic links.
         :return: True if the path is a regular file, otherwise False.
         """
@@ -87,6 +106,7 @@ class LocalFileSystem(BaseFileSystem):
     async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing file or directory.
 
+        :param path: Path to check.
         :param followlinks: Whether to follow symbolic links.
         :return: True if the path exists, otherwise False.
         """
@@ -101,7 +121,9 @@ class LocalFileSystem(BaseFileSystem):
     async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
+        :param path: Path to stat.
         :param followlinks: Whether to follow symbolic links.
+        :raises FileNotFoundError: If the path does not exist.
         :return: Populated StatResult for the path.
         """
         stat_result = await aiofiles.os.stat(path, follow_symlinks=followlinks)
@@ -118,6 +140,7 @@ class LocalFileSystem(BaseFileSystem):
     async def unlink(self, path: str, missing_ok: bool = False) -> None:
         """Remove (delete) the file.
 
+        :param path: Path to remove.
         :param missing_ok: If False, raise when the file does not exist.
         :raises FileNotFoundError: When missing_ok is False and the file is absent.
         """
@@ -150,6 +173,7 @@ class LocalFileSystem(BaseFileSystem):
     ) -> None:
         """Create a directory.
 
+        :param path: Directory path to create.
         :param mode: Permission bits for the new directory.
         :param parents: Whether to create missing parents.
         :param exist_ok: Whether to ignore if the directory exists.
@@ -175,6 +199,7 @@ class LocalFileSystem(BaseFileSystem):
     ) -> T.AsyncContextManager:
         """Open the file with mode.
 
+        :param path: File path to open.
         :param mode: File open mode.
         :param buffering: Buffering policy.
         :param encoding: Text encoding when using text modes.
@@ -196,6 +221,7 @@ class LocalFileSystem(BaseFileSystem):
     ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
         """Generate the file names in a directory tree by walking the tree.
 
+        :param path: Root directory to walk.
         :param followlinks: Whether to traverse symbolic links to directories.
         :return: Async iterator of (root, dirs, files).
         """
@@ -203,14 +229,21 @@ class LocalFileSystem(BaseFileSystem):
             yield root, dirs, files
 
     def scandir(self, path) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """Return an async context manager for iterating directory entries.
+
+        :param path: Directory to scan.
+        :return: Async context manager producing ``FileEntry`` items.
+        """
         return ScandirContextManager(path)
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
         Move file.
 
+        :param src_path: Source path to move.
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
+        :raises FileExistsError: If overwrite is False and destination exists.
         :return: The destination path
         """
         if not overwrite and await aiofiles.ospath.exists(dst_path):
@@ -219,18 +252,27 @@ class LocalFileSystem(BaseFileSystem):
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:
-        """Create a symbolic link pointing to self named dst_path.
+        """Create a symbolic link pointing to src_path named dst_path.
 
+        :param src_path: Source path the link should reference.
         :param dst_path: The symbolic link path.
         """
         await aiofiles.os.symlink(src_path, dst_path)
 
     async def readlink(self, path: str) -> str:
-        """Return a new path representing the symbolic link's target."""
+        """Return a new path representing the symbolic link's target.
+
+        :param path: Path to the symbolic link.
+        :return: Target path of the symbolic link.
+        """
         return await aiofiles.os.readlink(path)
 
     async def is_symlink(self, path: str) -> bool:
-        """Return True if the path points to a symbolic link."""
+        """Return True if the path points to a symbolic link.
+
+        :param path: Path to check.
+        :return: True if the path is a symbolic link, otherwise False.
+        """
         return await aiofiles.ospath.islink(path)
 
     async def iterdir(self, path: str) -> T.AsyncIterator[str]:
@@ -238,7 +280,8 @@ class LocalFileSystem(BaseFileSystem):
         Get all contents of given fs path.
         The result is in ascending alphabetical order.
 
-        :return: All contents have in the path in ascending alphabetical order
+        :param path: Directory to list.
+        :return: Async iterator of child paths sorted alphabetically.
         """
         files = await aiofiles.os.listdir(path)
         for filename in sorted(files):
@@ -248,6 +291,9 @@ class LocalFileSystem(BaseFileSystem):
         """
         Make the path absolute, without normalization or resolving symlinks.
         Returns a new path object.
+
+        :param path: Path to convert.
+        :return: Absolute version of the provided path.
         """
         return os.path.abspath(path)
 
