@@ -310,6 +310,16 @@ class LocalFileSystem(BaseFileSystem):
         except FileNotFoundError:
             return False
 
+    async def copy(self, src_path, dst_path):
+        """
+        copy single file, not directory
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: Destination path after copy.
+        """
+        return await asyncio.to_thread(shutil.copyfile, src_path, dst_path)
+
     def same_endpoint(self, other_filesystem: "LocalFileSystem") -> bool:
         """
         Local filesystem endpoints match when protocols match.

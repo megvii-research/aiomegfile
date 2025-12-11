@@ -308,7 +308,7 @@ class BaseFileSystem(ABC):
 
     async def copy(self, src_path: str, dst_path: str) -> str:
         """
-        copy file
+        copy single file, not directory
 
         :param src_path: Given source path
         :param dst_path: Given destination path
