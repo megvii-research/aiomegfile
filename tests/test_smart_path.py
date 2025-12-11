@@ -522,6 +522,30 @@ class TestSmartPathFileOperations:
             with open(copied_path) as f:
                 assert f.read() == name
 
+    async def test_copy_directory_nested(self, temp_dir):
+        src_dir = os.path.join(temp_dir, "src_dir")
+        dst_dir = os.path.join(temp_dir, "dst_dir")
+        os.makedirs(os.path.join(src_dir, "level1", "level2"))
+
+        files = {
+            os.path.join(src_dir, "root.txt"): "root",
+            os.path.join(src_dir, "level1", "l1.txt"): "l1",
+            os.path.join(src_dir, "level1", "level2", "l2.txt"): "l2",
+        }
+        for path, content in files.items():
+            with open(path, "w") as f:
+                f.write(content)
+
+        src_path = SmartPath(src_dir)
+        await src_path.copy(dst_dir)
+
+        for src_path_str, content in files.items():
+            relative = os.path.relpath(src_path_str, src_dir)
+            copied_path = os.path.join(dst_dir, relative)
+            assert os.path.exists(copied_path)
+            with open(copied_path) as f:
+                assert f.read() == content
+
     # async def test_glob(self, temp_dir):
     #     # Create some test files
     #     for i in range(3):

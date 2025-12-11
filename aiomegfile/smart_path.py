@@ -651,14 +651,16 @@ class SmartPath(os.PathLike):
         target_path = self.from_uri(target)
 
         if await self.is_dir():
-            async with self.filesystem.scandir(self._path) as it:
-                async for current_entry in it:
-                    current_src = current_entry.path
+            await target_path.mkdir(parents=True, exist_ok=True)
+            async for root, _, files in self.walk(follow_symlinks=follow_symlinks):
+                for filename in files:
+                    current_src = os.path.join(root, filename)
                     current_src_path = self.from_uri(
                         self.filesystem.generate_uri(current_src)
                     )
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
+                    await current_target_path.parent.mkdir(parents=True, exist_ok=True)
                     await current_src_path._copy_file(target=current_target_path)
             return target_path
 

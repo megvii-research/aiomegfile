@@ -167,6 +167,43 @@ class TestLocalFileSystem:
         target = await link_protocol.readlink(link_path)
         assert target == temp_file
 
+    async def test_scandir(self, temp_dir):
+        """Test scandir yields FileEntry instances with expected metadata."""
+        filenames = ["b.txt", "a.txt"]
+        for name in filenames:
+            with open(os.path.join(temp_dir, name), "w") as f:
+                f.write(name)
+        os.makedirs(os.path.join(temp_dir, "folder"))
+
+        protocol = self._create_protocol()
+        entries = []
+        async with protocol.scandir(temp_dir) as it:
+            async for entry in it:
+                entries.append(entry)
+
+        names = {entry.name for entry in entries}
+        assert names == {"a.txt", "b.txt", "folder"}
+        assert all(
+            entry.path == os.path.join(temp_dir, entry.name) for entry in entries)
+        assert any(entry.is_dir() for entry in entries)
+        assert any(entry.is_file() for entry in entries)
+
+    async def test_scandir_await(self, temp_dir):
+        """Test scandir can be used as an async iterator directly."""
+        filenames = ["file1.txt", "file2.txt"]
+        for name in filenames:
+            with open(os.path.join(temp_dir, name), "w") as f:
+                f.write(name)
+
+        protocol = self._create_protocol()
+        entries = []
+        it = await protocol.scandir(temp_dir)
+        async for entry in it:
+            entries.append(entry)
+
+        names = {entry.name for entry in entries}
+        assert names == {"file1.txt", "file2.txt"}
+
     async def test_copy_file(self, temp_file, temp_dir):
         """Test copy method for single file."""
         dst_path = os.path.join(temp_dir, "copied_file.txt")
