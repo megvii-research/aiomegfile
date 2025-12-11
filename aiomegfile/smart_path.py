@@ -658,8 +658,8 @@ class SmartPath(os.PathLike):
                         self.filesystem.generate_uri(current_src)
                     )
                     relative_path = await current_src_path.relative_to(self)
-                current_target_path = await target_path.joinpath(relative_path)
-                await current_src_path._copy_file(target=current_target_path)
+                    current_target_path = await target_path.joinpath(relative_path)
+                    await current_src_path._copy_file(target=current_target_path)
             return target_path
 
         await self._copy_file(target=target_path)

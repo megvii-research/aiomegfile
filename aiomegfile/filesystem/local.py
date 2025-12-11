@@ -41,9 +41,12 @@ class ScandirContextManager(AbstractAsyncContextManager):
             ),
         )
 
-    def __anext__(self) -> FileEntry:
+    async def __anext__(self) -> FileEntry:
         """Return the next directory entry or raise ``StopAsyncIteration``."""
-        entry = next(self._sync_context)
+        try:
+            entry = next(self._sync_context)
+        except StopIteration:
+            raise StopAsyncIteration
         return self._build_entry(entry)
 
     def __aiter__(self):

@@ -486,6 +486,42 @@ class TestSmartPathFileOperations:
             results.append((root, dirs, files))
         assert len(results) >= 1
 
+    async def test_copy_file(self, temp_dir):
+        src_file = os.path.join(temp_dir, "src.txt")
+        dst_file = os.path.join(temp_dir, "dst.txt")
+        with open(src_file, "w") as f:
+            f.write("copied")
+
+        p = SmartPath(src_file)
+        result = await p.copy(dst_file)
+
+        assert isinstance(result, SmartPath)
+        assert os.path.exists(src_file)
+        assert os.path.exists(dst_file)
+        with open(dst_file) as f:
+            assert f.read() == "copied"
+
+    async def test_copy_directory_top_level_files(self, temp_dir):
+        src_dir = os.path.join(temp_dir, "src_dir")
+        dst_dir = os.path.join(temp_dir, "dst_dir")
+        os.makedirs(src_dir)
+        os.makedirs(dst_dir)
+
+        filenames = ["a.txt", "b.txt"]
+        for name in filenames:
+            with open(os.path.join(src_dir, name), "w") as f:
+                f.write(name)
+
+        src_path = SmartPath(src_dir)
+        result = await src_path.copy(dst_dir)
+
+        assert isinstance(result, SmartPath)
+        for name in filenames:
+            copied_path = os.path.join(dst_dir, name)
+            assert os.path.exists(copied_path)
+            with open(copied_path) as f:
+                assert f.read() == name
+
     # async def test_glob(self, temp_dir):
     #     # Create some test files
     #     for i in range(3):

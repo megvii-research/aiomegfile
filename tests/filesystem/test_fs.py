@@ -167,6 +167,28 @@ class TestLocalFileSystem:
         target = await link_protocol.readlink(link_path)
         assert target == temp_file
 
+    async def test_copy_file(self, temp_file, temp_dir):
+        """Test copy method for single file."""
+        dst_path = os.path.join(temp_dir, "copied_file.txt")
+        protocol = self._create_protocol()
+
+        result = await protocol.copy(temp_file, dst_path)
+
+        assert result == dst_path
+        assert os.path.exists(temp_file)
+        with open(dst_path) as f:
+            assert f.read() == "Hello, World!"
+
+    async def test_copy_directory_raises(self, temp_dir):
+        """Test copy method raises on directory input."""
+        src_dir = os.path.join(temp_dir, "dir_src")
+        os.makedirs(src_dir)
+        dst_path = os.path.join(temp_dir, "dir_dst")
+
+        protocol = self._create_protocol()
+        with pytest.raises(IsADirectoryError):
+            await protocol.copy(src_dir, dst_path)
+
     async def test_iterdir(self, temp_dir):
         """Test iterdir method."""
         # Create some files
