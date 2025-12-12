@@ -4,6 +4,7 @@ import typing as T
 from collections.abc import Sequence
 from functools import cached_property
 
+from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.interfaces import StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.url import fspath
@@ -24,14 +25,21 @@ class URIPathParents(Sequence):
     def __len__(self) -> int:
         return max(len(self.parts) - 1, 0)
 
-    def __getitem__(self, idx: int) -> "SmartPath":
-        if idx < 0 or idx > len(self):
+    def __getitem__(
+        self, idx: T.Union[int, slice]
+    ) -> T.Union["SmartPath", T.Tuple["SmartPath", ...]]:
+        if isinstance(idx, slice):
+            return tuple(self[i] for i in range(*idx.indices(len(self))))
+        if idx < 0:
+            idx += len(self)
+        if idx < 0 or idx >= len(self):
             raise IndexError(idx)
 
-        if len(self.parts[: -idx - 1]) > 1:
-            other_path = os.path.join(*self.parts[: -idx - 1])
-        elif len(self.parts[: -idx - 1]) == 1:
-            other_path = self.parts[: -idx - 1][0]
+        parent_parts = self.parts[: len(self.parts) - idx - 1]
+        if len(parent_parts) > 1:
+            other_path = os.path.join(*parent_parts)
+        elif len(parent_parts) == 1:
+            other_path = parent_parts[0]
         else:
             other_path = ""
         return self.cls(self.prefix + other_path)
@@ -198,7 +206,7 @@ class SmartPath(os.PathLike):
         try:
             await self.relative_to(other)
             return True
-        except Exception:
+        except (ValueError, TypeError, ProtocolNotFoundError):
             return False
 
     async def relative_to(self, other: T.Union[str, os.PathLike]) -> str:
