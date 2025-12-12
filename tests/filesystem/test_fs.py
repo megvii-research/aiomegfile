@@ -270,3 +270,37 @@ class TestLocalFileSystem:
         abs_path = await protocol.absolute(temp_file)
         assert os.path.isabs(abs_path)
         assert abs_path == os.path.abspath(temp_file)
+
+    async def test_samefile_true(self, temp_file):
+        """Test samefile returns True for identical paths."""
+        protocol = self._create_protocol()
+        assert await protocol.samefile(temp_file, temp_file) is True
+
+    async def test_samefile_missing(self, temp_file, temp_dir):
+        """Test samefile returns False when comparing to missing path."""
+        protocol = self._create_protocol()
+        missing = os.path.join(temp_dir, "missing.txt")
+        assert await protocol.samefile(temp_file, missing) is False
+
+    async def test_is_dir_follow_symlink(self, temp_dir):
+        """Test is_dir respects followlinks flag for directory symlinks."""
+        real_dir = os.path.join(temp_dir, "real_dir")
+        os.makedirs(real_dir)
+        link_dir = os.path.join(temp_dir, "dir_link")
+        os.symlink(real_dir, link_dir)
+
+        protocol = self._create_protocol()
+        assert await protocol.is_dir(link_dir) is False
+        assert await protocol.is_dir(link_dir, followlinks=True) is True
+
+    async def test_is_file_follow_symlink(self, temp_dir):
+        """Test is_file respects followlinks flag for file symlinks."""
+        real_file = os.path.join(temp_dir, "real.txt")
+        with open(real_file, "w") as f:
+            f.write("data")
+        link_file = os.path.join(temp_dir, "file_link.txt")
+        os.symlink(real_file, link_file)
+
+        protocol = self._create_protocol()
+        assert await protocol.is_file(link_file) is False
+        assert await protocol.is_file(link_file, followlinks=True) is True
