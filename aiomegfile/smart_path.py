@@ -206,7 +206,7 @@ class SmartPath(os.PathLike):
         try:
             await self.relative_to(other)
             return True
-        except (ValueError, TypeError, ProtocolNotFoundError):
+        except Exception:
             return False
 
     async def relative_to(self, other: T.Union[str, os.PathLike]) -> str:
