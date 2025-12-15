@@ -14,7 +14,6 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
-        print(str(path), ": ", parts)
         if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
