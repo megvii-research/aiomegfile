@@ -304,3 +304,32 @@ class TestLocalFileSystem:
         protocol = self._create_protocol()
         assert await protocol.is_file(link_file) is False
         assert await protocol.is_file(link_file, followlinks=True) is True
+
+    async def test_is_dir_missing_returns_false(self, temp_dir):
+        protocol = self._create_protocol()
+        missing_path = os.path.join(temp_dir, "missing_dir")
+        assert await protocol.is_dir(missing_path) is False
+
+    async def test_is_file_missing_returns_false(self, temp_dir):
+        protocol = self._create_protocol()
+        missing_path = os.path.join(temp_dir, "missing_file")
+        assert await protocol.is_file(missing_path) is False
+
+    async def test_exists_followlinks_true(self, temp_file):
+        protocol = self._create_protocol()
+        assert await protocol.exists(temp_file, followlinks=True) is True
+
+    async def test_rmdir_missing_raises(self, temp_dir):
+        protocol = self._create_protocol()
+        missing_dir = os.path.join(temp_dir, "missing_rmdir")
+        with pytest.raises(FileNotFoundError):
+            await protocol.rmdir(missing_dir, missing_ok=False)
+
+    async def test_mkdir_existing_raises(self, temp_dir):
+        protocol = self._create_protocol()
+        with pytest.raises(FileExistsError):
+            await protocol.mkdir(temp_dir, exist_ok=False)
+
+    def test_same_endpoint_false_for_other_filesystem(self):
+        protocol = self._create_protocol()
+        assert protocol.same_endpoint(object()) is False
