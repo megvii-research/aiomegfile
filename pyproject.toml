@@ -64,15 +64,20 @@ dev = [
     "aiomegfile[doc,test,lint,typecheck]",
 ]
 
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [project.urls]
 Homepage = "https://github.com/megvii-research/aiomegfile"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.pdm.version]
+source = "scm"
+tag_filter = "aiomegfile/version.py"
+tag_regex = '^aiomegfile/(?:\D*)?(?:\D*)?(?P<version>([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|c|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$)$'
 
-[tool.hatch.version]
-path = "aiomegfile/version.py"
+[tool.pdm.build]
+includes = ["aiomegfile"]
 
 [tool.ruff]
 line-length = 88
