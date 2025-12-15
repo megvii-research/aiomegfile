@@ -14,6 +14,7 @@ class URIPathParents(Sequence):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
         parts = path.parts
+        print(str(path), ": ", parts)
         if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
@@ -415,7 +416,7 @@ class SmartPath(os.PathLike):
             return self
         elif len(self.parents) > 0:
             return self.parents[0]
-        return self.from_uri("")
+        return self.from_uri(self.filesystem.generate_uri(""))
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
