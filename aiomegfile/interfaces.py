@@ -31,7 +31,7 @@ class StatResult(T.NamedTuple):
         return stat.S_IFREG
 
     @property
-    def st_ino(self) -> int | str:
+    def st_ino(self) -> int:
         """
         Platform dependent, but if non-zero, uniquely identifies the file for
         a given value of st_dev. Typically:
