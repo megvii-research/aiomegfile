@@ -64,15 +64,18 @@ dev = [
     "aiomegfile[doc,test,lint,typecheck]",
 ]
 
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [project.urls]
 Homepage = "https://github.com/megvii-research/aiomegfile"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.pdm]
+version = { source = "file", path = "aiomegfile/__version__.py" }
 
-[tool.hatch.version]
-path = "aiomegfile/version.py"
+[tool.pdm.build]
+includes = ["aiomegfile"]
 
 [tool.ruff]
 line-length = 88
