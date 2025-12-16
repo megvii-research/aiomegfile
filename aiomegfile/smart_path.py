@@ -423,7 +423,7 @@ class SmartPath(os.PathLike):
             return self
         elif len(self.parents) > 0:
             return self.parents[0]
-        return self.from_uri("")
+        return self.from_uri(self.filesystem.generate_uri(""))
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.

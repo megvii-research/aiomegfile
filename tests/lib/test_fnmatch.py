@@ -32,3 +32,24 @@ def test_filter_returns_matching_subset():
 def test_fnmatchcase_respects_case():
     assert fnmatchcase("File.TXT", "File.TXT")
     assert not fnmatchcase("File.TXT", "file.txt")
+
+
+def test_additional_translate_branches():
+    # "**" not surrounded by slashes should act like a greedy match (".*")
+    assert fnmatch("foo/bar/baz", "foo**baz")
+    assert fnmatch("foobaz", "foo**baz")
+
+    # Bracket patterns: negation with "!" and leading "]" and "^" cases
+    assert fnmatch("b", "[!a]")
+    assert not fnmatch("a", "[!a]")
+    assert fnmatch("]", "[]]")
+    assert fnmatch("^", "[^a]")
+    assert fnmatch("a", "[^a]")
+    assert not fnmatch("b", "[^a]")
+
+    # Empty curly braces are treated literally
+    assert fnmatch("{}", "{}")
+    assert not fnmatch("foo", "{}")
+    assert fnmatch("a", "{a,b}")
+    assert fnmatch("b", "{a,b}")
+    assert not fnmatch("c", "{a,b}")
