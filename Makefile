@@ -1,5 +1,5 @@
 PACKAGE := aiomegfile
-VERSION := $(shell cat ${PACKAGE}/version.py | sed -n -E 's/.*=//; s/ //g; s/"//g; p')
+VERSION := $(shell cat ${PACKAGE}/__version__.py | sed -n -E 's/.*=//; s/ //g; s/"//g; p')
 
 test:
 	pdm run pytest \
