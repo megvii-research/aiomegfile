@@ -4,7 +4,6 @@ import typing as T
 from collections.abc import Sequence
 from functools import cached_property
 
-from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.interfaces import StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.url import fspath
@@ -25,11 +24,7 @@ class URIPathParents(Sequence):
     def __len__(self) -> int:
         return max(len(self.parts) - 1, 0)
 
-    def __getitem__(
-        self, idx: T.Union[int, slice]
-    ) -> T.Union["SmartPath", T.Tuple["SmartPath", ...]]:
-        if isinstance(idx, slice):
-            return tuple(self[i] for i in range(*idx.indices(len(self))))
+    def _get(self, idx: int) -> "SmartPath":
         if idx < 0:
             idx += len(self)
         if idx < 0 or idx >= len(self):
@@ -43,6 +38,13 @@ class URIPathParents(Sequence):
         else:
             other_path = ""
         return self.cls(self.prefix + other_path)
+
+    def __getitem__(
+        self, idx: T.Union[int, slice]
+    ) -> T.Union["SmartPath", T.Tuple["SmartPath", ...]]:
+        if isinstance(idx, slice):
+            return tuple(self._get(i) for i in range(*idx.indices(len(self))))
+        return self._get(idx)
 
 
 class SmartPath(os.PathLike):
