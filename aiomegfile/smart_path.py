@@ -431,7 +431,7 @@ class SmartPath(os.PathLike):
         if self._path in {"", "/"}:
             return self
         elif len(self.parents) > 0:
-            return self.parents[0]
+            return self.parents[0]  # pytype: disable=bad-return-type
         return self.from_uri(self.filesystem.generate_uri(""))
 
     async def is_dir(self, followlinks: bool = False) -> bool:
