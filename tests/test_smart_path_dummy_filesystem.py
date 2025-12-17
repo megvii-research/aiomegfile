@@ -65,13 +65,14 @@ def _register_dummy_filesystem():
 def test_uri_path_parents_with_file_prefix():
     p = SmartPath("file://foo/bar/baz")
     parents = URIPathParents(p)
-    assert len(parents) == 2
+    assert len(parents) == 3
     assert str(parents[0]) == "file://foo/bar"
     assert str(parents[1]) == "file://foo"
+    assert str(parents[2]) == "file://"
 
     single = SmartPath("file://foo")
     single_parents = URIPathParents(single)
-    assert len(single_parents) == 0
+    assert len(single_parents) == 1
     assert str(single_parents[0]) == "file://"
     assert str(single.parent) == "file://"
 
@@ -86,6 +87,39 @@ def test_uri_path_parents_with_file_prefix():
     assert len(absolute_with_protocol_parents) == 2
     assert str(absolute_with_protocol_parents[0]) == "file:///absolute"
     assert str(absolute_with_protocol_parents[1]) == "file:///"
+
+    relative = SmartPath("relative/path/to/file")
+    relative_parents = URIPathParents(relative)
+    assert len(relative_parents) == 4
+    assert str(relative_parents[0]) == "relative/path/to"
+    assert str(relative_parents[1]) == "relative/path"
+    assert str(relative_parents[2]) == "relative"
+    assert str(relative_parents[3]) == ""
+
+    empty = SmartPath("")
+    empty_parents = URIPathParents(empty)
+    assert len(empty_parents) == 0
+
+    with pytest.raises(IndexError):
+        empty_parents[0]
+
+    empty_with_protocol = SmartPath("file://")
+    empty_with_protocol_parents = URIPathParents(empty_with_protocol)
+    assert len(empty_with_protocol_parents) == 0
+    with pytest.raises(IndexError):
+        empty_with_protocol_parents[0]
+
+    root_with_protocol = SmartPath("file:///")
+    root_with_protocol_parents = URIPathParents(root_with_protocol)
+    assert len(root_with_protocol_parents) == 0
+    with pytest.raises(IndexError):
+        root_with_protocol_parents[0]
+
+    root_without_protocol = SmartPath("/")
+    root_without_protocol_parents = URIPathParents(root_without_protocol)
+    assert len(root_without_protocol_parents) == 0
+    with pytest.raises(IndexError):
+        root_without_protocol_parents[0]
 
 
 async def test_comparisons_between_registered_protocols_raise_typeerror(

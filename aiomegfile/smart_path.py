@@ -13,8 +13,9 @@ class URIPathParents(Sequence):
     def __init__(self, path: "SmartPath"):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
+        self.protocol = path.filesystem.protocol
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
+        if len(parts) > 0 and parts[0] == self.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -22,6 +23,12 @@ class URIPathParents(Sequence):
             self.parts = parts
 
     def __len__(self) -> int:
+        if (
+            (self.prefix == "" or "://" in self.prefix)
+            and len(self.parts) > 0
+            and self.parts[0] not in (f"{self.protocol}:///", "/")
+        ):
+            return len(self.parts)
         return max(len(self.parts) - 1, 0)
 
     def _get(self, idx: int) -> "SmartPath":
