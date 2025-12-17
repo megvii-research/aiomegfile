@@ -6,7 +6,7 @@ aiomegfile - Asyncio implementation of megfile
 [![Codecov](https://img.shields.io/codecov/c/gh/megvii-research/aiomegfile)](https://app.codecov.io/gh/megvii-research/aiomegfile/)
 <!-- [![Latest version](https://img.shields.io/pypi/v/aiomegfile.svg)](https://pypi.org/project/aiomegfile/)
 [![Support python versions](https://img.shields.io/pypi/pyversions/aiomegfile.svg)](https://pypi.org/project/aiomegfile/) -->
-[![License](https://img.shields.io/pypi/l/aiomegfile.svg)](https://github.com/megvii-research/aiomegfile/blob/main/LICENSE)
+<!-- [![License](https://img.shields.io/pypi/l/aiomegfile.svg)](https://github.com/megvii-research/aiomegfile/blob/main/LICENSE) -->
 
 <!-- * Docs: http://megvii-research.github.io/aiomegfile -->
 

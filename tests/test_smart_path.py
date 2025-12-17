@@ -247,6 +247,50 @@ class TestURIPathParents:
         parents = URIPathParents(p)
         assert str(parents[0]) == "file:///bucket/dir"
         assert str(parents[1]) == "file:///bucket"
+        assert str(parents[-1]) == "file:///"
+        assert list(map(str, parents[:3:2])) == [
+            "file:///bucket/dir",
+            "file:///",
+        ]
+
+    def test_getitem_slice_variants(self):
+        p = SmartPath("file:///bucket/dir/file.txt")
+        parents = URIPathParents(p)
+
+        assert list(map(str, parents[1:])) == [
+            "file:///bucket",
+            "file:///",
+        ]
+        assert list(map(str, parents[:-1])) == [
+            "file:///bucket/dir",
+            "file:///bucket",
+        ]
+        assert list(map(str, parents[::-1])) == [
+            "file:///",
+            "file:///bucket",
+            "file:///bucket/dir",
+        ]
+        assert list(map(str, parents[::-2])) == [
+            "file:///",
+            "file:///bucket/dir",
+        ]
+        assert list(map(str, parents[:99])) == [
+            "file:///bucket/dir",
+            "file:///bucket",
+            "file:///",
+        ]
+
+    def test_getitem_slice_step_zero_raises(self):
+        p = SmartPath("file:///bucket/dir/file.txt")
+        parents = URIPathParents(p)
+        with pytest.raises(ValueError):
+            _ = parents[::0]
+
+    def test_getitem_len_out_of_range(self):
+        p = SmartPath("file:///bucket/dir/file.txt")
+        parents = URIPathParents(p)
+        with pytest.raises(IndexError):
+            parents[len(parents)]
 
     def test_getitem_out_of_range(self):
         p = SmartPath("file:///bucket/file.txt")

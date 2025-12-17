@@ -13,8 +13,9 @@ class URIPathParents(Sequence):
     def __init__(self, path: "SmartPath"):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
+        self.protocol = path.filesystem.protocol
         parts = path.parts
-        if len(parts) > 0 and parts[0] == path.filesystem.protocol + "://":
+        if len(parts) > 0 and parts[0] == self.protocol + "://":
             self.prefix = parts[0]
             self.parts = parts[1:]
         else:
@@ -22,19 +23,35 @@ class URIPathParents(Sequence):
             self.parts = parts
 
     def __len__(self) -> int:
+        if (
+            (self.prefix == "" or "://" in self.prefix)
+            and len(self.parts) > 0
+            and self.parts[0] not in (f"{self.protocol}:///", "/")
+        ):
+            return len(self.parts)
         return max(len(self.parts) - 1, 0)
 
-    def __getitem__(self, idx: int) -> "SmartPath":
-        if idx < 0 or idx > len(self):
+    def _get(self, idx: int) -> "SmartPath":
+        if idx < 0:
+            idx += len(self)
+        if idx < 0 or idx >= len(self):
             raise IndexError(idx)
 
-        if len(self.parts[: -idx - 1]) > 1:
-            other_path = os.path.join(*self.parts[: -idx - 1])
-        elif len(self.parts[: -idx - 1]) == 1:
-            other_path = self.parts[: -idx - 1][0]
+        parent_parts = self.parts[: len(self.parts) - idx - 1]
+        if len(parent_parts) > 1:
+            other_path = os.path.join(*parent_parts)
+        elif len(parent_parts) == 1:
+            other_path = parent_parts[0]
         else:
             other_path = ""
         return self.cls(self.prefix + other_path)
+
+    def __getitem__(
+        self, idx: T.Union[int, slice]
+    ) -> T.Union["SmartPath", T.Tuple["SmartPath", ...]]:
+        if isinstance(idx, slice):
+            return tuple(self._get(i) for i in range(*idx.indices(len(self))))
+        return self._get(idx)
 
 
 class SmartPath(os.PathLike):
@@ -414,7 +431,7 @@ class SmartPath(os.PathLike):
         if self._path in {"", "/"}:
             return self
         elif len(self.parents) > 0:
-            return self.parents[0]
+            return self.parents[0]  # pytype: disable=bad-return-type
         return self.from_uri(self.filesystem.generate_uri(""))
 
     async def is_dir(self, followlinks: bool = False) -> bool:

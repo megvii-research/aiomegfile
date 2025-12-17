@@ -159,8 +159,7 @@ class BaseFileSystem(ABC):
     def __init_subclass__(cls):
         if not cls.protocol:
             raise ValueError(
-                f"Subclasses({cls.__name__}) of "
-                "BaseFileSystem must define a profile_name"
+                f"Subclasses({cls.__name__}) of BaseFileSystem must define a protocol"
             )
         if cls.protocol in FILE_SYSTEMS:
             raise ValueError(
