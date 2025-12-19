@@ -569,7 +569,7 @@ class SmartPath(os.PathLike):
 
         root = self._path
         if self.is_symlink() and follow_symlinks:
-            root = (await self.readlink())._path
+            root = (await self.readlink())._path  # pytype: disable=attribute-error
 
         pending = [(root, False)]
         while pending:
@@ -830,9 +830,10 @@ class SmartPath(os.PathLike):
 
         :return: All contents have in the path in ascending alphabetical order
         """
-        async for file_entry in self.filesystem.scandir(self._path):
-            path_str = self.filesystem.build_uri(file_entry.path)
-            yield self.from_uri(path_str)
+        async with self.filesystem.scandir(self._path) as iterator:
+            async for file_entry in iterator:
+                path_str = self.filesystem.build_uri(file_entry.path)
+                yield self.from_uri(path_str)
 
     async def absolute(self) -> "SmartPath":
         """
