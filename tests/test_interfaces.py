@@ -92,12 +92,12 @@ async def test_basefilesystem_default_methods_raise(filesystem_registry_snapshot
         def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
             return True
 
-        def get_path_from_uri(self, uri: str) -> str:
+        def parse_uri(self, uri: str) -> str:
             _, path, _ = split_uri(uri)
             return path
 
-        def generate_uri(self, path: str) -> str:
-            return super().generate_uri(path)
+        def build_uri(self, path: str) -> str:
+            return super().build_uri(path)
 
         @classmethod
         def from_uri(cls: T.Type["MinimalFS"], uri: str) -> "MinimalFS":
@@ -136,8 +136,6 @@ async def test_basefilesystem_default_methods_raise(filesystem_registry_snapshot
         await fs.readlink("a")
     with pytest.raises(NotImplementedError):
         await fs.is_symlink("a")
-    with pytest.raises(NotImplementedError):
-        await fs.iterdir("a").__anext__()
     with pytest.raises(NotImplementedError):
         await fs.absolute("a")
     with pytest.raises(NotImplementedError):

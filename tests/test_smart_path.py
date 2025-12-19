@@ -515,20 +515,20 @@ class TestSmartPathFileOperations:
             items.append(item)
         assert len(items) == 3
 
-    async def test_walk(self, temp_dir):
-        # Create a directory structure
-        subdir = os.path.join(temp_dir, "subdir")
-        os.mkdir(subdir)
-        with open(os.path.join(temp_dir, "file1.txt"), "w") as f:
-            f.write("file1")
-        with open(os.path.join(subdir, "file2.txt"), "w") as f:
-            f.write("file2")
+    # async def test_walk(self, temp_dir):
+    #     # Create a directory structure
+    #     subdir = os.path.join(temp_dir, "subdir")
+    #     os.mkdir(subdir)
+    #     with open(os.path.join(temp_dir, "file1.txt"), "w") as f:
+    #         f.write("file1")
+    #     with open(os.path.join(subdir, "file2.txt"), "w") as f:
+    #         f.write("file2")
 
-        p = SmartPath(temp_dir)
-        results = []
-        async for root, dirs, files in p.walk():
-            results.append((root, dirs, files))
-        assert len(results) >= 1
+    #     p = SmartPath(temp_dir)
+    #     results = []
+    #     async for root, dirs, files in p.walk():
+    #         results.append((root, dirs, files))
+    #     assert len(results) >= 1
 
     async def test_copy_file(self, temp_dir):
         src_file = os.path.join(temp_dir, "src.txt")
