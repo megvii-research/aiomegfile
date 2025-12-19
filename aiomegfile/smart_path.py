@@ -567,9 +567,16 @@ class SmartPath(os.PathLike):
         if not await self.filesystem.is_dir(self._path, followlinks=follow_symlinks):
             return
 
-        pending = [self._path]
+        root = self._path
+        if self.is_symlink() and follow_symlinks:
+            root = (await self.readlink())._path
+
+        pending = [(root, False)]
         while pending:
-            root = pending.pop()
+            root, root_is_symlink = pending.pop()
+            if follow_symlinks and root_is_symlink:
+                root = (await self.readlink())._path
+
             dirs: T.List[str] = []
             files: T.List[str] = []
             to_traverse: T.List[T.Tuple[str, bool]] = []
@@ -580,12 +587,9 @@ class SmartPath(os.PathLike):
                     is_symlink = entry.is_symlink()
                     is_dir = entry.is_dir()
                     if is_symlink:
-                        try:
-                            is_dir = await self.filesystem.is_dir(
-                                entry_path, followlinks=True
-                            )
-                        except Exception:
-                            pass
+                        is_dir = await self.filesystem.is_dir(
+                            entry_path, followlinks=True
+                        )
 
                     if is_dir:
                         dirs.append(entry.name)
@@ -598,7 +602,7 @@ class SmartPath(os.PathLike):
             for entry_path, is_symlink in to_traverse:
                 if not follow_symlinks and is_symlink:
                     continue
-                pending.append(entry_path)
+                pending.append((entry_path, is_symlink))
 
     async def iglob(self, pattern: str) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern.
