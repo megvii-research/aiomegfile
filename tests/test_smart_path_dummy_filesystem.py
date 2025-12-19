@@ -28,14 +28,14 @@ def _register_dummy_filesystem():
         def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
             return False
 
-        def get_path_from_uri(self, uri: str) -> str:
+        def parse_uri(self, uri: str) -> str:
             _, path, _ = split_uri(uri)
             return path
 
-        def generate_uri(self, path: str) -> str:
+        def build_uri(self, path: str) -> str:
             if not self.protocol_in_path:
                 return path
-            return super().generate_uri(path)
+            return super().build_uri(path)
 
         @classmethod
         def from_uri(cls, uri: str) -> "DummyFileSystem":

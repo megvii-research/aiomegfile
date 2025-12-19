@@ -227,43 +227,6 @@ class TestLocalFileSystem:
         with pytest.raises(IsADirectoryError):
             await protocol.copy(src_dir, dst_path)
 
-    async def test_iterdir(self, temp_dir):
-        """Test iterdir method."""
-        # Create some files
-        for name in ["c.txt", "a.txt", "b.txt"]:
-            with open(os.path.join(temp_dir, name), "w") as f:
-                f.write(name)
-
-        protocol = self._create_protocol()
-        entries = []
-        async for entry in protocol.iterdir(temp_dir):
-            entries.append(entry)
-
-        # Should be sorted
-        expected = [
-            os.path.join(temp_dir, "a.txt"),
-            os.path.join(temp_dir, "b.txt"),
-            os.path.join(temp_dir, "c.txt"),
-        ]
-        assert entries == expected
-
-    async def test_walk(self, temp_dir):
-        """Test walk method."""
-        # Create directory structure
-        subdir = os.path.join(temp_dir, "subdir")
-        os.makedirs(subdir)
-        with open(os.path.join(temp_dir, "file1.txt"), "w") as f:
-            f.write("file1")
-        with open(os.path.join(subdir, "file2.txt"), "w") as f:
-            f.write("file2")
-
-        protocol = self._create_protocol()
-        results = []
-        async for root, dirs, files in protocol.walk(temp_dir):
-            results.append((root, dirs, files))
-
-        assert len(results) == 2
-
     async def test_absolute(self, temp_file):
         """Test absolute method."""
         protocol = self._create_protocol()

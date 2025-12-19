@@ -62,7 +62,7 @@ class SmartPath(os.PathLike):
         else:
             uri = fspath(uri)
             self.filesystem = get_filesystem_by_uri(uri)
-            self._path = self.filesystem.get_path_from_uri(uri)
+            self._path = self.filesystem.parse_uri(uri)
 
     def __str__(self) -> str:
         return fspath(self)
@@ -74,7 +74,7 @@ class SmartPath(os.PathLike):
         return str(self).encode()
 
     def __fspath__(self) -> str:
-        return self.filesystem.generate_uri(self._path)
+        return self.filesystem.build_uri(self._path)
 
     def __hash__(self) -> int:
         return hash(fspath(self))
@@ -432,7 +432,7 @@ class SmartPath(os.PathLike):
             return self
         elif len(self.parents) > 0:
             return self.parents[0]  # pytype: disable=bad-return-type
-        return self.from_uri(self.filesystem.generate_uri(""))
+        return self.from_uri(self.filesystem.build_uri(""))
 
     async def is_dir(self, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
@@ -564,8 +564,45 @@ class SmartPath(os.PathLike):
         :param follow_symlinks: Whether to traverse symbolic links to directories.
         :return: Async iterator of (root, dirs, files).
         """
-        async for item in self.filesystem.walk(self._path, followlinks=follow_symlinks):
-            yield item
+        if not await self.filesystem.is_dir(self._path, followlinks=follow_symlinks):
+            return
+
+        root = self._path
+        if self.is_symlink() and follow_symlinks:
+            root = (await self.readlink())._path  # pytype: disable=attribute-error
+
+        pending = [(root, False)]
+        while pending:
+            root, root_is_symlink = pending.pop()
+            if follow_symlinks and root_is_symlink:
+                root = (await self.readlink())._path
+
+            dirs: T.List[str] = []
+            files: T.List[str] = []
+            to_traverse: T.List[T.Tuple[str, bool]] = []
+
+            async with self.filesystem.scandir(root) as iterator:
+                async for entry in iterator:
+                    entry_path = entry.path
+                    is_symlink = entry.is_symlink()
+                    is_dir = entry.is_dir()
+                    if is_symlink:
+                        is_dir = await self.filesystem.is_dir(
+                            entry_path, followlinks=True
+                        )
+
+                    if is_dir:
+                        dirs.append(entry.name)
+                        to_traverse.append((entry_path, is_symlink))
+                    else:
+                        files.append(entry.name)
+
+            yield root, dirs, files
+
+            for entry_path, is_symlink in to_traverse:
+                if not follow_symlinks and is_symlink:
+                    continue
+                pending.append((entry_path, is_symlink))
 
     async def iglob(self, pattern: str) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern.
@@ -673,7 +710,7 @@ class SmartPath(os.PathLike):
                 for filename in files:
                     current_src = os.path.join(root, filename)
                     current_src_path = self.from_uri(
-                        self.filesystem.generate_uri(current_src)
+                        self.filesystem.build_uri(current_src)
                     )
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
@@ -793,8 +830,10 @@ class SmartPath(os.PathLike):
 
         :return: All contents have in the path in ascending alphabetical order
         """
-        async for path_str in self.filesystem.iterdir(self._path):
-            yield self.from_uri(path_str)
+        async with self.filesystem.scandir(self._path) as iterator:
+            async for file_entry in iterator:
+                path_str = self.filesystem.build_uri(file_entry.path)
+                yield self.from_uri(path_str)
 
     async def absolute(self) -> "SmartPath":
         """

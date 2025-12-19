@@ -262,18 +262,6 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "open" not implemented: %r' % self)
 
-    async def walk(
-        self, path: str, followlinks: bool = False
-    ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
-        """Generate the file names in a directory tree by walking the tree.
-
-        :param path: Root directory path to start walking.
-        :param followlinks: Whether to traverse symbolic links to directories.
-        :return: Async iterator of (root, dirs, files).
-        """
-        raise NotImplementedError('method "walk" not implemented: %r' % self)
-        yield
-
     def scandir(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Return an iterator of ``FileEntry`` objects corresponding to the entries
             in the directory given by path.
@@ -352,17 +340,6 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError(f"'is_symlink' is unsupported on '{type(self)}'")
 
-    async def iterdir(self, path: str) -> T.AsyncIterator[str]:
-        """
-        Get all contents of given fs path.
-        The result is in ascending alphabetical order.
-
-        :param path: The directory path to list contents.
-        :return: All contents have in the path in ascending alphabetical order
-        """
-        raise NotImplementedError(f"'iterdir' is unsupported on '{type(self)}'")
-        yield
-
     async def absolute(self, path: str) -> str:
         """
         Make the path absolute, without normalization or resolving symlinks.
@@ -393,18 +370,18 @@ class BaseFileSystem(ABC):
         """
 
     @abstractmethod
-    def get_path_from_uri(self, uri: str) -> str:
+    def parse_uri(self, uri: str) -> str:
         """
-        Get the path part from uri.
+        Parse the path part from a URI.
 
         :param uri: URI string.
         :return: Path part string.
         """
 
     @abstractmethod
-    def generate_uri(self, path: str) -> str:
+    def build_uri(self, path: str) -> str:
         """
-        Generate URI for the filesystem.
+        Build URI for the filesystem by path part.
 
         :param path: Path without protocol.
         :return: Generated URI string.

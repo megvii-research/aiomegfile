@@ -223,18 +223,6 @@ class LocalFileSystem(BaseFileSystem):
             newline=newline,
         )
 
-    async def walk(
-        self, path: str, followlinks: bool = False
-    ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
-        """Generate the file names in a directory tree by walking the tree.
-
-        :param path: Root directory to walk.
-        :param followlinks: Whether to traverse symbolic links to directories.
-        :return: Async iterator of (root, dirs, files).
-        """
-        for root, dirs, files in os.walk(path, followlinks=followlinks):
-            yield root, dirs, files
-
     def scandir(self, path) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Return an async context manager for iterating directory entries.
 
@@ -282,18 +270,6 @@ class LocalFileSystem(BaseFileSystem):
         """
         return await aiofiles.ospath.islink(path)
 
-    async def iterdir(self, path: str) -> T.AsyncIterator[str]:
-        """
-        Get all contents of given fs path.
-        The result is in ascending alphabetical order.
-
-        :param path: Directory to list.
-        :return: Async iterator of child paths sorted alphabetically.
-        """
-        files = await aiofiles.os.listdir(path)
-        for filename in sorted(files):
-            yield os.path.join(path, filename)
-
     async def absolute(self, path: str) -> str:
         """
         Make the path absolute, without normalization or resolving symlinks.
@@ -338,9 +314,9 @@ class LocalFileSystem(BaseFileSystem):
             return True
         return False
 
-    def get_path_from_uri(self, uri: str) -> str:
+    def parse_uri(self, uri: str) -> str:
         """
-        Extract path component from uri.
+        Parse the path part from a URI.
 
         :param uri: URI string.
         :return: Path part string.
@@ -348,9 +324,9 @@ class LocalFileSystem(BaseFileSystem):
         _, path, _ = split_uri(uri)
         return path
 
-    def generate_uri(self, path: str) -> str:
+    def build_uri(self, path: str) -> str:
         """
-        Generate file URI from path without protocol.
+        Build URI for the filesystem by path part.
 
         :param path: Path without protocol.
         :return: URI string.
