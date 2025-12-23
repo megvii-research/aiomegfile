@@ -29,3 +29,9 @@ def split_uri(uri: T.Union[str, os.PathLike]) -> T.Tuple[str, str, T.Optional[st
     else:
         profile_name = None
     return protocol, path, profile_name
+
+
+def get_url_scheme(url: str):
+    if "://" in url:
+        return url.split("://", 1)[0]
+    return ""
