@@ -632,30 +632,30 @@ class TestSmartPathFileOperations:
         with open(expected_child) as f:
             assert f.read() == "child"
 
-    # async def test_glob(self, temp_dir):
-    #     # Create some test files
-    #     for i in range(3):
-    #         with open(os.path.join(temp_dir, f"file{i}.txt"), "w") as f:
-    #             f.write(f"content {i}")
-    #     with open(os.path.join(temp_dir, "other.md"), "w") as f:
-    #         f.write("markdown")
+    async def test_glob(self, temp_dir):
+        # Create some test files
+        for i in range(3):
+            with open(os.path.join(temp_dir, f"file{i}.txt"), "w") as f:
+                f.write(f"content {i}")
+        with open(os.path.join(temp_dir, "other.md"), "w") as f:
+            f.write("markdown")
 
-    #     p = SmartPath(temp_dir)
-    #     results = await p.glob("*.txt")
-    #     assert len(results) == 3
+        p = SmartPath(temp_dir)
+        results = await p.glob("*.txt")
+        assert len(results) == 3
 
-    # async def test_rglob(self, temp_dir):
-    #     # Create a directory structure with files
-    #     subdir = os.path.join(temp_dir, "subdir")
-    #     os.mkdir(subdir)
-    #     with open(os.path.join(temp_dir, "file1.txt"), "w") as f:
-    #         f.write("file1")
-    #     with open(os.path.join(subdir, "file2.txt"), "w") as f:
-    #         f.write("file2")
+    async def test_rglob(self, temp_dir):
+        # Create a directory structure with files
+        subdir = os.path.join(temp_dir, "subdir")
+        os.mkdir(subdir)
+        with open(os.path.join(temp_dir, "file1.txt"), "w") as f:
+            f.write("file1")
+        with open(os.path.join(subdir, "file2.txt"), "w") as f:
+            f.write("file2")
 
-    #     p = SmartPath(temp_dir)
-    #     results = await p.rglob("*.txt")
-    #     assert len(results) == 2
+        p = SmartPath(temp_dir)
+        results = await p.rglob("*.txt")
+        assert len(results) == 2
 
     async def test_rename(self, temp_dir):
         src_file = os.path.join(temp_dir, "src.txt")

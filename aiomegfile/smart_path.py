@@ -6,6 +6,7 @@ from functools import cached_property
 
 from aiomegfile.interfaces import StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
+from aiomegfile.lib.glob import FSFunc, iglob
 from aiomegfile.lib.url import fspath
 
 
@@ -606,39 +607,50 @@ class SmartPath(os.PathLike):
                     continue
                 pending.append((entry_path, is_symlink))
 
-    async def iglob(self, pattern: str) -> T.AsyncIterator["SmartPath"]:
+    async def iglob(
+        self, pattern: str, recursive: bool = True
+    ) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern.
 
         :param pattern: Glob pattern to match relative to this path.
+        :param recursive: If False, `**` will not search directory recursively.
         :return: Async iterator of matching SmartPath objects.
         """
-        # TODO: implement iglob
-        raise NotImplementedError("iglob is not implemented")
-        yield  # to make it an async generator
+        fs_func = FSFunc(
+            exists=self.filesystem.exists,
+            isdir=self.filesystem.is_dir,
+            scandir=self.filesystem.scandir,
+        )
+        async for path in iglob(
+            os.path.join(self._path, pattern), fs=fs_func, recursive=recursive
+        ):
+            yield self.from_uri(self.filesystem.build_uri(path))
 
-    async def glob(self, pattern: str) -> T.List["SmartPath"]:
+    async def glob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern.
 
         :param pattern: Glob pattern to match relative to this path.
+        :param recursive: If False, `**` will not search directory recursively.
         :return: List of matching SmartPath instances.
         """
         result = []
-        async for item in self.iglob(pattern=pattern):
+        async for item in self.iglob(pattern=pattern, recursive=recursive):
             result.append(item)
         return result
 
-    async def rglob(self, pattern: str) -> T.List["SmartPath"]:
+    async def rglob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
         """
         This is like calling ``Path.glob()`` with ``**/`` added in front of
         the given relative pattern
 
         :param pattern: Glob pattern to match recursively.
+        :param recursive: If False, `**` will not search directory recursively.
         :return: List of matching SmartPath instances.
         """
         if not pattern:
             pattern = ""
         pattern = "**/" + pattern.lstrip("/")
-        return await self.glob(pattern=pattern)
+        return await self.glob(pattern=pattern, recursive=recursive)
 
     async def _copy_file(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
         """

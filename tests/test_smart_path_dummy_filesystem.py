@@ -190,15 +190,8 @@ async def test_touch_exist_ok_false_raises(tmp_path):
         await p.touch(exist_ok=False)
 
 
-async def test_iglob_raises_not_implemented(tmp_path):
-    p = SmartPath(str(tmp_path))
-    agen = p.iglob("*.txt")
-    with pytest.raises(NotImplementedError):
-        await agen.__anext__()
-
-
 async def test_glob_collects_from_iglob(monkeypatch, tmp_path):
-    async def fake_iglob(self, pattern):
+    async def fake_iglob(self, pattern, recursive):
         yield self.from_uri("/tmp/a")
         yield self.from_uri("/tmp/b")
 
@@ -211,7 +204,7 @@ async def test_glob_collects_from_iglob(monkeypatch, tmp_path):
 async def test_rglob_prefixes_pattern(monkeypatch, tmp_path):
     called = []
 
-    async def fake_glob(self, pattern):
+    async def fake_glob(self, pattern, recursive):
         called.append(pattern)
         return []
 

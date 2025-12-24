@@ -2,37 +2,29 @@
 
 import os
 import re
+import typing as T
 from collections import OrderedDict
-from typing import Callable, Iterator, List, NamedTuple, Tuple
 
 from aiomegfile.lib import fnmatch
 
 
-class FSFunc(NamedTuple):
-    exists: Callable[[str], bool]
-    isdir: Callable[[str], bool]
-    scandir: Callable[[str], Iterator[Tuple[str, bool]]]
+class FileEntry(T.NamedTuple):
+    name: str
+    is_dir: bool
 
 
-def _exists(path: str) -> bool:
-    return os.path.lexists(path)
+class FSFunc(T.NamedTuple):
+    exists: T.Callable[[str], T.Awaitable[bool]]
+    isdir: T.Callable[[str], T.Awaitable[bool]]
+    scandir: T.Callable[[str], T.AsyncContextManager[T.AsyncIterator[FileEntry]]]
 
 
-def _isdir(path: str) -> bool:
-    return os.path.isdir(path)
-
-
-def _scandir(dirname: str) -> Iterator[Tuple[str, bool]]:
-    for entry in sorted(list(os.scandir(dirname)), key=lambda t: t.name):
-        yield entry.name, entry.is_dir()
-
-
-DEFAULT_FILESYSTEM_FUNC = FSFunc(_exists, _isdir, _scandir)
-
-
-def glob(
-    pathname: str, *, recursive: bool = False, fs: FSFunc = DEFAULT_FILESYSTEM_FUNC
-) -> List[str]:
+async def glob(
+    pathname: str,
+    fs: FSFunc,
+    *,
+    recursive: bool = False,
+) -> T.List[str]:
     """Return a list of paths matching a pathname pattern.
 
     The pattern may contain simple shell-style wildcards a la
@@ -43,12 +35,15 @@ def glob(
     If recursive is true, the pattern '**' will match any files and
     zero or more directories and subdirectories.
     """
-    return list(iglob(pathname, recursive=recursive, fs=fs))
+    return [item async for item in iglob(pathname, fs=fs, recursive=recursive)]
 
 
-def iglob(
-    pathname: str, *, recursive: bool = False, fs: FSFunc = DEFAULT_FILESYSTEM_FUNC
-) -> Iterator[str]:
+async def iglob(
+    pathname: str,
+    fs: FSFunc,
+    *,
+    recursive: bool = False,
+) -> T.AsyncIterator[str]:
     """Return an iterator which yields the paths matching a pathname pattern.
 
     The pattern may contain simple shell-style wildcards a la
@@ -61,13 +56,21 @@ def iglob(
     """
     it = _iglob(pathname, recursive, False, fs)
     if recursive and _isrecursive(pathname):
-        s = next(it)  # skip empty string
+        s = await it.__anext__()  # skip empty string
         if s:
             raise OSError("iglob with recursive=True error")  # pragma: no cover
-    return it
+    async for item in it:
+        yield item
 
 
-def _iglob(pathname: str, recursive: bool, dironly: bool, fs: FSFunc) -> Iterator[str]:
+async def _list_to_asynciterator(lst: T.List[str]) -> T.AsyncIterator[str]:
+    for item in lst:
+        yield item
+
+
+async def _iglob(
+    pathname: str, recursive: bool, dironly: bool, fs: FSFunc
+) -> T.AsyncIterator[str]:
     if "://" in pathname:
         protocol, path_without_protocol = pathname.split("://", 1)
     else:
@@ -79,28 +82,30 @@ def _iglob(pathname: str, recursive: bool, dironly: bool, fs: FSFunc) -> Iterato
         if dironly:
             raise OSError("can't use dironly with non-magic patterns in _iglob")
         if basename:
-            if fs.exists(pathname):
+            if await fs.exists(pathname):
                 yield pathname
         else:
             # Patterns ending with a slash should match only directories
-            if fs.isdir(dirname):
+            if await fs.isdir(dirname):
                 yield pathname
         return
     if not dirname:
         if recursive and _isrecursive(basename):
-            yield from _glob2(dirname, basename, dironly, fs)
+            async for item in _glob2(dirname, basename, dironly, fs):
+                yield item
         else:
-            yield from _glob1(dirname, basename, dironly, fs)
+            async for item in _glob1(dirname, basename, dironly, fs):
+                yield item
         return
     # `os.path.split()` returns the argument itself as a dirname if it is a
     # drive or UNC path.  Prevent an infinite recursion if a drive or UNC path
     # contains magic characters (i.e. r'\\?\C:').
     if dirname != pathname and has_magic(dirname):
         dirs = _iglob(dirname, recursive, True, fs)
-    elif fs.exists(dirname):
-        dirs = [dirname]
+    elif await fs.exists(dirname):
+        dirs = _list_to_asynciterator([dirname])
     else:
-        dirs = []
+        dirs = _list_to_asynciterator([])
     if has_magic(basename):
         if recursive and _isrecursive(basename):
             glob_in_dir = _glob2
@@ -108,60 +113,69 @@ def _iglob(pathname: str, recursive: bool, dironly: bool, fs: FSFunc) -> Iterato
             glob_in_dir = _glob1
     else:
         glob_in_dir = _glob0
-    for dirname in dirs:
-        for name in glob_in_dir(dirname, basename, dironly, fs):
+
+    async for dirname in dirs:
+        async for name in glob_in_dir(dirname, basename, dironly, fs):
             yield os.path.join(dirname, name)
 
 
 # These 2 helper functions non-recursively glob inside a literal directory.
 # They return a list of basenames.  _glob1 accepts a pattern while _glob0
 # takes a literal basename (so it only has to check for its existence).
-def _glob1(dirname: str, pattern: str, dironly: bool, fs: FSFunc) -> List[str]:
-    names = list(_iterdir(dirname, dironly, fs))
+async def _glob1(
+    dirname: str, pattern: str, dironly: bool, fs: FSFunc
+) -> T.AsyncIterator[str]:
+    names = [name async for name in _iterdir(dirname, dironly, fs)]
     if not _ishidden(pattern):
         names = (x for x in names if not _ishidden(x))
-    return fnmatch.filter(names, pattern)  # pyre-ignore[6]
+    for name in fnmatch.filter(names, pattern):
+        yield name
 
 
-def _glob0(dirname: str, basename: str, dironly: bool, fs: FSFunc) -> List[str]:
+async def _glob0(
+    dirname: str, basename: str, dironly: bool, fs: FSFunc
+) -> T.AsyncIterator[str]:
     if not basename:
         # `os.path.split()` returns an empty basename for paths ending with a
         # directory separator.  'q*x/' should match only directories.
-        if fs.isdir(dirname):
-            return [basename]
+        if await fs.isdir(dirname):
+            yield basename
     else:
-        if fs.exists(os.path.join(dirname, basename)):
-            return [basename]
-    return []
+        if await fs.exists(os.path.join(dirname, basename)):
+            yield basename
 
 
 # This helper function recursively yields relative pathnames inside a literal
 # directory.
-def _glob2(dirname: str, pattern: str, dironly: bool, fs: FSFunc) -> Iterator[str]:
+async def _glob2(
+    dirname: str, pattern: str, dironly: bool, fs: FSFunc
+) -> T.AsyncIterator[str]:
     if not _isrecursive(pattern):
         raise OSError("error call '_glob2' with non-glob pattern")
     yield pattern[:0]
-    yield from _rlistdir(dirname, dironly, fs)
+    async for item in _rlistdir(dirname, dironly, fs):
+        yield item
 
 
 # If dironly is false, yields all file names inside a directory.
 # If dironly is true, yields only directory names.
-def _iterdir(dirname: str, dironly: bool, fs: FSFunc) -> Iterator[str]:
+async def _iterdir(dirname: str, dironly: bool, fs: FSFunc) -> T.AsyncIterator[str]:
     if not dirname:
         dirname = os.curdir
     try:
         # dirname may be non-existent, raise OSError
-        for name, isdir in fs.scandir(dirname):
-            if not dironly or isdir:
-                yield name
+        async with fs.scandir(dirname) as it:
+            async for entry in it:
+                if not dironly or entry.is_dir:
+                    yield entry.name
     except OSError:
         return
 
 
 # Recursively yields relative pathnames inside a literal directory.
-def _rlistdir(dirname: str, dironly: bool, fs: FSFunc) -> Iterator[str]:
+async def _rlistdir(dirname: str, dironly: bool, fs: FSFunc) -> T.AsyncIterator[str]:
     names = OrderedDict()
-    for name in _iterdir(dirname, dironly, fs):
+    async for name in _iterdir(dirname, dironly, fs):
         names.setdefault(name, 0)
         names[name] += 1
     for x, c in names.items():
@@ -169,7 +183,7 @@ def _rlistdir(dirname: str, dironly: bool, fs: FSFunc) -> Iterator[str]:
             for _ in range(c):
                 yield x
             path = os.path.join(dirname, x) if dirname else x
-            for y in _rlistdir(path, dironly, fs):
+            async for y in _rlistdir(path, dironly, fs):
                 yield os.path.join(x, y)
 
 
@@ -221,7 +235,7 @@ def escape_brace(pathname):
     return drive + pathname
 
 
-def _find_suffix(path_list: List[str], prefix: str, split_sign: str) -> List[str]:
+def _find_suffix(path_list: T.List[str], prefix: str, split_sign: str) -> T.List[str]:
     suffix = []
     temp_path_list = []
     for path_index in range(0, len(path_list)):
@@ -241,7 +255,7 @@ def _find_suffix(path_list: List[str], prefix: str, split_sign: str) -> List[str
             suffix.insert(0, temp_path_list[0][i])
 
 
-def globlize(path_list: List[str]) -> str:
+def globlize(path_list: T.List[str]) -> str:
     path_list = sorted(path_list)
     if path_list[0] == path_list[-1]:
         return path_list[0]
@@ -265,7 +279,7 @@ def globlize(path_list: List[str]) -> str:
     return prefix + "{" + ",".join(path) + "}" + suffix
 
 
-def ungloblize(glob: str) -> List[str]:
+def ungloblize(glob: str) -> T.List[str]:
     path_list = [glob]
     while True:
         temp_path = path_list[0]
