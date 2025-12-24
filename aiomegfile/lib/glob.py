@@ -8,7 +8,7 @@ from collections import OrderedDict
 from aiomegfile.lib import fnmatch
 
 
-class FileEntry(T.NamedTuple):
+class GlobFileEntry(T.NamedTuple):
     name: str
     is_dir: bool
 
@@ -16,7 +16,7 @@ class FileEntry(T.NamedTuple):
 class FSFunc(T.NamedTuple):
     exists: T.Callable[[str], T.Awaitable[bool]]
     isdir: T.Callable[[str], T.Awaitable[bool]]
-    scandir: T.Callable[[str], T.AsyncContextManager[T.AsyncIterator[FileEntry]]]
+    scandir: T.Callable[[str], T.AsyncContextManager[T.AsyncIterator[GlobFileEntry]]]
 
 
 async def glob(
