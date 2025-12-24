@@ -214,6 +214,10 @@ class LocalFileSystem(BaseFileSystem):
         :param newline: Newline handling in text mode.
         :return: Async file context manager.
         """
+        dir_path = os.path.dirname(path)
+        if dir_path and dir_path != ".":
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+
         return aiofiles.open(  # pytype: disable=wrong-arg-types
             path,
             mode=mode,
@@ -243,6 +247,10 @@ class LocalFileSystem(BaseFileSystem):
         """
         if not overwrite and await aiofiles.ospath.exists(dst_path):
             raise FileExistsError(f"Destination path already exists: {dst_path}")
+        dir_path = os.path.dirname(dst_path)
+        if dir_path and dir_path != ".":
+            await self.mkdir(dir_path, parents=True, exist_ok=True)
+
         shutil.move(src_path, dst_path)
         return dst_path
 
@@ -301,6 +309,9 @@ class LocalFileSystem(BaseFileSystem):
         :param dst_path: Given destination path
         :return: Destination path after copy.
         """
+        dir_name = os.path.dirname(dst_path)
+        if dir_name and dir_name != "":
+            await self.mkdir(dir_name, parents=True, exist_ok=True)
         return await asyncio.to_thread(shutil.copyfile, src_path, dst_path)
 
     def same_endpoint(self, other_filesystem: "LocalFileSystem") -> bool:
