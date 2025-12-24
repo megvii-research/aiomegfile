@@ -508,8 +508,6 @@ class SmartPath(os.PathLike):
         :param missing_ok: If False, raise when the path does not exist.
         :raises IsADirectoryError: If the target is a directory.
         """
-        if not await self.filesystem.is_file(self._path):
-            raise IsADirectoryError(f"Is a directory: {fspath(self)}")
         return await self.filesystem.unlink(self._path, missing_ok=missing_ok)
 
     async def mkdir(
@@ -530,8 +528,6 @@ class SmartPath(os.PathLike):
 
         :raises NotADirectoryError: If the target is not a directory.
         """
-        if not await self.filesystem.is_dir(self._path):
-            raise NotADirectoryError(f"Not a directory: {fspath(self)}")
         return await self.filesystem.rmdir(self._path)
 
     def open(
@@ -761,10 +757,19 @@ class SmartPath(os.PathLike):
         :return: Target SmartPath after rename.
         :raises FileExistsError: If destination exists.
         """
-        result = await self.filesystem.move(
-            self._path, dst_path=fspath(target), overwrite=False
-        )
-        return self.from_uri(result)
+        target_path = self.from_uri(target)
+
+        if target_path.filesystem.same_endpoint(self.filesystem):
+            await self.filesystem.move(
+                self._path, dst_path=target_path._path, overwrite=False
+            )
+        else:
+            await self.copy(target=target_path)
+            try:
+                await self.unlink()
+            except IsADirectoryError:
+                await self.rmdir()
+        return target_path
 
     async def replace(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
         """
@@ -773,10 +778,19 @@ class SmartPath(os.PathLike):
         :param target: Given destination path
         :return: Destination SmartPath after replace.
         """
-        result = await self.filesystem.move(
-            self._path, dst_path=fspath(target), overwrite=True
-        )
-        return self.from_uri(result)
+        target_path = self.from_uri(target)
+
+        if target_path.filesystem.same_endpoint(self.filesystem):
+            await self.filesystem.move(
+                self._path, dst_path=target_path._path, overwrite=True
+            )
+        else:
+            await self.copy(target=target_path)
+            try:
+                await self.unlink()
+            except IsADirectoryError:
+                await self.rmdir()
+        return target_path
 
     async def move(
         self,
@@ -801,9 +815,7 @@ class SmartPath(os.PathLike):
         :return: Destination SmartPath inside the target directory.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
-        await target.parent.mkdir(parents=True, exist_ok=True)
-        await self.move(target=target)
-        return target
+        return await self.move(target=target)
 
     async def symlink_to(self, target: T.Union[str, os.PathLike]) -> None:
         """
@@ -812,8 +824,11 @@ class SmartPath(os.PathLike):
 
         :param target: Destination the new link should point to.
         """
+        target_path = self.from_uri(target)
+        if not target_path.filesystem.same_endpoint(self.filesystem):
+            raise TypeError("'symlink_to' not supported between different filesystems")
         return await self.filesystem.symlink(
-            src_path=self.from_uri(target)._path,
+            src_path=target_path._path,
             dst_path=self._path,
         )
 
