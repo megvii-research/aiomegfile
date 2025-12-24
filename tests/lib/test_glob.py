@@ -9,7 +9,6 @@ import pytest
 
 from aiomegfile.lib.glob import (
     FSFunc,
-    GlobFileEntry,
     escape,
     escape_brace,
     get_non_glob_dir,
@@ -21,6 +20,11 @@ from aiomegfile.lib.glob import (
     unescape,
     ungloblize,
 )
+
+
+class FakeFileEntry(T.NamedTuple):
+    name: str
+    is_dir: bool
 
 
 class RealFileSystemAdapter:
@@ -59,7 +63,7 @@ class RealFileSystemAdapter:
                 return
 
             for entry in os.scandir(resolved):
-                yield GlobFileEntry(name=entry.name, is_dir=entry.is_dir())
+                yield FakeFileEntry(name=entry.name, is_dir=entry.is_dir())
 
         yield _iter()
 
@@ -479,7 +483,7 @@ class MockFSForProtocol:
                 else:
                     rel_path = path
                 if "/" not in rel_path and rel_path:
-                    yield GlobFileEntry(name=rel_path, is_dir=is_dir)
+                    yield FakeFileEntry(name=rel_path, is_dir=is_dir)
 
         yield _iter()
 
