@@ -331,6 +331,8 @@ class SmartPath(os.PathLike):
             other_path = self.from_uri(other_path)
         if self.filesystem.protocol != other_path.filesystem.protocol:
             return False
+        elif self.filesystem.same_endpoint(other_path.filesystem) is False:
+            return False
         return await self.filesystem.samefile(self._path, other_path=other_path._path)
 
     async def touch(self, exist_ok: bool = True) -> None:
