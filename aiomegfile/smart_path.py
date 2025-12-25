@@ -617,9 +617,10 @@ class SmartPath(os.PathLike):
             isdir=self.filesystem.is_dir,
             scandir=self.filesystem.scandir,
         )
-        async for path in iglob(
-            os.path.join(self._path, pattern), fs=fs_func, recursive=recursive
-        ):
+        path = self._path
+        if pattern:
+            path = os.path.join(self._path, pattern)
+        async for path in iglob(path, fs=fs_func, recursive=recursive):
             yield self.from_uri(self.filesystem.build_uri(path))
 
     async def glob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
