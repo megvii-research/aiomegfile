@@ -185,17 +185,17 @@ async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
 
 
 async def smart_copy(
-    src_path: PathLike, dst_path: PathLike, *, follow_symlinks: bool = False
+    src_path: PathLike, dst_path: PathLike, *, followlinks: bool = False
 ) -> str:
     """Copy a file or directory and return the destination path string.
 
     :param src_path: Source path to copy.
     :param dst_path: Destination path.
-    :param follow_symlinks: Whether to follow symbolic links.
+    :param followlinks: Whether to follow symbolic links.
     :return: Destination path string.
     :rtype: str
     """
-    result = await SmartPath(src_path).copy(dst_path, follow_symlinks=follow_symlinks)
+    result = await SmartPath(src_path).copy(dst_path, follow_symlinks=followlinks)
     return str(result)
 
 
@@ -224,16 +224,16 @@ async def smart_rename(src_path: PathLike, dst_path: PathLike) -> str:
 
 
 async def smart_walk(
-    path: PathLike, *, follow_symlinks: bool = False
+    path: PathLike, *, followlinks: bool = False
 ) -> T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]:
     """Generate the file names in a directory tree by walking the tree.
 
     :param path: Root directory to walk.
-    :param follow_symlinks: Whether to traverse symbolic links to directories.
+    :param followlinks: Whether to traverse symbolic links to directories.
     :return: Async iterator of (root, dirs, files).
     :rtype: T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]
     """
-    async for item in SmartPath(path).walk(follow_symlinks=follow_symlinks):
+    async for item in SmartPath(path).walk(follow_symlinks=followlinks):
         yield item
 
 
