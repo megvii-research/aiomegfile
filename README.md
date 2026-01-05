@@ -14,10 +14,15 @@ aiomegfile - Asyncio implementation of megfile
 
 ## Quick Start
 
+This project is **not production-ready**.
+
 ### Installation
 
 ```bash
-pip3 install aiomegfile
+git clone https://github.com/megvii-research/aiomegfile.git
+cd aiomegfile
+
+pip3 install -e .
 ```
 
 ## How to Contribute
