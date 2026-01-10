@@ -31,7 +31,9 @@ jobs:
           pdm venv create
 
       - name: Install dependencies
-        run: pdm sync -G dev --venv
+        run: |
+          pdm sync -G s3 --venv
+          pdm sync -G dev --venv
 
       - name: Run unit-test
         run: make test
