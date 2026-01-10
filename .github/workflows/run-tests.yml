@@ -71,7 +71,9 @@ jobs:
           pdm venv create
 
       - name: Install dependencies
-        run: pdm sync -G dev --venv
+        run: |
+          pdm sync -G s3 --venv
+          pdm sync -G dev --venv
 
       - name: Run style-check
         run: make style_check
@@ -100,7 +102,9 @@ jobs:
           pdm venv create
 
       - name: Install dependencies
-        run: pdm sync -G dev --venv
+        run: |
+          pdm sync -G s3 --venv
+          pdm sync -G dev --venv
 
       - name: Run static-check
         run: make static_check
@@ -170,7 +174,9 @@ jobs:
           pdm venv create
 
       - name: Install dependencies
-        run: pdm sync -G dev --venv
+        run: |
+          pdm sync -G s3 --venv
+          pdm sync -G dev --venv
 
       - name: Run pyre-check
         continue-on-error: true
