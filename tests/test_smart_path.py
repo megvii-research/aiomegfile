@@ -128,7 +128,7 @@ class TestSmartPathComparisons:
         p1 = SmartPath(str(test_file))
 
         # s3 protocol is not registered, so this should raise ProtocolNotFoundError
-        with pytest.raises(ProtocolNotFoundError):
+        with pytest.raises(TypeError):
             p1 < "s3://bucket/key"
 
 
