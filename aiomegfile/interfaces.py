@@ -7,6 +7,7 @@ from aiomegfile.lib.url import split_uri
 
 Self = T.TypeVar("Self")
 
+
 class StatResult(T.NamedTuple):
     st_size: int = 0
     st_ctime: float = 0.0

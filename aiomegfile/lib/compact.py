@@ -1,7 +1,6 @@
 import os
-from os import PathLike
 
-__all__ = ["PathLike", "fspath"]
+from aiomegfile.pathlike import PathLike
 
 
 def fspath(path: PathLike) -> str:
