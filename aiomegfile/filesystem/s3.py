@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, AsyncContextManager, AsyncIterator, TypedDict
 
 import aiobotocore.session
 
@@ -10,11 +10,14 @@ from aiomegfile.errors import (
     S3FileExistsError,
     S3FileNotFoundError,
     S3IsADirectoryError,
+    S3NameTooLongError,
+    S3NotADirectoryError,
+    S3NotALinkError,
     S3PermissionError,
     S3UnknownError,
     translate_s3_error,
 )
-from aiomegfile.interfaces import BaseFileSystem, StatResult
+from aiomegfile.interfaces import BaseFileSystem, FileEntry, StatResult
 from aiomegfile.lib.compact import fspath
 from aiomegfile.lib.url import split_uri
 from aiomegfile.pathlike import PathLike
@@ -131,13 +134,12 @@ class S3FileSystem(BaseFileSystem):
             # s3://, s3:///key, s3://bucket, s3://bucket/prefix/
             return False
 
-        # TODO
-        # if followlinks:
-        #     try:
-        #         s3_url = self.readlink().path_with_protocol
-        #         bucket, key = parse_s3_url(s3_url)
-        #     except S3NotALinkError:
-        #         pass
+        if followlinks:
+            try:
+                s3_url = await self.readlink(path)
+                bucket, key = parse_s3_url(s3_url)
+            except S3NotALinkError:
+                pass
 
         try:
             await client.head_object(Bucket=bucket, Key=key)
@@ -308,6 +310,80 @@ class S3FileSystem(BaseFileSystem):
         client = await self._get_client()
         await client.delete_object(Bucket=bucket, Key=key)
 
+    remove = unlink
+
+    def scandir(self, path: str) -> AsyncContextManager[AsyncIterator[FileEntry]]:
+        """Return an iterator of ``FileEntry`` objects corresponding to the entries
+            in the directory given by path.
+
+        :param path: Directory path to scan.
+        :type path: str
+        :return: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+        bucket, key = parse_s3_url(path)
+        if not bucket and key:
+            raise S3BucketNotFoundError(f"Empty bucket name: {path!r}")
+
+        if await self.is_file(path):
+            raise S3NotADirectoryError(f"Not a directory: {path!r}")
+
+        # In order to do check on creation,
+        # we need to wrap the iterator in another function
+        def create_generator() -> Iterator[FileEntry]:
+            prefix = _become_prefix(key)
+            protocol = self._protocol_with_profile
+            client = self._client
+
+            if not bucket and not key:  # list buckets
+                response = client.list_buckets()
+                for content in response["Buckets"]:
+                    yield FileEntry(
+                        content["Name"],
+                        f"{protocol}://{content['Name']}",
+                        StatResult(
+                            ctime=content["CreationDate"].timestamp(),
+                            isdir=True,
+                            extra=content,
+                        ),
+                    )
+                return
+
+            for resp in _list_objects_recursive(client, bucket, prefix, "/"):
+                for common_prefix in resp.get("CommonPrefixes", []):
+                    yield FileEntry(
+                        common_prefix["Prefix"][len(prefix) : -1],
+                        f"{protocol}://{bucket}/{common_prefix['Prefix']}",
+                        StatResult(isdir=True, extra=common_prefix),
+                    )
+                for content in resp.get("Contents", []):
+                    if content["Key"].endswith("/"):
+                        continue
+                    path = f"{protocol}://{bucket}/{content['Key']}"
+                    yield FileEntry(  # pytype: disable=wrong-arg-types
+                        content["Key"][len(prefix) :],
+                        path,
+                        _make_stat_without_metadata(content, self.from_path(path)),
+                    )
+
+        def missing_ok_generator():
+            def suppress_error_callback(e):
+                if isinstance(e, S3BucketNotFoundError):
+                    return False
+                elif not key and isinstance(e, S3FileNotFoundError):
+                    return True
+                return False
+
+            yield from _create_missing_ok_generator(
+                create_generator(),
+                missing_ok=False,
+                error=S3FileNotFoundError(
+                    "No such directory: %r" % self.path_with_protocol
+                ),
+            )
+
+        return ContextIterator(missing_ok_generator())
+
     async def rmdir(self, path: str, missing_ok: bool = False) -> None:
         """
         Remove (delete) the directory and all its contents.
@@ -401,6 +477,182 @@ class S3FileSystem(BaseFileSystem):
             return
         if await self.exists(path):
             raise S3FileExistsError(f"File exists: {path!r}")
+
+    async def upload(self, src_path: str, dst_path: str) -> None:
+        """
+        upload file
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: ``None``.
+        """
+        client = await self._get_client()
+        bucket, key = parse_s3_url(dst_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {dst_path!r}")
+        if not await self.is_file(dst_path):
+            raise S3FileNotFoundError(f"No such file: {dst_path!r}")
+
+        await client.upload_file(src_path, bucket, key)
+
+    async def download(self, src_path: str, dst_path: str) -> None:
+        """
+        download file
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: ``None``.
+        """
+        if not await self.exists(src_path):
+            raise FileNotFoundError(f"No such file: {src_path!r}")
+
+        bucket, key = parse_s3_url(src_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {src_path!r}")
+        if not await self.is_file(src_path):
+            raise S3FileNotFoundError(f"No such file: {src_path!r}")
+
+        client = await self._get_client()
+        await client.download_file(bucket, key, dst_path)
+
+    async def copy(self, src_path: str, dst_path: str) -> str:
+        """
+        Copy single file, not directory
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: Destination path after copy.
+        """
+        bucket, key = parse_s3_url(src_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {src_path!r}")
+        if not await self.is_file(src_path):
+            raise S3FileNotFoundError(f"No such file: {src_path!r}")
+
+        dst_bucket, dst_key = parse_s3_url(dst_path)
+        if not dst_bucket or not dst_key or dst_key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {dst_path!r}")
+        if await self.exists(dst_path):
+            raise FileExistsError(f"File exists: {dst_path!r}")
+
+        client = await self._get_client()
+        await client.copy(
+            {
+                "Bucket": bucket,
+                "Key": key,
+            },
+            dst_bucket,
+            dst_key,
+        )
+        return dst_path
+
+    async def sync(self, src_path: str, dst_path: str) -> None:
+        """
+        Sync file or directory.
+
+        :param src_path: Given source path
+        :param dst_path: Given destination path
+        :return: ``None``.
+        """
+        async with self.scandir(src_path) as it:
+            async for src_entry in it:
+                src_path = src_entry.path
+                dst_path = src_entry.path.replace(src_path, dst_path, 1)
+                if src_entry.is_dir():
+                    await self.mkdir(dst_path, exist_ok=True)
+                    await self.sync(src_path, dst_path)
+                else:
+                    await self.copy(src_path, dst_path)
+
+    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+        """
+        move file
+
+        :param dst_path: Given destination path
+        :param overwrite: whether or not overwrite file when exists
+        :return: Destination path after move.
+        :raises FileExistsError: If destination exists and overwrite is False.
+        """
+        async with self.scandir(src_path) as it:
+            async for src_entry in it:
+                src_path = src_entry.path
+                dst_path = src_entry.path.replace(src_path, dst_path, 1)
+                if src_entry.is_dir():
+                    await self.mkdir(dst_path, exist_ok=True)
+                    await self.sync(src_path, dst_path)
+                else:
+                    await self.copy(src_path, dst_path)
+
+        if await self.exists(src_path):
+            await self.unlink(src_path)
+        return dst_path
+
+    async def symlink(self, src_path: str, dst_path: str) -> None:
+        """Create a symbolic link pointing to self named dst_path.
+
+        :param src_path: The source path the symbolic link points to.
+        :param dst_path: The symbolic link path.
+        """
+        if len(fspath(dst_path).encode()) > 1024:
+            raise S3NameTooLongError("File name too long: %r" % dst_path)
+        src_bucket, _ = parse_s3_url(src_path)
+        dst_bucket, dst_key = parse_s3_url(dst_path)
+
+        if not src_bucket:
+            raise S3BucketNotFoundError(f"Empty bucket name: {src_path!r}")
+        if not dst_bucket:
+            raise S3BucketNotFoundError(f"Empty bucket name: {dst_path!r}")
+        if not dst_key or dst_key.endswith("/"):
+            raise S3IsADirectoryError("Is a directory: %r" % dst_path)
+
+        try:
+            src_path = await self.readlink(src_path)
+        except S3NotALinkError:
+            pass
+        client = await self._get_client()
+        await client.put_object(
+            Bucket=dst_bucket, Key=dst_key, Metadata={"symlink_to": src_path}
+        )
+
+    async def readlink(self, path: str) -> str:
+        """
+        Return a new path representing the symbolic link's target.
+
+        :param path: The symbolic link path.
+        :return: Target path of the symbolic link.
+        """
+        bucket, key = parse_s3_url(path)
+        if not bucket:
+            raise S3BucketNotFoundError(f"Empty bucket name: {path!r}")
+        if not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {path!r}")
+        metadata = await self._s3_get_metadata(path)
+
+        if "symlink_to" not in metadata:
+            raise S3NotALinkError(f"Not a symbolic link: {path!r}")
+        else:
+            return metadata["symlink_to"]
+
+    async def _s3_get_metadata(self, path: str) -> dict[str, Any]:
+        """
+        Get object metadata
+
+        :param path: Object path
+        :returns: Object metadata
+        """
+        bucket, key = parse_s3_url(path)
+        if not bucket:
+            return {}
+        if not key or key.endswith("/"):
+            return {}
+        client = await self._get_client()
+        try:
+            resp = await client.head_object(Bucket=bucket, Key=key)
+            return dict((key.lower(), value) for key, value in resp["Metadata"].items())
+        except Exception as error:
+            if isinstance(error, (S3UnknownError, S3ConfigError, S3PermissionError)):
+                raise error
+            return {}
 
     def same_endpoint(self, other_filesystem: "BaseFileSystem") -> bool:
         """
