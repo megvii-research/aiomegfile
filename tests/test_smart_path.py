@@ -121,14 +121,11 @@ class TestSmartPathComparisons:
         assert p1 >= SmartPath("/tmp/b.txt")
 
     def test_comparison_different_protocols_raises(self, tmp_path):
-        from aiomegfile.errors import ProtocolNotFoundError
-
         test_file = tmp_path / "a.txt"
         test_file.touch()
         p1 = SmartPath(str(test_file))
 
-        # s3 protocol is not registered, so this should raise ProtocolNotFoundError
-        with pytest.raises(ProtocolNotFoundError):
+        with pytest.raises(TypeError):
             p1 < "s3://bucket/key"
 
 
