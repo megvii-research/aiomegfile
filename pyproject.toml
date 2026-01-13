@@ -62,6 +62,11 @@ typecheck = [
 ]
 dev = [
     "aiomegfile[doc,test,lint,typecheck]",
+    "moto[server]>=5.1.19",
+    "types-aiobotocore[essential]>=3.1.0",
+]
+s3 = [
+    "aiobotocore>=3.1.0",
 ]
 
 [build-system]
