@@ -1,19 +1,21 @@
 import os
 import typing as T
 
+PathLike = T.Union[str, os.PathLike]
 
-def fspath(path: T.Union[str, os.PathLike]) -> str:
+
+def fspath(path: PathLike) -> str:
     path = os.fspath(path)
     if isinstance(path, bytes):
         path = path.decode()
     return path
 
 
-def split_uri(uri: T.Union[str, os.PathLike]) -> T.Tuple[str, str, T.Optional[str]]:
+def split_uri(uri: PathLike) -> T.Tuple[str, str, T.Optional[str]]:
     """split uri to three parts.
 
     :param uri: The URI to split.
-    :type uri: T.Union[str, os.PathLike]
+    :type uri: PathLike
     :return: protocol, path, profile_name
     :rtype: T.Tuple[str, str, T.Optional[str]]
     """

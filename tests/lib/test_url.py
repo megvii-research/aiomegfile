@@ -1,4 +1,4 @@
-from aiomegfile.lib.url import fspath, split_uri
+from aiomegfile.utils.path import fspath, split_uri
 
 
 def test_fspath_with_bytes():

@@ -4,8 +4,8 @@ import os
 import pytest
 
 from aiomegfile.interfaces import StatResult
-from aiomegfile.lib.url import fspath, split_uri
 from aiomegfile.smart_path import SmartPath, URIPathParents
+from aiomegfile.utils.path import fspath, split_uri
 
 
 class TestFspath:

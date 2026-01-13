@@ -2,7 +2,7 @@ from contextlib import contextmanager
 
 from botocore.exceptions import ClientError, NoCredentialsError, ParamValidationError
 
-from aiomegfile.pathlike import PathLike
+from aiomegfile.utils.path import PathLike
 
 
 def full_class_name(obj):

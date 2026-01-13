@@ -10,7 +10,7 @@ import aiofiles.os
 import aiofiles.ospath
 
 from aiomegfile.interfaces import BaseFileSystem, FileEntry, StatResult
-from aiomegfile.lib.url import split_uri
+from aiomegfile.utils.path import split_uri
 
 
 class ScandirContextManager(AbstractAsyncContextManager):

@@ -7,7 +7,7 @@ from functools import cached_property
 from aiomegfile.interfaces import StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
-from aiomegfile.lib.url import fspath
+from aiomegfile.utils.path import PathLike, fspath
 
 
 class URIPathParents(Sequence):
@@ -56,7 +56,7 @@ class URIPathParents(Sequence):
 
 
 class SmartPath(os.PathLike):
-    def __init__(self, uri: T.Union[str, os.PathLike]):
+    def __init__(self, uri: PathLike):
         if isinstance(uri, SmartPath):
             self.filesystem = uri.filesystem
             self._path = uri._path
@@ -130,7 +130,7 @@ class SmartPath(os.PathLike):
             )
         return str(self) >= str(other_path)
 
-    def __truediv__(self, other_path: T.Union[os.PathLike, str]) -> "SmartPath":
+    def __truediv__(self, other_path: PathLike) -> "SmartPath":
         if isinstance(other_path, SmartPath):
             if self.filesystem.protocol != other_path.filesystem.protocol:
                 raise TypeError(
@@ -160,7 +160,7 @@ class SmartPath(os.PathLike):
         return fspath(self)
 
     @classmethod
-    def from_uri(cls, uri: T.Union[str, os.PathLike]) -> "SmartPath":
+    def from_uri(cls, uri: PathLike) -> "SmartPath":
         """Return new instance of this class
 
         :param uri: new path
@@ -207,7 +207,7 @@ class SmartPath(os.PathLike):
             return name[:i]
         return name
 
-    async def is_relative_to(self, other: T.Union[str, os.PathLike]) -> bool:
+    async def is_relative_to(self, other: PathLike) -> bool:
         """Return True if this path is relative to the given path.
 
         :param other: Target path to compare against.
@@ -219,7 +219,7 @@ class SmartPath(os.PathLike):
         except Exception:
             return False
 
-    async def relative_to(self, other: T.Union[str, os.PathLike]) -> str:
+    async def relative_to(self, other: PathLike) -> str:
         """
         Compute a version of this path relative to the path represented by other.
         If it's impossible, ValueError is raised.
@@ -321,7 +321,7 @@ class SmartPath(os.PathLike):
         ) as f:
             return await f.read()  # pytype: disable=bad-return-type
 
-    async def samefile(self, other_path: T.Union[str, os.PathLike]) -> bool:
+    async def samefile(self, other_path: PathLike) -> bool:
         """
         Return whether this path points to the same file
 
@@ -388,7 +388,7 @@ class SmartPath(os.PathLike):
     def anchor(self) -> str:
         return self.root
 
-    async def joinpath(self, *other_paths: T.Union[str, os.PathLike]) -> "SmartPath":
+    async def joinpath(self, *other_paths: PathLike) -> "SmartPath":
         """
         Calling this method is equivalent to combining the path
         with each of the other arguments in turn
@@ -649,7 +649,7 @@ class SmartPath(os.PathLike):
         pattern = "**/" + pattern.lstrip("/")
         return await self.glob(pattern=pattern, recursive=recursive)
 
-    async def _copy_file(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
+    async def _copy_file(self, target: PathLike) -> "SmartPath":
         """
         copy file only
 
@@ -697,7 +697,7 @@ class SmartPath(os.PathLike):
 
     async def copy(
         self,
-        target: T.Union[str, os.PathLike],
+        target: PathLike,
         *,
         follow_symlinks: bool = False,
     ) -> "SmartPath":
@@ -734,7 +734,7 @@ class SmartPath(os.PathLike):
 
     async def copy_into(
         self,
-        target_dir: T.Union[str, os.PathLike],
+        target_dir: PathLike,
         *,
         follow_symlinks: bool = False,
     ) -> "SmartPath":
@@ -750,7 +750,7 @@ class SmartPath(os.PathLike):
         await self.copy(target=target, follow_symlinks=follow_symlinks)
         return target
 
-    async def rename(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
+    async def rename(self, target: PathLike) -> "SmartPath":
         """
         rename file
 
@@ -772,7 +772,7 @@ class SmartPath(os.PathLike):
                 await self.rmdir()
         return target_path
 
-    async def replace(self, target: T.Union[str, os.PathLike]) -> "SmartPath":
+    async def replace(self, target: PathLike) -> "SmartPath":
         """
         move file
 
@@ -795,7 +795,7 @@ class SmartPath(os.PathLike):
 
     async def move(
         self,
-        target: T.Union[str, os.PathLike],
+        target: PathLike,
     ) -> "SmartPath":
         """
         move file
@@ -807,7 +807,7 @@ class SmartPath(os.PathLike):
 
     async def move_into(
         self,
-        target_dir: T.Union[str, os.PathLike],
+        target_dir: PathLike,
     ) -> "SmartPath":
         """
         move file or directory into dst directory
@@ -818,7 +818,7 @@ class SmartPath(os.PathLike):
         target = await self.from_uri(target_dir).joinpath(self.name)
         return await self.move(target=target)
 
-    async def symlink_to(self, target: T.Union[str, os.PathLike]) -> None:
+    async def symlink_to(self, target: PathLike) -> None:
         """
         Make this path a symbolic link to target.
         symlink_to's arguments is the reverse of symlink's.
@@ -840,7 +840,7 @@ class SmartPath(os.PathLike):
         result = await self.filesystem.readlink(self._path)
         return self.from_uri(result)
 
-    async def hardlink_to(self, target: T.Union[str, os.PathLike]) -> None:
+    async def hardlink_to(self, target: PathLike) -> None:
         """
         Make this path a hard link to the same file as target.
 

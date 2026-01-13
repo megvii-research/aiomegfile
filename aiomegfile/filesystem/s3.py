@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import TYPE_CHECKING, Any, AsyncContextManager, AsyncIterator, TypedDict
+import typing as T
 
 import aiobotocore.session
 
@@ -18,11 +18,9 @@ from aiomegfile.errors import (
     translate_s3_error,
 )
 from aiomegfile.interfaces import BaseFileSystem, FileEntry, StatResult
-from aiomegfile.lib.compact import fspath
-from aiomegfile.lib.url import split_uri
-from aiomegfile.pathlike import PathLike
+from aiomegfile.utils.path import PathLike, fspath, split_uri
 
-if TYPE_CHECKING:
+if T.TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client
 
 
@@ -63,7 +61,7 @@ def _become_prefix(prefix: str) -> str:
     return prefix
 
 
-class S3Config(TypedDict):
+class S3Config(T.TypedDict):
     endpoint_url: str | None
     region_name: str | None
     aws_access_key_id: str | None
@@ -312,77 +310,16 @@ class S3FileSystem(BaseFileSystem):
 
     remove = unlink
 
-    def scandir(self, path: str) -> AsyncContextManager[AsyncIterator[FileEntry]]:
+    def scandir(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Return an iterator of ``FileEntry`` objects corresponding to the entries
             in the directory given by path.
 
         :param path: Directory path to scan.
         :type path: str
         :return: Async context manager yielding an async iterator of FileEntry objects.
-        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        :rtype: T.T.AsyncContextManager[T.T.AsyncIterator[FileEntry]]
         """
-        bucket, key = parse_s3_url(path)
-        if not bucket and key:
-            raise S3BucketNotFoundError(f"Empty bucket name: {path!r}")
-
-        if await self.is_file(path):
-            raise S3NotADirectoryError(f"Not a directory: {path!r}")
-
-        # In order to do check on creation,
-        # we need to wrap the iterator in another function
-        def create_generator() -> Iterator[FileEntry]:
-            prefix = _become_prefix(key)
-            protocol = self._protocol_with_profile
-            client = self._client
-
-            if not bucket and not key:  # list buckets
-                response = client.list_buckets()
-                for content in response["Buckets"]:
-                    yield FileEntry(
-                        content["Name"],
-                        f"{protocol}://{content['Name']}",
-                        StatResult(
-                            ctime=content["CreationDate"].timestamp(),
-                            isdir=True,
-                            extra=content,
-                        ),
-                    )
-                return
-
-            for resp in _list_objects_recursive(client, bucket, prefix, "/"):
-                for common_prefix in resp.get("CommonPrefixes", []):
-                    yield FileEntry(
-                        common_prefix["Prefix"][len(prefix) : -1],
-                        f"{protocol}://{bucket}/{common_prefix['Prefix']}",
-                        StatResult(isdir=True, extra=common_prefix),
-                    )
-                for content in resp.get("Contents", []):
-                    if content["Key"].endswith("/"):
-                        continue
-                    path = f"{protocol}://{bucket}/{content['Key']}"
-                    yield FileEntry(  # pytype: disable=wrong-arg-types
-                        content["Key"][len(prefix) :],
-                        path,
-                        _make_stat_without_metadata(content, self.from_path(path)),
-                    )
-
-        def missing_ok_generator():
-            def suppress_error_callback(e):
-                if isinstance(e, S3BucketNotFoundError):
-                    return False
-                elif not key and isinstance(e, S3FileNotFoundError):
-                    return True
-                return False
-
-            yield from _create_missing_ok_generator(
-                create_generator(),
-                missing_ok=False,
-                error=S3FileNotFoundError(
-                    "No such directory: %r" % self.path_with_protocol
-                ),
-            )
-
-        return ContextIterator(missing_ok_generator())
+        return "S3ScandirContextManager(self, path)"
 
     async def rmdir(self, path: str, missing_ok: bool = False) -> None:
         """
@@ -633,7 +570,7 @@ class S3FileSystem(BaseFileSystem):
         else:
             return metadata["symlink_to"]
 
-    async def _s3_get_metadata(self, path: str) -> dict[str, Any]:
+    async def _s3_get_metadata(self, path: str) -> dict[str, T.Any]:
         """
         Get object metadata
 
