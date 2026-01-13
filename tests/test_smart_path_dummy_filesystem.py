@@ -4,8 +4,8 @@ import aiofiles
 import pytest
 
 from aiomegfile.interfaces import BaseFileSystem
-from aiomegfile.lib.url import split_uri
 from aiomegfile.smart_path import SmartPath, URIPathParents
+from aiomegfile.utils.path import split_uri
 
 
 @pytest.fixture

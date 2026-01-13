@@ -84,7 +84,7 @@ def test_basefilesystem_subclass_validation(filesystem_registry_snapshot):
 
 
 async def test_basefilesystem_default_methods_raise(filesystem_registry_snapshot):
-    from aiomegfile.lib.url import split_uri
+    from aiomegfile.utils.path import split_uri
 
     class MinimalFS(BaseFileSystem):
         protocol = "minfs"

@@ -1,10 +1,8 @@
-import os
 import typing as T
 
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
-
-PathLike = T.Union[str, os.PathLike]
+from aiomegfile.utils.path import PathLike
 
 __all__ = [
     "smart_copy",

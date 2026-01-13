@@ -3,7 +3,7 @@ import typing as T
 from abc import ABC, abstractmethod
 
 from aiomegfile.errors import ProtocolNotFoundError
-from aiomegfile.lib.url import split_uri
+from aiomegfile.utils.path import split_uri
 
 Self = T.TypeVar("Self")
 
