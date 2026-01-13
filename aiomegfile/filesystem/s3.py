@@ -1,8 +1,10 @@
 import asyncio
+import os
 import re
 import typing as T
 
 import aiobotocore.session
+import botocore
 
 from aiomegfile.errors import (
     S3BucketNotFoundError,
@@ -11,7 +13,6 @@ from aiomegfile.errors import (
     S3FileNotFoundError,
     S3IsADirectoryError,
     S3NameTooLongError,
-    S3NotADirectoryError,
     S3NotALinkError,
     S3PermissionError,
     S3UnknownError,
@@ -22,6 +23,9 @@ from aiomegfile.utils.path import PathLike, fspath, split_uri
 
 if T.TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client
+
+
+DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
 
 
 def is_s3(path: PathLike) -> bool:
@@ -61,11 +65,127 @@ def _become_prefix(prefix: str) -> str:
     return prefix
 
 
-class S3Config(T.TypedDict):
-    endpoint_url: str | None
-    region_name: str | None
-    aws_access_key_id: str | None
-    aws_secret_access_key: str | None
+def get_endpoint_url(
+    profile_name: T.Optional[str] = None, config: T.Optional[dict] = None
+) -> str:
+    """Get the endpoint url of S3
+
+    :returns: S3 endpoint url
+    """
+    profile_name = profile_name or os.environ.get("AWS_PROFILE")
+    environ_keys = ("OSS_ENDPOINT", "AWS_ENDPOINT_URL_S3", "AWS_ENDPOINT_URL")
+    if profile_name:
+        environ_keys = tuple(
+            f"{profile_name}__{environ_key}".upper() for environ_key in environ_keys
+        )
+    for environ_key in environ_keys:
+        environ_endpoint_url = os.environ.get(environ_key)
+        if environ_endpoint_url:
+            return environ_endpoint_url
+    if config is None:
+        config = get_config_in_file(profile_name=profile_name)
+    config_endpoint_url = config.get("s3", {}).get("endpoint_url")
+    config_endpoint_url = config_endpoint_url or config.get("endpoint_url")
+    if config_endpoint_url:
+        return config_endpoint_url
+    return DEFAULT_ENDPOINT_URL
+
+
+def get_env_var(env_name: str, profile_name: T.Optional[str] = None) -> T.Optional[str]:
+    profile_name = profile_name or os.environ.get("AWS_PROFILE")
+    if profile_name:
+        return os.getenv(f"{profile_name}__{env_name}".upper())
+    return os.getenv(env_name.upper())
+
+
+def get_session(profile_name: T.Optional[str] = None) -> aiobotocore.session.AioSession:
+    session = aiobotocore.session.get_session()
+    if profile_name:
+        session.set_config_variable("profile", profile_name)
+    return session
+
+
+def get_config_in_file(
+    profile_name: T.Optional[str] = None,
+    session: T.Optional[aiobotocore.session.AioSession] = None,
+) -> dict:
+    if session is None:
+        session = get_session(profile_name=profile_name)
+    return session.get_scoped_config().get("s3", {})
+
+
+def get_access_token(
+    profile_name: T.Optional[str] = None, config: T.Optional[dict] = None
+) -> T.Tuple[T.Optional[str], T.Optional[str], T.Optional[str]]:
+    access_key = get_env_var("AWS_ACCESS_KEY_ID", profile_name=profile_name)
+    secret_key = get_env_var("AWS_SECRET_ACCESS_KEY", profile_name=profile_name)
+    session_token = get_env_var("AWS_SESSION_TOKEN", profile_name=profile_name)
+    if access_key and secret_key:
+        return access_key, secret_key, session_token
+
+    try:
+        if not config:
+            config = get_config_in_file(profile_name=profile_name)
+        if not access_key:
+            access_key = config.get("aws_access_key_id")
+        if not secret_key:
+            secret_key = config.get("aws_secret_access_key")
+        if not session_token:
+            session_token = config.get("aws_session_token")
+    except botocore.exceptions.ProfileNotFound:
+        pass
+    return access_key, secret_key, session_token
+
+
+def get_s3_client(
+    config: T.Optional[botocore.config.Config] = None,
+    profile_name: T.Optional[str] = None,
+    *,
+    aws_access_key_id: T.Optional[str] = None,
+    aws_secret_access_key: T.Optional[str] = None,
+    aws_session_token: T.Optional[str] = None,
+    endpoint_url: T.Optional[str] = None,
+    addressing_style: bool = False,
+) -> "S3Client":
+    """Get S3 client
+
+    :returns: S3 client
+    """
+
+    default_config = botocore.config.Config()
+    if config:
+        config = default_config.merge(config)
+    else:
+        config = default_config
+
+    if not addressing_style:
+        addressing_style = get_env_var(
+            "AWS_S3_ADDRESSING_STYLE", profile_name=profile_name
+        )
+        if addressing_style:
+            config = config.merge(
+                botocore.config.Config(s3={"addressing_style": addressing_style})
+            )
+
+    session = get_session(profile_name=profile_name)
+    s3_config = get_config_in_file(profile_name=profile_name, session=session)
+
+    if not aws_session_token or (not aws_access_key_id or not aws_secret_access_key):
+        aws_access_key_id, aws_secret_access_key, aws_session_token = get_access_token(
+            profile_name, config=s3_config
+        )
+    if not endpoint_url:
+        endpoint_url = get_endpoint_url(profile_name=profile_name, config=s3_config)
+
+    client = session.create_client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
+        config=config,
+    )
+    return client
 
 
 class S3FileSystem(BaseFileSystem):
@@ -77,33 +197,36 @@ class S3FileSystem(BaseFileSystem):
 
     def __init__(
         self,
-        protocol_in_path: bool,
+        profile_name: T.Optional[str] = None,
         *,
-        endpoint_url: str | None = None,
-        region_name: str | None = None,
-        aws_access_key_id: str | None = None,
-        aws_secret_access_key: str | None = None,
+        aws_access_key_id: T.Optional[str] = None,
+        aws_secret_access_key: T.Optional[str] = None,
+        endpoint_url: T.Optional[str] = None,
+        addressing_style: bool = False,
     ):
         """Create a S3FileSystem instance.
 
         :param protocol_in_path: Whether incoming paths include the ``s3://`` prefix.
         """
-        self.protocol_in_path = protocol_in_path
-
         self._client: "S3Client | None" = None
-        self._s3_config: S3Config = {
-            "endpoint_url": endpoint_url,
-            "region_name": region_name,
-            "aws_access_key_id": aws_access_key_id,
-            "aws_secret_access_key": aws_secret_access_key,
-        }
+        self._profile_name = profile_name
+
+        self._aws_access_key_id = aws_access_key_id
+        self._aws_secret_access_key = aws_secret_access_key
+        self._endpoint_url = endpoint_url
+        self._addressing_style = addressing_style
 
     async def _get_client(self) -> "S3Client":
         if self._client is not None:
             return self._client
-        session = aiobotocore.session.get_session()
-        context = session.create_client("s3", **self._s3_config)
-        self._client = await context.__aenter__()
+        client = get_s3_client(
+            profile_name=self._profile_name,
+            aws_access_key_id=self._aws_access_key_id,
+            aws_secret_access_key=self._aws_secret_access_key,
+            endpoint_url=self._endpoint_url,
+            addressing_style=self._addressing_style,
+        )
+        self._client = await client.__aenter__()
         return self._client
 
     async def _close_client(self):
@@ -115,7 +238,7 @@ class S3FileSystem(BaseFileSystem):
     def __del__(self):
         if self._client is not None:
             try:
-                asyncio.get_running_loop().create_task(self._close_client())
+                asyncio.get_running_loop().run_until_complete(self._close_client())
             except RuntimeError:
                 pass
 
@@ -598,7 +721,13 @@ class S3FileSystem(BaseFileSystem):
         :param other_filesystem: Filesystem to compare.
         :return: True if both represent the same endpoint.
         """
-        return isinstance(other_filesystem, S3FileSystem)
+        if not isinstance(other_filesystem, S3FileSystem):
+            return False
+        if other_filesystem._endpoint_url != self._endpoint_url:
+            return False
+        if other_filesystem._profile_name != self._profile_name:
+            return False
+        return True
 
     def parse_uri(self, uri: str) -> str:
         """
@@ -617,6 +746,8 @@ class S3FileSystem(BaseFileSystem):
         :param path: Path without protocol.
         :return: Generated URI string.
         """
+        if self._profile_name:
+            return f"{self.protocol}+{self._profile_name}://{path}"
         return f"{self.protocol}://{path}"
 
     @classmethod
@@ -626,4 +757,5 @@ class S3FileSystem(BaseFileSystem):
         :param uri: URI string.
         :return: new instance of new path
         """
-        return cls(protocol_in_path=f"{cls.protocol}://" in uri)
+        _, _, profile_name = split_uri(uri)
+        return cls(profile_name=profile_name)
