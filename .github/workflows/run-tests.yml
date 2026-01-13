@@ -32,7 +32,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pdm sync -G s3 --venv
           pdm sync -G dev --venv
 
       - name: Run unit-test
@@ -72,7 +71,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pdm sync -G s3 --venv
           pdm sync -G dev --venv
 
       - name: Run style-check
@@ -103,7 +101,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pdm sync -G s3 --venv
           pdm sync -G dev --venv
 
       - name: Run static-check
@@ -175,7 +172,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pdm sync -G s3 --venv
           pdm sync -G dev --venv
 
       - name: Run pyre-check

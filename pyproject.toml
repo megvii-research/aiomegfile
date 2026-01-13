@@ -26,12 +26,10 @@ dependencies = [
     "aiofiles",
 ]
 
-# Better dependencies layout for uv:
-# - Put user dependencies into project.optional-dependencies;
-# - Put dev dependencies into dependency-group.
-# However, since pytype doesn't work well with dependency-group,
-# we still stick to project.optional-dependencies for now.
 [project.optional-dependencies]
+s3 = [
+    "aiobotocore>=3.1.0",
+]
 doc = [
     "Sphinx>=7.3.7; python_version >= '3.10'",
     "Sphinx; python_version < '3.10'",
@@ -49,6 +47,7 @@ test = [
     "pyfakefs>=4.5",
     "mock",
     "requests-mock",
+    "moto[server]>=5.1.19",
 ]
 lint = [
     "ruff",
@@ -56,17 +55,13 @@ lint = [
 typecheck = [
     "msgspec>=0.19.0; python_version >= '3.13'",
     "pytype",
+    "types-aiobotocore[essential]>=3.1.0",
     "pyre-check~=0.9.22",
     "bandit",
     "bandit-sarif-formatter",
 ]
 dev = [
-    "aiomegfile[doc,test,lint,typecheck]",
-    "moto[server]>=5.1.19",
-    "types-aiobotocore[essential]>=3.1.0",
-]
-s3 = [
-    "aiobotocore>=3.1.0",
+    "aiomegfile[s3,doc,test,lint,typecheck]",
 ]
 
 [build-system]
