@@ -3,7 +3,7 @@ import os
 import re
 import typing as T
 
-import aiobotocore.session
+import aiobotocore.session  # type: ignore
 import botocore
 
 from aiomegfile.errors import (
@@ -26,6 +26,7 @@ if T.TYPE_CHECKING:
 
 
 DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
+MAX_KEYS = 1000
 
 
 def is_s3(path: PathLike) -> bool:
@@ -44,18 +45,14 @@ def is_s3(path: PathLike) -> bool:
     return False
 
 
-def parse_s3_url(s3_url: PathLike) -> tuple[str, str]:
-    s3_url = fspath(s3_url)
-    if not is_s3(s3_url):
-        raise ValueError("Not a s3 url: %r" % s3_url)
-    right_part = s3_url.split("://", maxsplit=1)[1]
-    bucket_pattern = re.match("(.*?)/", right_part)
+def parse_s3_path(s3_path: str) -> tuple[str, str]:
+    bucket_pattern = re.match("(.*?)/", s3_path)
     if bucket_pattern is None:
-        bucket = right_part
+        bucket = s3_path
         path = ""
     else:
         bucket = bucket_pattern.group(1)
-        path = right_part[len(bucket) + 1 :]
+        path = s3_path[len(bucket) + 1 :]
     return bucket, path
 
 
@@ -219,6 +216,7 @@ class S3FileSystem(BaseFileSystem):
     async def _get_client(self) -> "S3Client":
         if self._client is not None:
             return self._client
+
         client = get_s3_client(
             profile_name=self._profile_name,
             aws_access_key_id=self._aws_access_key_id,
@@ -242,35 +240,6 @@ class S3FileSystem(BaseFileSystem):
             except RuntimeError:
                 pass
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
-        """Return True if the path points to a regular file.
-
-        :param path: Path to check.
-        :param followlinks: Whether to follow symbolic links.
-        :return: True if the path is a regular file, otherwise False.
-        """
-        client = await self._get_client()
-        bucket, key = parse_s3_url(path)
-        if not bucket or not key or key.endswith("/"):
-            # s3://, s3:///key, s3://bucket, s3://bucket/prefix/
-            return False
-
-        if followlinks:
-            try:
-                s3_url = await self.readlink(path)
-                bucket, key = parse_s3_url(s3_url)
-            except S3NotALinkError:
-                pass
-
-        try:
-            await client.head_object(Bucket=bucket, Key=key)
-        except Exception as error:
-            error = translate_s3_error(error, path)
-            if isinstance(error, (S3UnknownError, S3ConfigError, S3PermissionError)):
-                raise error
-            return False
-        return True
-
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
 
@@ -279,7 +248,7 @@ class S3FileSystem(BaseFileSystem):
         :return: True if the path is a directory, otherwise False.
         """
         client = await self._get_client()
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         if not bucket:  # s3:// => True, s3:///key => False
             return not key
         prefix = _become_prefix(key)
@@ -303,6 +272,34 @@ class S3FileSystem(BaseFileSystem):
             len(resp.get("Contents", [])) > 0 or len(resp.get("CommonPrefixes", [])) > 0
         )
 
+    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+        """Return True if the path points to a regular file.
+
+        :param path: Path to check.
+        :param followlinks: Whether to follow symbolic links.
+        :return: True if the path is a regular file, otherwise False.
+        """
+        if followlinks:
+            try:
+                path = await self.readlink(path)
+            except S3NotALinkError:
+                pass
+
+        client = await self._get_client()
+        bucket, key = parse_s3_path(path)
+        if not bucket or not key or key.endswith("/"):
+            # s3://, s3:///key, s3://bucket, s3://bucket/prefix/
+            return False
+
+        try:
+            await client.head_object(Bucket=bucket, Key=key)
+        except Exception as error:
+            error = translate_s3_error(error, path)
+            if isinstance(error, (S3UnknownError, S3ConfigError, S3PermissionError)):
+                raise error
+            return False
+        return True
+
     async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing file or directory.
 
@@ -310,13 +307,19 @@ class S3FileSystem(BaseFileSystem):
         :param followlinks: Whether to follow symbolic links.
         :return: True if the path exists, otherwise False.
         """
-        bucket, key = parse_s3_url(path)
+        if followlinks:
+            try:
+                path = await self.readlink(path)
+            except S3NotALinkError:
+                pass
+
+        bucket, key = parse_s3_path(path)
         if not bucket:  # s3:// => True, s3:///key => False
             return not key
 
-        return await self.is_file(path, followlinks) or await self.is_dir(path)
+        return await self.is_file(path) or await self.is_dir(path)
 
-    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
         """Get the status of the path.
 
         :param path: Path to stat.
@@ -324,15 +327,14 @@ class S3FileSystem(BaseFileSystem):
         :raises FileNotFoundError: If the path does not exist.
         :return: Populated StatResult for the path.
         """
-        client = await self._get_client()
-        islnk = False
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         if not bucket:
             raise S3BucketNotFoundError(f"Empty bucket name: {path!r}")
 
         if not await self.is_file(path):
             return await self._get_dir_stat(path)
 
+        islnk = False
         client = await self._get_client()
         content = await client.head_object(Bucket=bucket, Key=key)
         if "Metadata" in content:
@@ -343,7 +345,7 @@ class S3FileSystem(BaseFileSystem):
                 islnk = True
                 if islnk and followlinks:
                     s3_url = metadata["symlink_to"]
-                    bucket, key = parse_s3_url(s3_url)
+                    bucket, key = parse_s3_path(s3_url)
                     content = await client.head_object(Bucket=bucket, Key=key)
         stat_record = StatResult(
             st_size=content["ContentLength"],
@@ -366,7 +368,7 @@ class S3FileSystem(BaseFileSystem):
 
         :returns: An int indicates size in Bytes
         """
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         prefix = _become_prefix(key)
         count, size, mtime = 0, 0, 0.0
 
@@ -396,7 +398,7 @@ class S3FileSystem(BaseFileSystem):
         """List objects recursively."""
         client = await self._get_client()
         resp = await client.list_objects_v2(
-            Bucket=bucket, Prefix=prefix, Delimiter=delimiter, MaxKeys=1000
+            Bucket=bucket, Prefix=prefix, Delimiter=delimiter, MaxKeys=MAX_KEYS
         )
 
         while True:
@@ -410,7 +412,7 @@ class S3FileSystem(BaseFileSystem):
                 Prefix=prefix,
                 Delimiter=delimiter,
                 ContinuationToken=resp["NextContinuationToken"],
-                MaxKeys=1000,
+                MaxKeys=MAX_KEYS,
             )
 
     async def unlink(self, path: str, missing_ok: bool = False) -> None:
@@ -420,7 +422,7 @@ class S3FileSystem(BaseFileSystem):
         :param missing_ok: If False, raise when the file does not exist.
         :raises FileNotFoundError: When missing_ok is False and the file is absent.
         """
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {path!r}")
         if not await self.is_file(path):
@@ -452,7 +454,7 @@ class S3FileSystem(BaseFileSystem):
         :param missing_ok: If False, raise when the directory does not exist.
         :raises FileNotFoundError: When missing_ok is False and the directory is absent.
         """
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         if not bucket or not key:
             # TODO: "bucket != '' and key = ''" should raise S3IsABucketError
             raise S3IsADirectoryError(f"Is a directory: {path!r}")
@@ -481,7 +483,7 @@ class S3FileSystem(BaseFileSystem):
 
         :returns: True if bucket of s3_url exists, else False
         """
-        bucket, _ = parse_s3_url(path)
+        bucket, _ = parse_s3_path(path)
         if not bucket:
             return False
 
@@ -525,7 +527,7 @@ class S3FileSystem(BaseFileSystem):
         :param exist_ok: Whether to ignore if the directory exists.
         :raises FileExistsError: When directory exists and exist_ok is False.
         """
-        bucket, _ = parse_s3_url(path)
+        bucket, _ = parse_s3_path(path)
         if not bucket:
             raise S3BucketNotFoundError(f"Empty bucket name: {path!r}")
         try:
@@ -547,7 +549,7 @@ class S3FileSystem(BaseFileSystem):
         :return: ``None``.
         """
         client = await self._get_client()
-        bucket, key = parse_s3_url(dst_path)
+        bucket, key = parse_s3_path(dst_path)
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {dst_path!r}")
         if not await self.is_file(dst_path):
@@ -566,7 +568,7 @@ class S3FileSystem(BaseFileSystem):
         if not await self.exists(src_path):
             raise FileNotFoundError(f"No such file: {src_path!r}")
 
-        bucket, key = parse_s3_url(src_path)
+        bucket, key = parse_s3_path(src_path)
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {src_path!r}")
         if not await self.is_file(src_path):
@@ -583,13 +585,13 @@ class S3FileSystem(BaseFileSystem):
         :param dst_path: Given destination path
         :return: Destination path after copy.
         """
-        bucket, key = parse_s3_url(src_path)
+        bucket, key = parse_s3_path(src_path)
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {src_path!r}")
         if not await self.is_file(src_path):
             raise S3FileNotFoundError(f"No such file: {src_path!r}")
 
-        dst_bucket, dst_key = parse_s3_url(dst_path)
+        dst_bucket, dst_key = parse_s3_path(dst_path)
         if not dst_bucket or not dst_key or dst_key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {dst_path!r}")
         if await self.exists(dst_path):
@@ -655,8 +657,8 @@ class S3FileSystem(BaseFileSystem):
         """
         if len(fspath(dst_path).encode()) > 1024:
             raise S3NameTooLongError("File name too long: %r" % dst_path)
-        src_bucket, _ = parse_s3_url(src_path)
-        dst_bucket, dst_key = parse_s3_url(dst_path)
+        src_bucket, _ = parse_s3_path(src_path)
+        dst_bucket, dst_key = parse_s3_path(dst_path)
 
         if not src_bucket:
             raise S3BucketNotFoundError(f"Empty bucket name: {src_path!r}")
@@ -681,12 +683,22 @@ class S3FileSystem(BaseFileSystem):
         :param path: The symbolic link path.
         :return: Target path of the symbolic link.
         """
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         if not bucket:
             raise S3BucketNotFoundError(f"Empty bucket name: {path!r}")
         if not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {path!r}")
-        metadata = await self._s3_get_metadata(path)
+
+        client = await self._get_client()
+        try:
+            resp = await client.head_object(Bucket=bucket, Key=key)
+            metadata = dict(
+                (key.lower(), value) for key, value in resp["Metadata"].items()
+            )
+        except Exception as error:
+            if isinstance(error, (S3UnknownError, S3ConfigError, S3PermissionError)):
+                raise error
+            metadata = {}
 
         if "symlink_to" not in metadata:
             raise S3NotALinkError(f"Not a symbolic link: {path!r}")
@@ -700,7 +712,7 @@ class S3FileSystem(BaseFileSystem):
         :param path: Object path
         :returns: Object metadata
         """
-        bucket, key = parse_s3_url(path)
+        bucket, key = parse_s3_path(path)
         if not bucket:
             return {}
         if not key or key.endswith("/"):
