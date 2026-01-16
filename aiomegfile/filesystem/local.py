@@ -194,11 +194,7 @@ class LocalFileSystem(BaseFileSystem):
                     ),
                 )
 
-        async def aexit(
-            exc_type: T.Type[BaseException] | None,
-            exc: BaseException | None,
-            tb: T.TracebackType | None,
-        ) -> None:
+        async def aexit(exc_type, exc_value, traceback) -> None:
             sync_scandir.close()
 
         return ScanContextManager(aiterator(), aexit)

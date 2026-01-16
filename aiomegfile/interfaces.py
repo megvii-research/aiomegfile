@@ -2,6 +2,7 @@ import stat
 import typing as T
 from abc import ABC, abstractmethod
 from contextlib import AbstractAsyncContextManager
+from types import TracebackType
 
 from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.utils.path import split_uri
@@ -165,7 +166,7 @@ class ScanContextManager(AbstractAsyncContextManager):
                 [
                     T.Type[BaseException] | None,
                     BaseException | None,
-                    T.TracebackType | None,
+                    TracebackType | None,
                 ],
                 T.Awaitable[None],
             ]
@@ -180,10 +181,7 @@ class ScanContextManager(AbstractAsyncContextManager):
 
     async def __anext__(self) -> FileEntry:
         """Return the next directory entry or raise ``StopAsyncIteration``."""
-        try:
-            return await anext(self._aiterator)
-        except StopAsyncIteration:
-            raise StopAsyncIteration
+        return await anext(self._aiterator)
 
     def __aiter__(self):
         """Return self to support ``async for`` iteration."""
@@ -197,10 +195,10 @@ class ScanContextManager(AbstractAsyncContextManager):
 
         return dummy().__await__()
 
-    async def __aexit__(self, exc_type, exc, tb):
-        """Close the underlying ``os.scandir`` iterator."""
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        """Close the underlying iterator."""
         if self._aexit:
-            await self._aexit(exc_type, exc, tb)
+            await self._aexit(exc_type, exc_value, traceback)
 
 
 FILE_SYSTEMS = {}
