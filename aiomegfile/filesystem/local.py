@@ -232,7 +232,7 @@ class LocalFileSystem(BaseFileSystem):
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
-        Move file.
+        Move file or directory.
 
         :param src_path: Source path to move.
         :param dst_path: Given destination path

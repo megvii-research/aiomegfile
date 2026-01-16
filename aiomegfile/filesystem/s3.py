@@ -5,6 +5,7 @@ import typing as T
 
 import aiobotocore.session  # type: ignore
 import botocore
+from aiobotocore.config import AioConfig
 
 from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.errors import (
@@ -143,14 +144,14 @@ def get_access_token(
 
 
 def get_s3_client(
-    config: T.Optional[botocore.config.Config] = None,
+    config: T.Optional[AioConfig] = None,
     profile_name: T.Optional[str] = None,
     *,
     aws_access_key_id: T.Optional[str] = None,
     aws_secret_access_key: T.Optional[str] = None,
     aws_session_token: T.Optional[str] = None,
     endpoint_url: T.Optional[str] = None,
-    addressing_style: bool = False,
+    addressing_style: T.Optional[str] = None,
 ) -> "S3Client":
     """Get S3 client
 
@@ -158,14 +159,14 @@ def get_s3_client(
     """
 
     try:
-        default_config = botocore.config.Config(
+        default_config = AioConfig(
             connect_timeout=5,
             max_pool_connections=GLOBAL_MAX_WORKERS,
             request_checksum_calculation="when_required",
             response_checksum_validation="when_required",
         )
     except TypeError:  # botocore < 1.36.0
-        default_config = botocore.config.Config(
+        default_config = AioConfig(
             connect_timeout=5,
             max_pool_connections=GLOBAL_MAX_WORKERS,
         )
@@ -180,9 +181,7 @@ def get_s3_client(
             "AWS_S3_ADDRESSING_STYLE", profile_name=profile_name
         )
         if addressing_style:
-            config = config.merge(
-                botocore.config.Config(s3={"addressing_style": addressing_style})
-            )
+            config = config.merge(AioConfig(s3={"addressing_style": addressing_style}))
 
     session = get_session(profile_name=profile_name)
     s3_config = get_config_in_file(profile_name=profile_name, session=session)
@@ -219,7 +218,7 @@ class S3FileSystem(BaseFileSystem):
         aws_access_key_id: T.Optional[str] = None,
         aws_secret_access_key: T.Optional[str] = None,
         endpoint_url: T.Optional[str] = None,
-        addressing_style: bool = False,
+        addressing_style: T.Optional[str] = None,
     ):
         """Create a S3FileSystem instance.
 
@@ -567,7 +566,7 @@ class S3FileSystem(BaseFileSystem):
 
             prefix = _become_prefix(key)
 
-            async for resp in await self._list_objects_recursive(bucket, prefix):
+            async for resp in self._list_objects_recursive(bucket, prefix):
                 for content in resp.get("Contents", []):
                     if content["Key"].endswith("/"):
                         continue
@@ -575,7 +574,7 @@ class S3FileSystem(BaseFileSystem):
 
                     islnk = False
                     if content["Size"] == 0:
-                        islnk = self.is_symlink(current_path)
+                        islnk = await self.is_symlink(current_path)
 
                     yield FileEntry(
                         os.path.basename(content["Key"]),
@@ -657,7 +656,7 @@ class S3FileSystem(BaseFileSystem):
             await client.download_file(bucket, key, dst_path)
         except Exception as e:
             error = translate_s3_error(e, self.build_uri(src_path))
-            if self.is_dir():
+            if await self.is_dir(src_path):
                 raise S3IsADirectoryError(
                     "Is a directory: %r" % self.build_uri(src_path)
                 )
@@ -682,7 +681,7 @@ class S3FileSystem(BaseFileSystem):
         """
         if followlinks:
             try:
-                src_path = self.readlink(src_path)
+                src_path = await self.readlink(src_path)
             except S3NotALinkError:
                 pass
 
@@ -711,21 +710,20 @@ class S3FileSystem(BaseFileSystem):
         client = await self._get_client()
 
         try:
-            await client.copy(
-                {
-                    "Bucket": src_bucket,
-                    "Key": src_key,
-                },
+            await client.copy_object(
+                CopySource={"Bucket": src_bucket, "Key": src_key},
                 Bucket=dst_bucket,
                 Key=dst_key,
-                Callback=callback,
             )
+            if callback:
+                stat_result = await self.stat(src_path)
+                callback(stat_result.st_size)
             return dst_path
         except Exception as e:
             error = translate_s3_error(
                 e, f"'{self.build_uri(src_path)}' or '{self.build_uri(dst_path)}'"
             )
-            if self.is_dir():
+            if await self.is_dir(src_path):
                 raise S3IsADirectoryError(
                     "Is a directory: %r" % self.build_uri(src_path)
                 )
@@ -772,11 +770,8 @@ class S3FileSystem(BaseFileSystem):
                 with raise_s3_error(
                     f"'{self.build_uri(src_path)}' or '{self.build_uri(dst_path)}'"
                 ):
-                    await client.copy(
-                        {
-                            "Bucket": src_bucket,
-                            "Key": current_src_key,
-                        },
+                    await client.copy_object(
+                        CopySource={"Bucket": src_bucket, "Key": current_src_key},
                         Bucket=dst_bucket,
                         Key=current_dst_key,
                     )
@@ -847,6 +842,18 @@ class S3FileSystem(BaseFileSystem):
             raise S3NotALinkError(f"Not a symbolic link: {self.build_uri(path)!r}")
         else:
             return self.parse_uri(metadata["symlink_to"])
+
+    async def is_symlink(self, path: str) -> bool:
+        """Return True if the path points to a symbolic link.
+
+        :param path: The path to check.
+        :return: True if the path is a symbolic link, otherwise False.
+        """
+        try:
+            await self.readlink(path)
+            return True
+        except (S3NotALinkError, S3FileNotFoundError, S3IsADirectoryError):
+            return False
 
     def same_endpoint(self, other_filesystem: "BaseFileSystem") -> bool:
         """

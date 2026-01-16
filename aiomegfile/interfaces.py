@@ -361,7 +361,7 @@ class BaseFileSystem(ABC):
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
-        move file
+        move file or directory
 
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists
