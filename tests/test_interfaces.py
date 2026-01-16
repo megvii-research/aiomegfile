@@ -113,9 +113,7 @@ async def test_basefilesystem_default_methods_raise(filesystem_registry_snapshot
     with pytest.raises(NotImplementedError):
         await fs.stat("x")
     with pytest.raises(NotImplementedError):
-        await fs.unlink("x")
-    with pytest.raises(NotImplementedError):
-        await fs.rmdir("x")
+        await fs.remove("x")
     with pytest.raises(NotImplementedError):
         await fs.mkdir("x")
     with pytest.raises(NotImplementedError):

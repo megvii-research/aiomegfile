@@ -144,29 +144,21 @@ class LocalFileSystem(BaseFileSystem):
             extra=stat_result,
         )
 
-    async def unlink(self, path: str, missing_ok: bool = False) -> None:
-        """Remove (delete) the file.
+    async def remove(self, path: str, missing_ok: bool = False) -> None:
+        """Remove (delete) the file or directory.
+
+        If path is a file, remove it directly.
+        If path is a directory, remove it and all its contents recursively.
 
         :param path: Path to remove.
-        :param missing_ok: If False, raise when the file does not exist.
-        :raises FileNotFoundError: When missing_ok is False and the file is absent.
+        :param missing_ok: If False, raise when the path does not exist.
+        :raises FileNotFoundError: When missing_ok is False and the path is absent.
         """
         try:
-            await aiofiles.os.unlink(path)
-        except FileNotFoundError:
-            if not missing_ok:
-                raise
-
-    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
-        """
-        Remove (delete) the directory.
-
-        :param path: The directory path to remove.
-        :param missing_ok: If False, raise when the directory does not exist.
-        :raises FileNotFoundError: When missing_ok is False and the directory is absent.
-        """
-        try:
-            await aiofiles.os.rmdir(path)
+            if await self.is_dir(path):
+                await asyncio.to_thread(shutil.rmtree, path)
+            else:
+                await aiofiles.os.unlink(path)
         except FileNotFoundError:
             if not missing_ok:
                 raise

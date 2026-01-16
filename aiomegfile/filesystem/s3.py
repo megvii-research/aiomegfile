@@ -505,51 +505,15 @@ class S3FileSystem(BaseFileSystem):
                     MaxKeys=MAX_KEYS,
                 )
 
-    async def unlink(self, path: str, missing_ok: bool = False) -> None:
-        """Remove (delete) the file.
+    async def remove(self, path: str, missing_ok: bool = False) -> None:
+        """Remove (delete) the file or directory.
+
+        If path is a file, remove it directly.
+        If path is a directory, remove it and all its contents recursively.
 
         :param path: Path to remove.
-        :param missing_ok: If False, raise when the file does not exist.
-        :raises FileNotFoundError: When missing_ok is False and the file is absent.
-        """
-        bucket, key = parse_s3_path(path)
-        if not bucket:
-            raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
-        if not key or key.endswith("/"):
-            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
-
-        client = await self._get_client()
-        try:
-            await client.delete_object(Bucket=bucket, Key=key)
-        except Exception as e:
-            error = translate_s3_error(e, path)
-            if isinstance(error, S3FileNotFoundError):
-                if missing_ok:
-                    return
-            if await self.is_dir(path):
-                raise S3IsADirectoryError(
-                    "Is a directory: %r" % self.build_uri(path)
-                ) from e
-            raise error from e
-
-    def scandir(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
-        """Return an iterator of ``FileEntry`` objects corresponding to the entries
-            in the directory given by path.
-
-        :param path: Directory path to scan.
-        :type path: str
-        :return: Async context manager yielding an async iterator of FileEntry objects.
-        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
-        """
-        return S3ScandirContextManager(self, path)
-
-    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
-        """
-        Remove (delete) the directory and all its contents.
-
-        :param path: The directory path to remove.
-        :param missing_ok: If False, raise when the directory does not exist.
-        :raises FileNotFoundError: When missing_ok is False and the directory is absent.
+        :param missing_ok: If False, raise when the path does not exist.
+        :raises FileNotFoundError: When missing_ok is False and the path is absent.
         """
         bucket, key = parse_s3_path(path)
         if not bucket:
@@ -558,8 +522,20 @@ class S3FileSystem(BaseFileSystem):
             raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
 
         client = await self._get_client()
-        prefix = _become_prefix(key)
 
+        filename = os.path.basename(key)
+
+        # guess is file for reduce requests
+        if not filename.endswith("/") and "." in filename:
+            try:
+                await client.delete_object(Bucket=bucket, Key=key)
+                return
+            except Exception as e:
+                error = translate_s3_error(e, path)
+                if not isinstance(error, S3FileNotFoundError):
+                    raise error from e
+
+        prefix = _become_prefix(key)
         had_file = False
         async for resp in self._list_objects_recursive(bucket, prefix):
             contents = resp.get("Contents", [])
@@ -574,8 +550,22 @@ class S3FileSystem(BaseFileSystem):
                     Bucket=bucket,
                     Delete={"Objects": objects_to_delete, "Quiet": True},
                 )
+
         if not had_file and not missing_ok:
-            raise S3FileNotFoundError(f"No such file: {self.build_uri(path)!r}")
+            raise S3FileNotFoundError(
+                f"No such file or directory: {self.build_uri(path)!r}"
+            )
+
+    def scandir(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """Return an iterator of ``FileEntry`` objects corresponding to the entries
+            in the directory given by path.
+
+        :param path: Directory path to scan.
+        :type path: str
+        :return: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+        return S3ScandirContextManager(self, path)
 
     async def mkdir(
         self,
@@ -768,7 +758,7 @@ class S3FileSystem(BaseFileSystem):
                     )
 
         if await self.exists(src_path):
-            await self.rmdir(src_path)
+            await self.remove(src_path)
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:

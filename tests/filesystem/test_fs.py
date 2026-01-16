@@ -116,25 +116,37 @@ class TestLocalFileSystem:
         # Should not raise
         await protocol.mkdir(temp_dir, exist_ok=True)
 
-    async def test_unlink(self, temp_file):
-        """Test unlink method."""
+    async def test_remove_file(self, temp_file):
+        """Test remove method on file."""
         protocol = self._create_protocol()
-        await protocol.unlink(temp_file)
+        await protocol.remove(temp_file)
         assert not os.path.exists(temp_file)
 
-    async def test_unlink_missing_ok(self, temp_dir):
-        """Test unlink method with missing_ok=True."""
+    async def test_remove_directory(self, temp_dir):
+        """Test remove method on directory."""
+        new_dir = os.path.join(temp_dir, "to_remove")
+        os.mkdir(new_dir)
+        # Add a file inside the directory
+        with open(os.path.join(new_dir, "file.txt"), "w") as f:
+            f.write("test")
+
+        protocol = self._create_protocol()
+        await protocol.remove(new_dir)
+        assert not os.path.exists(new_dir)
+
+    async def test_remove_missing_ok(self, temp_dir):
+        """Test remove method with missing_ok=True."""
         file_path = os.path.join(temp_dir, "not_exist")
         protocol = self._create_protocol()
         # Should not raise
-        await protocol.unlink(file_path, missing_ok=True)
+        await protocol.remove(file_path, missing_ok=True)
 
-    async def test_unlink_missing_raises(self, temp_dir):
-        """Test unlink method raises FileNotFoundError."""
+    async def test_remove_missing_raises(self, temp_dir):
+        """Test remove method raises FileNotFoundError."""
         file_path = os.path.join(temp_dir, "not_exist")
         protocol = self._create_protocol()
         with pytest.raises(FileNotFoundError):
-            await protocol.unlink(file_path, missing_ok=False)
+            await protocol.remove(file_path, missing_ok=False)
 
     async def test_move(self, temp_file, temp_dir):
         """Test move method."""
@@ -281,12 +293,6 @@ class TestLocalFileSystem:
     async def test_exists_followlinks_true(self, temp_file):
         protocol = self._create_protocol()
         assert await protocol.exists(temp_file, followlinks=True) is True
-
-    async def test_rmdir_missing_raises(self, temp_dir):
-        protocol = self._create_protocol()
-        missing_dir = os.path.join(temp_dir, "missing_rmdir")
-        with pytest.raises(FileNotFoundError):
-            await protocol.rmdir(missing_dir, missing_ok=False)
 
     async def test_mkdir_existing_raises(self, temp_dir):
         protocol = self._create_protocol()

@@ -205,25 +205,17 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
-    async def unlink(self, path: str, missing_ok: bool = False) -> None:
-        """Remove (delete) the file.
+    async def remove(self, path: str, missing_ok: bool = False) -> None:
+        """Remove (delete) the file or directory.
 
-        :param path: The file path to remove.
-        :param missing_ok: If False, raise FileNotFoundError when the file is missing.
-        :raises FileNotFoundError: When file is missing and missing_ok is False.
-        """
-        raise NotImplementedError('method "unlink" not implemented: %r' % self)
+        If path is a file, remove it directly.
+        If path is a directory, remove it and all its contents recursively.
 
-    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
+        :param path: The file or directory path to remove.
+        :param missing_ok: If False, raise FileNotFoundError when the path is missing.
+        :raises FileNotFoundError: When path is missing and missing_ok is False.
         """
-        Remove (delete) the directory.
-
-        :param path: The directory path to remove.
-        :param missing_ok: If False,
-            raise FileNotFoundError when the directory is missing.
-        :raises FileNotFoundError: When directory is missing and missing_ok is False.
-        """
-        raise NotImplementedError('method "rmdir" not implemented: %r' % self)
+        raise NotImplementedError('method "remove" not implemented: %r' % self)
 
     async def mkdir(
         self,
