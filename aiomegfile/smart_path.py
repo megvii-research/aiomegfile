@@ -730,9 +730,9 @@ class SmartPath(os.PathLike):
         target_path = self.from_uri(target)
 
         if await self.is_dir():
-            async for root, _, files in self.walk(follow_symlinks=follow_symlinks):
-                for filename in files:
-                    current_src = os.path.join(root, filename)
+            async with self.filesystem.scanfile(self._path) as iterator:
+                async for file_entry in iterator:
+                    current_src = file_entry.path
                     current_src_path = self.from_uri(
                         self.filesystem.build_uri(current_src)
                     )
@@ -779,10 +779,7 @@ class SmartPath(os.PathLike):
             )
         else:
             await self.copy(target=target_path)
-            try:
-                await self.unlink()
-            except IsADirectoryError:
-                await self.rmdir()
+            self.filesystem.remove(self._path)
         return target_path
 
     async def replace(self, target: PathLike) -> "SmartPath":

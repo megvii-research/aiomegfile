@@ -2,11 +2,11 @@ import asyncio
 import os
 import re
 import typing as T
-from contextlib import AbstractAsyncContextManager
 
 import aiobotocore.session  # type: ignore
 import botocore
 
+from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.errors import (
     S3BucketNotFoundError,
     S3ConfigError,
@@ -21,7 +21,12 @@ from aiomegfile.errors import (
     raise_s3_error,
     translate_s3_error,
 )
-from aiomegfile.interfaces import BaseFileSystem, FileEntry, StatResult
+from aiomegfile.interfaces import (
+    BaseFileSystem,
+    FileEntry,
+    ScanContextManager,
+    StatResult,
+)
 from aiomegfile.utils.path import PathLike, fspath, split_uri
 
 if T.TYPE_CHECKING:
@@ -152,7 +157,19 @@ def get_s3_client(
     :returns: S3 client
     """
 
-    default_config = botocore.config.Config()
+    try:
+        default_config = botocore.config.Config(
+            connect_timeout=5,
+            max_pool_connections=GLOBAL_MAX_WORKERS,
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+        )
+    except TypeError:  # botocore < 1.36.0
+        default_config = botocore.config.Config(
+            connect_timeout=5,
+            max_pool_connections=GLOBAL_MAX_WORKERS,
+        )
+
     if config:
         config = default_config.merge(config)
     else:
@@ -186,85 +203,6 @@ def get_s3_client(
         config=config,
     )
     return client
-
-
-class S3ScandirContextManager(AbstractAsyncContextManager):
-    """Async context manager for S3 directory scanning."""
-
-    def __init__(self, filesystem: "S3FileSystem", path: str):
-        """Initialize the context manager.
-
-        :param filesystem: S3FileSystem instance.
-        :param path: Directory path to scan.
-        """
-        self._filesystem = filesystem
-        self._async_iterator = self._iterate(path)
-
-    async def _iterate(self, path: str) -> T.AsyncIterator[FileEntry]:
-        """Iterate over directory entries.
-
-        :yields: FileEntry for each item in the directory.
-        """
-        bucket, key = parse_s3_path(path)
-        if not bucket:
-            return
-
-        prefix = _become_prefix(key)
-
-        async for resp in self._filesystem._list_objects_recursive(
-            bucket, prefix, delimiter="/"
-        ):
-            # Yield files
-            for content in resp.get("Contents", []):
-                obj_key = content["Key"]
-                # Skip the prefix itself
-                if obj_key == prefix:
-                    continue
-                name = obj_key[len(prefix) :].rstrip("/")
-                if not name or "/" in name:
-                    continue
-                path = f"{bucket}/{obj_key}"
-                stat_result = StatResult(
-                    st_size=content["Size"],
-                    st_mtime=content["LastModified"].timestamp(),
-                    isdir=False,
-                    extra=content,
-                )
-                yield FileEntry(name=name, path=path, stat=stat_result)
-
-            # Yield directories (common prefixes)
-            for common_prefix in resp.get("CommonPrefixes", []):
-                dir_prefix = common_prefix["Prefix"]
-                name = dir_prefix[len(prefix) :].rstrip("/")
-                if not name:
-                    continue
-                path = f"{bucket}/{dir_prefix.rstrip('/')}"
-                stat_result = StatResult(
-                    st_size=0,
-                    st_mtime=0.0,
-                    isdir=True,
-                )
-                yield FileEntry(name=name, path=path, stat=stat_result)
-
-    def __aiter__(self):
-        """Return self to support ``async for`` iteration."""
-        return self
-
-    async def __anext__(self) -> FileEntry:
-        """Return the next FileEntry in the iteration."""
-        return await anext(self._async_iterator)
-
-    def __await__(self):
-        """Return self to provide a minimal awaitable interface."""
-
-        async def dummy():
-            return self
-
-        return dummy().__await__()
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Exit the async context."""
-        pass
 
 
 class S3FileSystem(BaseFileSystem):
@@ -565,7 +503,93 @@ class S3FileSystem(BaseFileSystem):
         :return: Async context manager yielding an async iterator of FileEntry objects.
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
-        return S3ScandirContextManager(self, path)
+
+        async def aiterator() -> T.AsyncIterator[FileEntry]:
+            bucket, key = parse_s3_path(path)
+            if not bucket:
+                return
+
+            prefix = _become_prefix(key)
+
+            async for resp in self._list_objects_recursive(
+                bucket, prefix, delimiter="/"
+            ):
+                # Yield files
+                for content in resp.get("Contents", []):
+                    obj_key = content["Key"]
+                    # Skip the prefix itself
+                    if obj_key == prefix:
+                        continue
+                    name = obj_key[len(prefix) :]
+                    if not name or "/" in name:
+                        continue
+                    current_path = f"{bucket}/{obj_key}"
+                    stat_result = StatResult(
+                        st_size=content["Size"],
+                        st_mtime=content["LastModified"].timestamp(),
+                        isdir=False,
+                        extra=content,
+                    )
+                    yield FileEntry(name=name, path=current_path, stat=stat_result)
+
+                # Yield directories (common prefixes)
+                for common_prefix in resp.get("CommonPrefixes", []):
+                    dir_prefix = common_prefix["Prefix"]
+                    name = dir_prefix[len(prefix) :].rstrip("/")
+                    if not name:
+                        continue
+                    current_path = f"{bucket}/{dir_prefix.rstrip('/')}"
+                    stat_result = StatResult(
+                        st_size=0,
+                        st_mtime=0.0,
+                        isdir=True,
+                    )
+                    yield FileEntry(name=name, path=current_path, stat=stat_result)
+
+        return ScanContextManager(aiterator())
+
+    def scanfile(
+        self,
+        path,
+    ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """
+        Iteratively traverse only files in given directory.
+        Every iteration on generator yields FileEntry object.
+
+        :returns: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+
+        async def aiterator() -> T.AsyncIterator[FileEntry]:
+            bucket, key = parse_s3_path(path)
+            if not bucket:
+                return
+
+            prefix = _become_prefix(key)
+
+            async for resp in await self._list_objects_recursive(bucket, prefix):
+                for content in resp.get("Contents", []):
+                    if content["Key"].endswith("/"):
+                        continue
+                    current_path = f"{bucket}/{content['Key']}"
+
+                    islnk = False
+                    if content["Size"] == 0:
+                        islnk = self.is_symlink(current_path)
+
+                    yield FileEntry(
+                        os.path.basename(content["Key"]),
+                        current_path,
+                        StatResult(
+                            st_size=content["Size"],
+                            st_mtime=content["LastModified"].timestamp(),
+                            isdir=False,
+                            islnk=islnk,
+                            extra=content,
+                        ),
+                    )
+
+        return ScanContextManager(aiterator())
 
     async def mkdir(
         self,
@@ -757,8 +781,7 @@ class S3FileSystem(BaseFileSystem):
                         Key=current_dst_key,
                     )
 
-        if await self.exists(src_path):
-            await self.remove(src_path)
+        await self.remove(src_path, missing_ok=True)
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:

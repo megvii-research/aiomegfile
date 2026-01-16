@@ -1,6 +1,7 @@
 import stat
 import typing as T
 from abc import ABC, abstractmethod
+from contextlib import AbstractAsyncContextManager
 
 from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.utils.path import split_uri
@@ -150,6 +151,58 @@ class FileEntry(T.NamedTuple):
         return self.stat.islnk
 
 
+class ScanContextManager(AbstractAsyncContextManager):
+    """
+    Async-compatible wrapper around ``scandir`` or ``scanfile``
+    that yields ``FileEntry`` objects.
+    """
+
+    def __init__(
+        self,
+        aiterator: T.AsyncIterator,
+        aexit: T.Optional[
+            T.Callable[
+                [
+                    T.Type[BaseException] | None,
+                    BaseException | None,
+                    T.TracebackType | None,
+                ],
+                T.Awaitable[None],
+            ]
+        ] = None,
+    ):
+        """Initialize the iterator for a directory path.
+
+        :param path: Directory path to scan.
+        """
+        self._aiterator = aiterator
+        self._aexit = aexit
+
+    async def __anext__(self) -> FileEntry:
+        """Return the next directory entry or raise ``StopAsyncIteration``."""
+        try:
+            return await anext(self._aiterator)
+        except StopAsyncIteration:
+            raise StopAsyncIteration
+
+    def __aiter__(self):
+        """Return self to support ``async for`` iteration."""
+        return self
+
+    def __await__(self):
+        """Return self to provide a minimal awaitable interface."""
+
+        async def dummy():
+            return self
+
+        return dummy().__await__()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        """Close the underlying ``os.scandir`` iterator."""
+        if self._aexit:
+            await self._aexit(exc_type, exc, tb)
+
+
 FILE_SYSTEMS = {}
 
 
@@ -264,6 +317,19 @@ class BaseFileSystem(ABC):
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
         raise NotImplementedError('method "scandir" not implemented: %r' % self)
+
+    def scanfile(
+        self,
+        path,
+    ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """
+        Iteratively traverse only files in given directory.
+        Every iteration on generator yields FileEntry object.
+
+        :returns: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+        raise NotImplementedError('method "scanfile" not implemented: %r' % self)
 
     async def upload(self, src_path: str, dst_path: str) -> None:
         """
