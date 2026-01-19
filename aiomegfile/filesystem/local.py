@@ -3,67 +3,18 @@ import os
 import shutil
 import stat
 import typing as T
-from contextlib import AbstractAsyncContextManager
 
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
 
-from aiomegfile.interfaces import BaseFileSystem, FileEntry, StatResult
+from aiomegfile.interfaces import (
+    BaseFileSystem,
+    FileEntry,
+    ScanContextManager,
+    StatResult,
+)
 from aiomegfile.utils.path import split_uri
-
-
-class ScandirContextManager(AbstractAsyncContextManager):
-    """
-    Async-compatible wrapper around ``os.scandir`` that yields ``FileEntry`` objects.
-    """
-
-    def __init__(self, path: str):
-        """Initialize the iterator for a directory path.
-
-        :param path: Directory path to scan.
-        """
-        self._sync_context = os.scandir(path)
-
-    def _build_entry(self, entry: os.DirEntry) -> FileEntry:
-        """Convert a synchronous ``DirEntry`` into a ``FileEntry``."""
-        stat_result = entry.stat()
-        return FileEntry(
-            name=entry.name,
-            path=entry.path,
-            stat=StatResult(
-                st_size=stat_result.st_size,
-                st_ctime=stat_result.st_ctime,
-                st_mtime=stat_result.st_mtime,
-                isdir=stat.S_ISDIR(stat_result.st_mode),
-                islnk=stat.S_ISLNK(stat_result.st_mode),
-                extra=stat_result,
-            ),
-        )
-
-    async def __anext__(self) -> FileEntry:
-        """Return the next directory entry or raise ``StopAsyncIteration``."""
-        try:
-            entry = next(self._sync_context)
-        except StopIteration:
-            raise StopAsyncIteration
-        return self._build_entry(entry)
-
-    def __aiter__(self):
-        """Return self to support ``async for`` iteration."""
-        return self
-
-    def __await__(self):
-        """Return self to provide a minimal awaitable interface."""
-
-        async def dummy():
-            return self
-
-        return dummy().__await__()
-
-    async def __aexit__(self, exc_type, exc, tb):
-        """Close the underlying ``os.scandir`` iterator."""
-        self._sync_context.close()
 
 
 class LocalFileSystem(BaseFileSystem):
@@ -144,29 +95,21 @@ class LocalFileSystem(BaseFileSystem):
             extra=stat_result,
         )
 
-    async def unlink(self, path: str, missing_ok: bool = False) -> None:
-        """Remove (delete) the file.
+    async def remove(self, path: str, missing_ok: bool = False) -> None:
+        """Remove (delete) the file or directory.
+
+        If path is a file, remove it directly.
+        If path is a directory, remove it and all its contents recursively.
 
         :param path: Path to remove.
-        :param missing_ok: If False, raise when the file does not exist.
-        :raises FileNotFoundError: When missing_ok is False and the file is absent.
+        :param missing_ok: If False, raise when the path does not exist.
+        :raises FileNotFoundError: When missing_ok is False and the path is absent.
         """
         try:
-            await aiofiles.os.unlink(path)
-        except FileNotFoundError:
-            if not missing_ok:
-                raise
-
-    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
-        """
-        Remove (delete) the directory.
-
-        :param path: The directory path to remove.
-        :param missing_ok: If False, raise when the directory does not exist.
-        :raises FileNotFoundError: When missing_ok is False and the directory is absent.
-        """
-        try:
-            await aiofiles.os.rmdir(path)
+            if await self.is_dir(path):
+                await asyncio.to_thread(shutil.rmtree, path)
+            else:
+                await aiofiles.os.unlink(path)
         except FileNotFoundError:
             if not missing_ok:
                 raise
@@ -233,11 +176,63 @@ class LocalFileSystem(BaseFileSystem):
         :param path: Directory to scan.
         :return: Async context manager producing ``FileEntry`` items.
         """
-        return ScandirContextManager(path)
+        sync_scandir = os.scandir(path)
+
+        async def aiterator():
+            for entry in sync_scandir:
+                stat_result = entry.stat()
+                yield FileEntry(
+                    name=entry.name,
+                    path=entry.path,
+                    stat=StatResult(
+                        st_size=stat_result.st_size,
+                        st_ctime=stat_result.st_ctime,
+                        st_mtime=stat_result.st_mtime,
+                        isdir=stat.S_ISDIR(stat_result.st_mode),
+                        islnk=stat.S_ISLNK(stat_result.st_mode),
+                        extra=stat_result,
+                    ),
+                )
+
+        async def aexit(exc_type, exc_value, traceback) -> None:
+            sync_scandir.close()
+
+        return ScanContextManager(aiterator(), aexit)
+
+    def scanfile(
+        self,
+        path,
+    ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """
+        Iteratively traverse only files in given directory.
+        Every iteration on generator yields FileEntry object.
+
+        :returns: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+
+        async def aiterator():
+            for dirpath, _, filenames in await asyncio.to_thread(os.walk, path):
+                for filename in filenames:
+                    file_path = os.path.join(dirpath, filename)
+                    stat_result = await aiofiles.os.stat(file_path)
+                    yield FileEntry(
+                        name=filename,
+                        path=file_path,
+                        stat=StatResult(
+                            st_size=stat_result.st_size,
+                            st_ctime=stat_result.st_ctime,
+                            st_mtime=stat_result.st_mtime,
+                            isdir=stat.S_ISDIR(stat_result.st_mode),
+                            islnk=stat.S_ISLNK(stat_result.st_mode),
+                        ),
+                    )
+
+        return ScanContextManager(aiterator())
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
-        Move file.
+        Move file or directory.
 
         :param src_path: Source path to move.
         :param dst_path: Given destination path

@@ -1,6 +1,8 @@
 import stat
 import typing as T
 from abc import ABC, abstractmethod
+from contextlib import AbstractAsyncContextManager
+from types import TracebackType
 
 from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.utils.path import split_uri
@@ -150,6 +152,55 @@ class FileEntry(T.NamedTuple):
         return self.stat.islnk
 
 
+class ScanContextManager(AbstractAsyncContextManager):
+    """
+    Async-compatible wrapper around ``scandir`` or ``scanfile``
+    that yields ``FileEntry`` objects.
+    """
+
+    def __init__(
+        self,
+        aiterator: T.AsyncIterator,
+        aexit: T.Optional[
+            T.Callable[
+                [
+                    T.Type[BaseException] | None,
+                    BaseException | None,
+                    TracebackType | None,
+                ],
+                T.Awaitable[None],
+            ]
+        ] = None,
+    ):
+        """Initialize the iterator for a directory path.
+
+        :param path: Directory path to scan.
+        """
+        self._aiterator = aiterator
+        self._aexit = aexit
+
+    async def __anext__(self) -> FileEntry:
+        """Return the next directory entry or raise ``StopAsyncIteration``."""
+        return await anext(self._aiterator)
+
+    def __aiter__(self):
+        """Return self to support ``async for`` iteration."""
+        return self
+
+    def __await__(self):
+        """Return self to provide a minimal awaitable interface."""
+
+        async def dummy():
+            return self
+
+        return dummy().__await__()
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        """Close the underlying iterator."""
+        if self._aexit:
+            await self._aexit(exc_type, exc_value, traceback)
+
+
 FILE_SYSTEMS = {}
 
 
@@ -195,7 +246,7 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
-    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
         """Get the status of the path.
 
         :param path: File path.
@@ -205,25 +256,17 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "stat" not implemented: %r' % self)
 
-    async def unlink(self, path: str, missing_ok: bool = False) -> None:
-        """Remove (delete) the file.
+    async def remove(self, path: str, missing_ok: bool = False) -> None:
+        """Remove (delete) the file or directory.
 
-        :param path: The file path to remove.
-        :param missing_ok: If False, raise FileNotFoundError when the file is missing.
-        :raises FileNotFoundError: When file is missing and missing_ok is False.
-        """
-        raise NotImplementedError('method "unlink" not implemented: %r' % self)
+        If path is a file, remove it directly.
+        If path is a directory, remove it and all its contents recursively.
 
-    async def rmdir(self, path: str, missing_ok: bool = False) -> None:
+        :param path: The file or directory path to remove.
+        :param missing_ok: If False, raise FileNotFoundError when the path is missing.
+        :raises FileNotFoundError: When path is missing and missing_ok is False.
         """
-        Remove (delete) the directory.
-
-        :param path: The directory path to remove.
-        :param missing_ok: If False,
-            raise FileNotFoundError when the directory is missing.
-        :raises FileNotFoundError: When directory is missing and missing_ok is False.
-        """
-        raise NotImplementedError('method "rmdir" not implemented: %r' % self)
+        raise NotImplementedError('method "remove" not implemented: %r' % self)
 
     async def mkdir(
         self,
@@ -273,6 +316,19 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "scandir" not implemented: %r' % self)
 
+    def scanfile(
+        self,
+        path,
+    ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """
+        Iteratively traverse only files in given directory.
+        Every iteration on generator yields FileEntry object.
+
+        :returns: Async context manager yielding an async iterator of FileEntry objects.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+        raise NotImplementedError('method "scanfile" not implemented: %r' % self)
+
     async def upload(self, src_path: str, dst_path: str) -> None:
         """
         upload file
@@ -305,7 +361,7 @@ class BaseFileSystem(ABC):
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
-        move file
+        move file or directory
 
         :param dst_path: Given destination path
         :param overwrite: whether or not overwrite file when exists

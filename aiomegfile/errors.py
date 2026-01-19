@@ -1,8 +1,32 @@
 from contextlib import contextmanager
+from shutil import SameFileError
 
 from botocore.exceptions import ClientError, NoCredentialsError, ParamValidationError
 
 from aiomegfile.utils.path import PathLike
+
+__all__ = [
+    "full_class_name",
+    "full_error_message",
+    "ProtocolNotFoundError",
+    "UnknownError",
+    "S3Exception",
+    "S3FileNotFoundError",
+    "S3BucketNotFoundError",
+    "S3FileExistsError",
+    "S3NotADirectoryError",
+    "S3IsADirectoryError",
+    "S3FileChangedError",
+    "S3PermissionError",
+    "S3ConfigError",
+    "S3NotALinkError",
+    "S3NameTooLongError",
+    "S3InvalidRangeError",
+    "S3UnknownError",
+    "SameFileError",
+    "translate_s3_error",
+    "raise_s3_error",
+]
 
 
 def full_class_name(obj):
@@ -156,8 +180,8 @@ def translate_s3_error(s3_error: Exception, s3_url: PathLike) -> Exception:
 def raise_s3_error(s3_url: PathLike, suppress_error_callback=None):
     try:
         yield
-    except Exception as error:
-        error = translate_s3_error(error, s3_url)
+    except Exception as e:
+        error = translate_s3_error(e, s3_url)
         if suppress_error_callback and suppress_error_callback(error):
             return
-        raise error
+        raise error from e

@@ -508,7 +508,9 @@ class SmartPath(os.PathLike):
         :param missing_ok: If False, raise when the path does not exist.
         :raises IsADirectoryError: If the target is a directory.
         """
-        return await self.filesystem.unlink(self._path, missing_ok=missing_ok)
+        if await self.is_dir():
+            raise IsADirectoryError(f"Is a directory: {fspath(self)}")
+        return await self.filesystem.remove(self._path, missing_ok=missing_ok)
 
     async def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False
@@ -524,11 +526,23 @@ class SmartPath(os.PathLike):
         )
 
     async def rmdir(self) -> None:
-        """Remove (delete) the directory.
+        """Remove (delete) the empty directory.
 
         :raises NotADirectoryError: If the target is not a directory.
         """
-        return await self.filesystem.rmdir(self._path)
+        if not await self.is_dir():
+            raise NotADirectoryError(f"Not a directory: {fspath(self)}")
+        async with self.filesystem.scandir(self._path) as iterator:
+            async for _ in iterator:
+                raise OSError(f"Directory not empty: {fspath(self)}")
+        return await self.filesystem.remove(self._path)
+
+    async def remove(self, missing_ok: bool = False) -> None:
+        """Remove (delete) the file or directory.
+
+        :param missing_ok: If False, raise when the path does not exist.
+        """
+        return await self.filesystem.remove(self._path, missing_ok=missing_ok)
 
     def open(
         self,
@@ -567,7 +581,7 @@ class SmartPath(os.PathLike):
             return
 
         root = self._path
-        if self.is_symlink() and follow_symlinks:
+        if await self.is_symlink() and follow_symlinks:
             root = (await self.readlink())._path  # pytype: disable=attribute-error
 
         pending = [(root, False)]
@@ -716,10 +730,9 @@ class SmartPath(os.PathLike):
         target_path = self.from_uri(target)
 
         if await self.is_dir():
-            await target_path.mkdir(parents=True, exist_ok=True)
-            async for root, _, files in self.walk(follow_symlinks=follow_symlinks):
-                for filename in files:
-                    current_src = os.path.join(root, filename)
+            async with self.filesystem.scanfile(self._path) as iterator:
+                async for file_entry in iterator:
+                    current_src = file_entry.path
                     current_src_path = self.from_uri(
                         self.filesystem.build_uri(current_src)
                     )
@@ -766,10 +779,7 @@ class SmartPath(os.PathLike):
             )
         else:
             await self.copy(target=target_path)
-            try:
-                await self.unlink()
-            except IsADirectoryError:
-                await self.rmdir()
+            self.filesystem.remove(self._path)
         return target_path
 
     async def replace(self, target: PathLike) -> "SmartPath":
