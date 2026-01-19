@@ -485,8 +485,8 @@ class S3FileSystem(BaseFileSystem):
             with raise_s3_error(self.build_uri(path)):
                 await client.delete_objects(
                     Bucket=bucket,
-                    Delete={
-                        "Objects": objects_to_delete,  # pyre-ignore[6]
+                    Delete={  # pyre-ignore[6]
+                        "Objects": objects_to_delete,
                         "Quiet": True,
                     },
                 )
