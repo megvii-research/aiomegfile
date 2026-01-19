@@ -152,7 +152,7 @@ def get_s3_client(
     aws_session_token: T.Optional[str] = None,
     endpoint_url: T.Optional[str] = None,
     addressing_style: T.Optional[str] = None,
-) -> aiobotocore.session.ClientCreatorContext["S3Client"]:
+) -> T.AsyncContextManager["S3Client"]:
     """Get S3 client
 
     :returns: S3 client
@@ -485,7 +485,10 @@ class S3FileSystem(BaseFileSystem):
             with raise_s3_error(self.build_uri(path)):
                 await client.delete_objects(
                     Bucket=bucket,
-                    Delete={"Objects": objects_to_delete, "Quiet": True},
+                    Delete={
+                        "Objects": objects_to_delete,  # pyre-ignore[6]
+                        "Quiet": True,
+                    },
                 )
 
         if not had_file and not missing_ok:
@@ -711,7 +714,7 @@ class S3FileSystem(BaseFileSystem):
 
         try:
             await client.copy_object(
-                CopySource={"Bucket": src_bucket, "Key": src_key},
+                CopySource={"Bucket": src_bucket, "Key": src_key},  # pyre-ignore[6]
                 Bucket=dst_bucket,
                 Key=dst_key,
             )
@@ -771,7 +774,10 @@ class S3FileSystem(BaseFileSystem):
                     f"'{self.build_uri(src_path)}' or '{self.build_uri(dst_path)}'"
                 ):
                     await client.copy_object(
-                        CopySource={"Bucket": src_bucket, "Key": current_src_key},
+                        CopySource={  # pyre-ignore[6]
+                            "Bucket": src_bucket,
+                            "Key": current_src_key,
+                        },
                         Bucket=dst_bucket,
                         Key=current_dst_key,
                     )
