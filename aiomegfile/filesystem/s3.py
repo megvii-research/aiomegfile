@@ -152,7 +152,7 @@ def get_s3_client(
     aws_session_token: T.Optional[str] = None,
     endpoint_url: T.Optional[str] = None,
     addressing_style: T.Optional[str] = None,
-) -> "S3Client":
+) -> aiobotocore.session.ClientCreatorContext["S3Client"]:
     """Get S3 client
 
     :returns: S3 client
