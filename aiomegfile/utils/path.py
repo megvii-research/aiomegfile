@@ -5,7 +5,7 @@ PathLike = T.Union[str, os.PathLike]
 
 
 def fspath(path: PathLike) -> str:
-    path = os.fspath(path)
+    path = os.fspath(path)  # pyre-ignore[6]
     if isinstance(path, bytes):
         path = path.decode()
     return path

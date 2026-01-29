@@ -31,7 +31,7 @@ from aiomegfile.interfaces import (
 from aiomegfile.utils.path import PathLike, fspath, split_uri
 
 if T.TYPE_CHECKING:
-    from types_aiobotocore_s3 import S3Client
+    from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
 
 
 DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"

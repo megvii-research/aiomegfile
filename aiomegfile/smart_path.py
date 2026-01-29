@@ -763,6 +763,26 @@ class SmartPath(os.PathLike):
         await self.copy(target=target, follow_symlinks=follow_symlinks)
         return target
 
+    async def _move(self, target: PathLike, overwrite: bool = False) -> "SmartPath":
+        """
+        move file only
+
+        :param target: Given destination path
+        :return: Target SmartPath after move.
+        """
+        target_path = self.from_uri(target)
+
+        if target_path.filesystem.same_endpoint(self.filesystem):
+            await self.filesystem.move(
+                self._path, dst_path=target_path._path, overwrite=overwrite
+            )
+        else:
+            if overwrite and await target_path.exists():
+                raise FileExistsError(f"File exists: {fspath(target_path)}")
+            await self.copy(target=target_path)
+            await self.filesystem.remove(self._path)
+        return target_path
+
     async def rename(self, target: PathLike) -> "SmartPath":
         """
         rename file
@@ -771,16 +791,7 @@ class SmartPath(os.PathLike):
         :return: Target SmartPath after rename.
         :raises FileExistsError: If destination exists.
         """
-        target_path = self.from_uri(target)
-
-        if target_path.filesystem.same_endpoint(self.filesystem):
-            await self.filesystem.move(
-                self._path, dst_path=target_path._path, overwrite=False
-            )
-        else:
-            await self.copy(target=target_path)
-            self.filesystem.remove(self._path)
-        return target_path
+        return await self._move(target=target, overwrite=False)
 
     async def replace(self, target: PathLike) -> "SmartPath":
         """
@@ -789,19 +800,7 @@ class SmartPath(os.PathLike):
         :param target: Given destination path
         :return: Destination SmartPath after replace.
         """
-        target_path = self.from_uri(target)
-
-        if target_path.filesystem.same_endpoint(self.filesystem):
-            await self.filesystem.move(
-                self._path, dst_path=target_path._path, overwrite=True
-            )
-        else:
-            await self.copy(target=target_path)
-            try:
-                await self.unlink()
-            except IsADirectoryError:
-                await self.rmdir()
-        return target_path
+        return await self._move(target=target, overwrite=True)
 
     async def move(
         self,
