@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import typing as T
+import weakref
 
 import aiobotocore.session  # type: ignore
 import botocore
@@ -53,6 +54,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
 MAX_KEYS = 1000
 DEFAULT_RETRY_CAPACITY = 1000
+
+_S3_CLIENT_CACHE = weakref.WeakKeyDictionary()
+_S3_CLIENT_LOCKS = weakref.WeakKeyDictionary()
 
 
 def is_s3(path: PathLike) -> bool:
@@ -261,8 +265,7 @@ def get_access_token(
     return access_key, secret_key, session_token
 
 
-async def get_s3_client(
-    config: T.Optional[AioConfig] = None,
+async def _get_s3_client(
     profile_name: T.Optional[str] = None,
     *,
     aws_access_key_id: T.Optional[str] = None,
@@ -276,23 +279,12 @@ async def get_s3_client(
     :returns: S3 client
     """
 
-    try:
-        default_config = AioConfig(
-            connect_timeout=5,
-            max_pool_connections=GLOBAL_MAX_WORKERS,
-            request_checksum_calculation="when_required",
-            response_checksum_validation="when_required",
-        )
-    except TypeError:  # botocore < 1.36.0
-        default_config = AioConfig(
-            connect_timeout=5,
-            max_pool_connections=GLOBAL_MAX_WORKERS,
-        )
-
-    if config:
-        config = default_config.merge(config)
-    else:
-        config = default_config
+    config = AioConfig(
+        connect_timeout=5,
+        max_pool_connections=GLOBAL_MAX_WORKERS,
+        request_checksum_calculation="when_required",
+        response_checksum_validation="when_required",
+    )
 
     if not addressing_style:
         addressing_style = get_env_var(
@@ -329,6 +321,58 @@ async def get_s3_client(
         kwargs["max_attempts"] = max_attempts
     register_retry_handler(**kwargs)
     return client
+
+
+async def get_s3_client(
+    profile_name: T.Optional[str] = None,
+    *,
+    aws_access_key_id: T.Optional[str] = None,
+    aws_secret_access_key: T.Optional[str] = None,
+    aws_session_token: T.Optional[str] = None,
+    endpoint_url: T.Optional[str] = None,
+    addressing_style: T.Optional[str] = None,
+) -> "S3Client":
+    """Get a cached S3 client bound to the current event loop.
+
+    :param profile_name: Optional AWS profile name.
+    :type profile_name: T.Optional[str]
+    :param aws_access_key_id: Optional AWS access key ID override.
+    :type aws_access_key_id: T.Optional[str]
+    :param aws_secret_access_key: Optional AWS secret access key override.
+    :type aws_secret_access_key: T.Optional[str]
+    :param aws_session_token: Optional AWS session token override.
+    :type aws_session_token: T.Optional[str]
+    :param endpoint_url: Optional custom S3 endpoint URL.
+    :type endpoint_url: T.Optional[str]
+    :param addressing_style: Optional S3 addressing style.
+    :type addressing_style: T.Optional[str]
+    :return: An initialized S3 client bound to the current loop.
+    :rtype: S3Client
+    """
+
+    loop = asyncio.get_running_loop()
+    cache = _S3_CLIENT_CACHE.setdefault(loop, {})
+    lock = _S3_CLIENT_LOCKS.setdefault(loop, asyncio.Lock())
+    cache_key = (
+        profile_name,
+        aws_access_key_id,
+        aws_secret_access_key,
+        aws_session_token,
+        endpoint_url,
+        addressing_style,
+    )
+    if cache_key not in cache:
+        async with lock:
+            if cache_key not in cache:
+                cache[cache_key] = await _get_s3_client(
+                    profile_name=profile_name,
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    aws_session_token=aws_session_token,
+                    endpoint_url=endpoint_url,
+                    addressing_style=addressing_style,
+                )
+    return cache[cache_key]
 
 
 class S3FileSystem(BaseFileSystem):
@@ -371,19 +415,6 @@ class S3FileSystem(BaseFileSystem):
             addressing_style=self._addressing_style,
         )
         return self._client
-
-    async def _close_client(self):
-        if self._client is None:
-            return
-        await self._client.__aexit__(None, None, None)
-        self._client = None
-
-    def __del__(self):
-        if self._client is not None:
-            try:
-                asyncio.get_running_loop().run_until_complete(self._close_client())
-            except RuntimeError:
-                pass
 
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.

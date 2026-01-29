@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from moto.server import ThreadedMotoServer
 
@@ -10,7 +12,7 @@ from aiomegfile.errors import (
     S3NotALinkError,
     SameFileError,
 )
-from aiomegfile.filesystem.s3 import S3FileSystem, is_s3, parse_s3_path
+from aiomegfile.filesystem.s3 import S3FileSystem, get_s3_client, is_s3, parse_s3_path
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"
@@ -537,3 +539,28 @@ class TestHelperFunctions:
         assert parse_s3_path("bucket/prefix/key") == ("bucket", "prefix/key")
         assert parse_s3_path("bucket/") == ("bucket", "")
         assert parse_s3_path("") == ("", "")
+
+    def test_get_s3_client_cache_per_loop(self, mock_s3, moto_server):  # noqa: ARG002
+        """Test get_s3_client cache is scoped per event loop."""
+        client1 = None
+        loop1 = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop1)
+            client1 = loop1.run_until_complete(get_s3_client(endpoint_url=moto_server))
+            client1_again = loop1.run_until_complete(
+                get_s3_client(endpoint_url=moto_server)
+            )
+            assert client1 is client1_again
+            loop1.run_until_complete(client1.__aexit__(None, None, None))
+        finally:
+            loop1.close()
+
+        loop2 = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop2)
+            client2 = loop2.run_until_complete(get_s3_client(endpoint_url=moto_server))
+            assert client1 is not client2
+            loop2.run_until_complete(client2.__aexit__(None, None, None))
+        finally:
+            loop2.close()
+            asyncio.set_event_loop(None)
