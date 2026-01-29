@@ -38,6 +38,10 @@ DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
 MAX_KEYS = 1000
 
 
+DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
+MAX_KEYS = 1000
+
+
 def is_s3(path: PathLike) -> bool:
     """
     1. According to
