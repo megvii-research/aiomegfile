@@ -473,7 +473,6 @@ class BaseFileSystem(ABC):
         """
 
 
-# TODO: cache filesystem instances
 def get_filesystem_by_uri(
     uri: str,
 ) -> BaseFileSystem:
