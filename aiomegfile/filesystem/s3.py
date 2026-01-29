@@ -144,7 +144,7 @@ class AioMegfileRetryConditions(AioStandardRetryConditions):
         if not self._max_attempts_checker.is_retryable(context):
             return False
 
-        if isinstance(context.caught_exception, S3_RETRY_EXCEPTIONS):  # pyre-ignore[6]
+        if isinstance(context.caught_exception, S3_RETRY_EXCEPTIONS):
             logger.debug(
                 "Retryable exception encountered: %s", context.caught_exception
             )
@@ -270,7 +270,7 @@ async def get_s3_client(
     aws_session_token: T.Optional[str] = None,
     endpoint_url: T.Optional[str] = None,
     addressing_style: T.Optional[str] = None,
-) -> T.AsyncContextManager["S3Client"]:
+) -> "S3Client":
     """Get S3 client
 
     :returns: S3 client
@@ -321,7 +321,9 @@ async def get_s3_client(
     )
     client = await client_context.__aenter__()
 
-    max_attempts = client.meta.config.retries.get("total_max_attempts")
+    max_attempts = client.meta.config.retries.get(  # pyre-ignore[16]
+        "total_max_attempts"
+    )
     kwargs = {"client": client}
     if max_attempts is not None:
         kwargs["max_attempts"] = max_attempts
