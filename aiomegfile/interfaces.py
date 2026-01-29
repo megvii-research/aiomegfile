@@ -205,6 +205,22 @@ FILE_SYSTEMS = {}
 
 
 class BaseFileSystem(ABC):
+    """Abstract base class for all file system implementations.
+
+    .. note ::
+
+        For performance reasons, some interface definitions are different.
+
+            1. The ``copy``, ``upload``, and ``download`` operations only handle
+                single files, as they typically require processing each file's data.
+                Therefore, providing low-level APIs in the ``FileSystem`` is sufficient.
+
+            2. The ``move`` and ``remove`` operations should support both files and
+                directories to allow for file system optimizations.
+                In a local file system, for instance, moving a directory typically only
+                requires updating the directory entry.
+    """
+
     protocol = ""
 
     def __init_subclass__(cls):
