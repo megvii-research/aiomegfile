@@ -1,3 +1,4 @@
 import os
 
-GLOBAL_MAX_WORKERS = int(os.getenv("MEGFILE_MAX_WORKERS") or 8)
+GLOBAL_MAX_WORKERS = int(os.getenv("AIOMEGFILE_MAX_WORKERS") or 8)
+DEFAULT_MAX_RETRY_TIMES = int(os.getenv("AIOMEGFILE_MAX_RETRY_TIMES") or 10)

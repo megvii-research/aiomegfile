@@ -1,13 +1,28 @@
 import asyncio
+import logging
 import os
 import re
 import typing as T
 
 import aiobotocore.session  # type: ignore
 import botocore
+import requests
+import urllib3
 from aiobotocore.config import AioConfig
+from aiobotocore.retries.standard import (
+    AioRetryHandler,
+    AioRetryPolicy,
+    AioStandardRetryConditions,
+)
+from botocore.retries.standard import (
+    ExponentialBackoff,
+    MaxAttemptsChecker,
+    RetryEventAdapter,
+    RetryQuotaChecker,
+    quota,
+)
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS
+from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES, GLOBAL_MAX_WORKERS
 from aiomegfile.errors import (
     S3BucketNotFoundError,
     S3ConfigError,
@@ -33,13 +48,11 @@ from aiomegfile.utils.path import PathLike, fspath, split_uri
 if T.TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
 MAX_KEYS = 1000
-
-
-DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
-MAX_KEYS = 1000
+DEFAULT_RETRY_CAPACITY = 1000
 
 
 def is_s3(path: PathLike) -> bool:
@@ -73,6 +86,107 @@ def _become_prefix(prefix: str) -> str:
     if prefix != "" and not prefix.endswith("/"):
         prefix += "/"
     return prefix
+
+
+S3_RETRY_EXCEPTIONS = (
+    botocore.exceptions.IncompleteReadError,
+    botocore.exceptions.EndpointConnectionError,
+    botocore.exceptions.ReadTimeoutError,
+    botocore.exceptions.ConnectTimeoutError,
+    botocore.exceptions.ProxyConnectionError,
+    botocore.exceptions.ConnectionClosedError,
+    botocore.exceptions.ResponseStreamingError,
+    botocore.exceptions.SSLError,
+    requests.exceptions.ReadTimeout,
+    requests.exceptions.ConnectTimeout,
+    urllib3.exceptions.IncompleteRead,
+    urllib3.exceptions.ProtocolError,
+    urllib3.exceptions.ReadTimeoutError,
+    urllib3.exceptions.HeaderParsingError,
+)
+
+S3_RETRY_ERROR_CODES = (
+    "429",  # noqa: E501 # TOS ExceedAccountQPSLimit
+    "499",  # noqa: E501 # Some cloud providers may send response with http code 499 if the connection not send data in 1 min.
+    "500",
+    "501",
+    "502",
+    "503",
+    "InternalError",
+    "ServiceUnavailable",
+    "SlowDown",
+    "ContextCanceled",
+    "Timeout",  # noqa: E501 # TOS Timeout
+    "RequestTimeout",
+    "RequestTimeTooSkewed",
+    "ExceedAccountQPSLimit",
+    "ExceedAccountRateLimit",
+    "ExceedBucketQPSLimit",
+    "ExceedBucketRateLimit",
+    "DownloadTrafficRateLimitExceeded",  # noqa: E501 # OSS RateLimitExceeded
+    "UploadTrafficRateLimitExceeded",
+    "MetaOperationQpsLimitExceeded",
+    "TotalQpsLimitExceeded",
+    "PartitionQpsLimitted",
+    "ActiveRequestLimitExceeded",
+    "CpuLimitExceeded",
+    "QpsLimitExceeded",
+)
+
+
+class AioMegfileRetryConditions(AioStandardRetryConditions):
+    def __init__(self, max_attempts=DEFAULT_MAX_RETRY_TIMES):  # noqa: E501, lgtm [py/missing-call-to-init]
+        # Note: This class is for convenience so you can have the
+        # standard retry condition in a single class.
+        self._max_attempts_checker = MaxAttemptsChecker(max_attempts)
+
+    async def is_retryable(self, context):
+        if not self._max_attempts_checker.is_retryable(context):
+            return False
+
+        if isinstance(context.caught_exception, S3_RETRY_EXCEPTIONS):
+            logger.debug(
+                "Retryable exception encountered: %s", context.caught_exception
+            )
+            return True
+        error_code = context.get_error_code()
+        if error_code in S3_RETRY_ERROR_CODES:
+            logger.debug("Retryable error code encountered: %s", error_code)
+            return True
+        return False
+
+
+def register_retry_handler(client, max_attempts=DEFAULT_MAX_RETRY_TIMES):
+    retry_quota = RetryQuotaChecker(
+        quota.RetryQuota(
+            initial_capacity=DEFAULT_RETRY_CAPACITY,
+        )
+    )
+
+    service_id = client.meta.service_model.service_id
+    service_event_name = service_id.hyphenize()
+    client.meta.events.register(
+        f"after-call.{service_event_name}", retry_quota.release_retry_quota
+    )
+
+    handler = AioRetryHandler(
+        retry_policy=AioRetryPolicy(
+            retry_checker=AioMegfileRetryConditions(max_attempts=max_attempts),
+            retry_backoff=ExponentialBackoff(),
+        ),
+        retry_event_adapter=RetryEventAdapter(),
+        retry_quota=retry_quota,
+    )
+
+    event_name = f"needs-retry.{service_event_name}"
+    unique_id = f"retry-config-{service_event_name}"
+    client.meta.events.unregister(event_name, unique_id=unique_id)
+    client.meta.events.register(
+        event_name,
+        handler.needs_retry,
+        unique_id=unique_id,
+    )
+    return handler
 
 
 def get_endpoint_url(
@@ -147,7 +261,7 @@ def get_access_token(
     return access_key, secret_key, session_token
 
 
-def get_s3_client(
+async def get_s3_client(
     config: T.Optional[AioConfig] = None,
     profile_name: T.Optional[str] = None,
     *,
@@ -156,7 +270,7 @@ def get_s3_client(
     aws_session_token: T.Optional[str] = None,
     endpoint_url: T.Optional[str] = None,
     addressing_style: T.Optional[str] = None,
-) -> T.AsyncContextManager["S3Client"]:
+) -> "S3Client":
     """Get S3 client
 
     :returns: S3 client
@@ -197,7 +311,7 @@ def get_s3_client(
     if not endpoint_url:
         endpoint_url = get_endpoint_url(profile_name=profile_name, config=s3_config)
 
-    client = session.create_client(
+    client_context = session.create_client(
         "s3",
         endpoint_url=endpoint_url,
         aws_access_key_id=aws_access_key_id,
@@ -205,6 +319,15 @@ def get_s3_client(
         aws_session_token=aws_session_token,
         config=config,
     )
+    client = await client_context.__aenter__()
+
+    max_attempts = client.meta.config.retries.get(  # pyre-ignore[16]
+        "total_max_attempts"
+    )
+    kwargs = {"client": client}
+    if max_attempts is not None:
+        kwargs["max_attempts"] = max_attempts
+    register_retry_handler(**kwargs)
     return client
 
 
@@ -240,14 +363,13 @@ class S3FileSystem(BaseFileSystem):
         if self._client is not None:
             return self._client
 
-        client = get_s3_client(
+        self._client = await get_s3_client(
             profile_name=self._profile_name,
             aws_access_key_id=self._aws_access_key_id,
             aws_secret_access_key=self._aws_secret_access_key,
             endpoint_url=self._endpoint_url,
             addressing_style=self._addressing_style,
         )
-        self._client = await client.__aenter__()
         return self._client
 
     async def _close_client(self):
