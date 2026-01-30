@@ -39,9 +39,9 @@ from aiomegfile.errors import (
     translate_s3_error,
 )
 from aiomegfile.interfaces import (
+    AsyncScannableManager,
     BaseFileSystem,
     FileEntry,
-    ScanContextManager,
     StatResult,
 )
 from aiomegfile.utils.path import PathLike, fspath, split_uri
@@ -705,7 +705,7 @@ class S3FileSystem(BaseFileSystem):
                     )
                     yield FileEntry(name=name, path=current_path, stat=stat_result)
 
-        return ScanContextManager(aiterator())
+        return AsyncScannableManager(aiterator())
 
     def scanfile(
         self,
@@ -748,7 +748,7 @@ class S3FileSystem(BaseFileSystem):
                         ),
                     )
 
-        return ScanContextManager(aiterator())
+        return AsyncScannableManager(aiterator())
 
     async def mkdir(
         self,
