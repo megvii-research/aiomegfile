@@ -1,3 +1,6 @@
+import io
+import logging
+import os
 import stat
 import typing as T
 from abc import ABC, abstractmethod
@@ -5,9 +8,11 @@ from contextlib import AbstractAsyncContextManager
 from types import TracebackType
 
 from aiomegfile.errors import ProtocolNotFoundError
+from aiomegfile.utils.parse import fullname
 from aiomegfile.utils.path import split_uri
 
 Self = T.TypeVar("Self")
+logger = logging.getLogger(__name__)
 
 
 class StatResult(T.NamedTuple):
@@ -152,7 +157,33 @@ class FileEntry(T.NamedTuple):
         return self.stat.islnk
 
 
-class ScanContextManager(AbstractAsyncContextManager):
+class AsyncIOManager(AbstractAsyncContextManager):
+    """
+    Async-compatible wrapper around `AsyncReadable` or `AsyncWritable`
+    """
+
+    def __init__(self, thing):
+        self._thing = thing
+
+    def __await__(self):
+        """Return self to provide a minimal awaitable interface."""
+
+        async def dummy():
+            return self._thing
+
+        return dummy().__await__()
+
+    async def __aenter__(self):
+        """Return the underlying iterator."""
+        return self._thing
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        """Close the underlying iterator."""
+        if self._thing:
+            await self._thing.close()
+
+
+class AsyncScannableManager(AbstractAsyncContextManager):
     """
     Async-compatible wrapper around ``scandir`` or ``scanfile``
     that yields ``FileEntry`` objects.
@@ -483,3 +514,232 @@ def get_filesystem_by_uri(
     return path_class.from_uri(
         uri,
     )
+
+
+class AsyncClosable(ABC):
+    """Async closable base class for file-like objects."""
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        close_impl = cls.__dict__.get("close")
+        if close_impl is None:
+            return
+
+        async def _wrapped_close(self) -> None:
+            if not getattr(self, "__closed__", False):
+                await close_impl(self)
+                setattr(self, "__closed__", True)
+
+        _wrapped_close.__name__ = close_impl.__name__
+        _wrapped_close.__qualname__ = close_impl.__qualname__
+        _wrapped_close.__doc__ = close_impl.__doc__
+        cls.close = _wrapped_close  # type: ignore[assignment]
+
+    @property
+    def closed(self) -> bool:
+        """Return True if the file-like object is closed."""
+        return getattr(self, "__closed__", False)
+
+    @abstractmethod
+    async def close(self) -> None:
+        """Flush and close the file-like object.
+
+        This method has no effect if the file is already closed.
+        """
+        pass  # pragma: no cover
+
+    async def __aenter__(self: Self) -> Self:
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self.close()
+
+
+class AsyncFileLike(AsyncClosable, T.Generic[T.AnyStr], ABC):
+    """Async file-like base class."""
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the name of the file."""
+
+    @property
+    @abstractmethod
+    def mode(self) -> str:
+        """Return the mode of the file."""
+
+    def fileno(self) -> int:
+        raise io.UnsupportedOperation("not a local file")
+
+    async def isatty(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return "<%s name=%r mode=%r>" % (
+            fullname(self),
+            self.name,
+            self.mode,
+        )
+
+    async def seekable(self) -> bool:
+        """Return True if the file-like object can be sought."""
+        return False
+
+    async def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
+        """Change stream position.
+
+        Seek to byte `offset` relative to position indicated by `whence`:
+            0  Start of stream (the default).  `offset` should be >= 0;
+            1  Current position - `offset` may be negative;
+            2  End of stream - `offset` usually negative.
+
+        Return the new absolute position.
+        """
+        raise io.UnsupportedOperation("not seekable")  # pragma: no cover
+
+    async def readable(self) -> bool:
+        """Return True if the file-like object can be read."""
+        return False  # pragma: no cover
+
+    async def writable(self) -> bool:
+        """Return True if the file-like object can be written."""
+        return False
+
+    async def flush(self) -> None:
+        """Flush write buffers, if applicable.
+
+        This is not implemented for read-only and non-blocking streams.
+        """
+
+    @abstractmethod
+    async def tell(self) -> int:
+        """Return the current stream position."""
+
+
+class AsyncSeekable(AsyncFileLike, ABC):
+    """Async seekable file-like base class."""
+
+    async def seekable(self) -> bool:
+        """Return True if the file-like object can be sought."""
+        return True
+
+    @abstractmethod
+    async def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
+        """Change stream position.
+
+        Seek to byte offset `cookie` relative to position indicated by `whence`:
+            0  Start of stream (the default).  `cookie` should be >= 0;
+            1  Current position - `cookie` may be negative;
+            2  End of stream - `cookie` usually negative.
+
+        Return the new absolute position.
+        """
+
+
+class AsyncReadable(AsyncFileLike[T.AnyStr], ABC):
+    """Async readable file-like base class."""
+
+    async def readable(self) -> bool:
+        """Return True if the file-like object can be read."""
+        return True
+
+    @abstractmethod
+    async def read(self, size: T.Optional[int] = None) -> T.AnyStr:
+        """Read at most `size` bytes, returned as a bytes object.
+
+        If the `size` argument is negative, read until EOF is reached.
+        Return an empty bytes object at EOF.
+        """
+
+    @abstractmethod
+    async def readline(self, size: T.Optional[int] = None) -> T.AnyStr:
+        """Next line from the file, as a bytes object.
+
+        Retain newline. A non-negative `size` argument limits the maximum number of
+        bytes to return (an incomplete line may be returned then).
+        Return an empty bytes object at EOF.
+        """
+
+    async def readlines(self, hint: T.Optional[int] = None) -> T.List[T.AnyStr]:
+        """Return a list of lines from the stream."""
+        data = await self.read(size=hint)
+        return data.splitlines(True)  # pyre-ignore[7]
+
+    async def readinto(self, buffer: bytearray) -> int:
+        """Read bytes into buffer.
+
+        Returns number of bytes read (0 for EOF), or None if the object
+        is set not to block and has no data to read.
+        """
+        if "b" not in self.mode:
+            raise OSError("'readinto' only works on binary files")
+
+        data = await self.read(len(buffer))
+        size = len(data)
+        buffer[:size] = data  # pyre-ignore[6]
+        return size
+
+    async def __anext__(self) -> T.AnyStr:
+        line = await self.readline()
+        if not line:
+            raise StopAsyncIteration
+        return line
+
+    def __aiter__(self: Self) -> Self:
+        return self
+
+    async def truncate(self, size: T.Optional[int] = None) -> int:
+        raise OSError("not writable")
+
+    async def write(self, data: T.AnyStr) -> int:
+        raise OSError("not writable")
+
+    async def writelines(self, lines: T.Iterable[T.AnyStr]) -> None:
+        raise OSError("not writable")
+
+
+class AsyncWritable(AsyncFileLike[T.AnyStr], ABC):
+    """Async writable file-like base class."""
+
+    async def writable(self) -> bool:
+        """Return True if the file-like object can be written."""
+        return True
+
+    @abstractmethod
+    async def write(self, data: T.AnyStr) -> int:
+        """Write bytes to file.
+
+        Return the number of bytes written.
+        """
+
+    async def writelines(self, lines: T.Iterable[T.AnyStr]) -> None:
+        """Write `lines` to the file.
+
+        Note that newlines are not added.
+        `lines` can be any iterable object producing bytes-like objects.
+        This is equivalent to calling write() for each element.
+        """
+        for line in lines:
+            await self.write(line)
+
+    async def truncate(self, size: T.Optional[int] = None) -> int:
+        """
+        Resize the stream to the given size in bytes.
+
+        :param size: resize size, defaults to None
+        :type size: int, optional
+
+        :raises OSError: When the stream is not support truncate.
+        :return: The new file size.
+        :rtype: int
+        """
+        raise io.UnsupportedOperation("not support truncate")
+
+    async def read(self, size: T.Optional[int] = None) -> T.AnyStr:
+        raise OSError("not readable")
+
+    async def readline(self, size: T.Optional[int] = None) -> T.AnyStr:
+        raise OSError("not readable")
+
+    async def readlines(self, hint: T.Optional[int] = None) -> T.List[T.AnyStr]:
+        raise OSError("not readable")

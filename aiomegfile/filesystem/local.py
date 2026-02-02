@@ -9,9 +9,9 @@ import aiofiles.os
 import aiofiles.ospath
 
 from aiomegfile.interfaces import (
+    AsyncScannableManager,
     BaseFileSystem,
     FileEntry,
-    ScanContextManager,
     StatResult,
 )
 from aiomegfile.utils.path import split_uri
@@ -197,7 +197,7 @@ class LocalFileSystem(BaseFileSystem):
         async def aexit(exc_type, exc_value, traceback) -> None:
             sync_scandir.close()
 
-        return ScanContextManager(aiterator(), aexit)
+        return AsyncScannableManager(aiterator(), aexit)
 
     def scanfile(
         self,
@@ -228,7 +228,7 @@ class LocalFileSystem(BaseFileSystem):
                         ),
                     )
 
-        return ScanContextManager(aiterator())
+        return AsyncScannableManager(aiterator())
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """
