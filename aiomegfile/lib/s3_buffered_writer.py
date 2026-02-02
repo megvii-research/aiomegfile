@@ -14,7 +14,7 @@ from aiomegfile.errors import translate_s3_error
 from aiomegfile.interfaces import AsyncWritable
 
 if TYPE_CHECKING:
-    from types_aiobotocore_s3 import S3Client
+    from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
 
 _logger = get_logger(__name__)
 
@@ -319,7 +319,7 @@ class AsyncS3BufferedWriter(AsyncWritable):
             await self._client.complete_multipart_upload(
                 Bucket=self._bucket,
                 Key=self._key,
-                MultipartUpload=multipart_upload,
+                MultipartUpload=multipart_upload,  # pyre-ignore[6]
                 UploadId=upload_id,
             )
         except Exception as e:
