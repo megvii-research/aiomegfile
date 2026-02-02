@@ -663,7 +663,7 @@ class AsyncReadable(AsyncFileLike[T.AnyStr], ABC):
     async def readlines(self, hint: T.Optional[int] = None) -> T.List[T.AnyStr]:
         """Return a list of lines from the stream."""
         data = await self.read(size=hint)
-        return data.splitlines(True)  # pyre: ignore[7]
+        return data.splitlines(True)  # pyre-ignore[7]
 
     async def readinto(self, buffer: bytearray) -> int:
         """Read bytes into buffer.
@@ -676,7 +676,7 @@ class AsyncReadable(AsyncFileLike[T.AnyStr], ABC):
 
         data = await self.read(len(buffer))
         size = len(data)
-        buffer[:size] = data  # pyre: ignore[6]
+        buffer[:size] = data  # pyre-ignore[6]
         return size
 
     async def __anext__(self) -> T.AnyStr:
