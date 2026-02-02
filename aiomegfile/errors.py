@@ -1,9 +1,16 @@
+import asyncio
+import logging
+import typing as T
 from contextlib import contextmanager
+from functools import wraps
 from shutil import SameFileError
 
 from botocore.exceptions import ClientError, NoCredentialsError, ParamValidationError
 
+from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
 from aiomegfile.utils.path import PathLike
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "full_class_name",
@@ -185,3 +192,47 @@ def raise_s3_error(s3_url: PathLike, suppress_error_callback=None):
         if suppress_error_callback and suppress_error_callback(error):
             return
         raise error from e
+
+
+def async_retry(
+    should_retry: T.Callable[[Exception], bool],
+    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
+    after_callback: T.Optional[T.Callable[..., T.Awaitable[T.Any]]] = None,
+    retry_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
+):
+    def decorator(func: T.Callable[..., T.Awaitable[T.Any]]):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            if before_callback is not None:
+                await before_callback(*args, **kwargs)
+
+            for retries in range(1, max_retries + 1):
+                try:
+                    result = await func(*args, **kwargs)
+                    if after_callback is not None:
+                        result = await after_callback(result, *args, **kwargs)
+                    if retries > 1:
+                        logger.info(f"Error already fixed by retry {retries - 1} times")
+                    return result
+                except Exception as error:
+                    if not should_retry(error):
+                        raise
+                    if retry_callback is not None:
+                        await retry_callback(error, *args, **kwargs)
+                    if retries >= max_retries:
+                        logger.error(
+                            f"Cannot handle error {full_error_message(error)} "
+                            f"after {retries} tries"
+                        )
+                        raise
+                    retry_interval = min(0.1 * 2**retries, 30)
+                    logger.info(
+                        f"unknown error encountered: {full_error_message(error)}, "
+                        f"retry in {retry_interval:.1f}s after {retries} tries"
+                    )
+                    await asyncio.sleep(retry_interval)
+
+        return wrapper
+
+    return decorator
