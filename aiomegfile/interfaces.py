@@ -624,7 +624,7 @@ class AsyncFileLike(AsyncClosable, T.Generic[T.AnyStr], ABC):
         """Return the current stream position."""
 
 
-class AsyncSeekable(AsyncFileLike, ABC):
+class AsyncSeekable(AsyncFileLike[T.AnyStr], ABC):
     """Async seekable file-like base class."""
 
     async def seekable(self) -> bool:

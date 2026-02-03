@@ -1,12 +1,12 @@
 import asyncio
 import codecs
 import os
+import typing as T
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from io import BytesIO, StringIO
 from logging import getLogger as get_logger
 from math import ceil
-from typing import Optional
 
 from aiomegfile.config import (
     DEFAULT_MAX_RETRY_TIMES,
@@ -32,7 +32,7 @@ class SeekRecord:
 # bytes (e.g., seek(1) moves 1 byte), while its read methods work with characters
 # (e.g., read(1) reads 1 char). To ensure consistency,
 # the following Reader must observe this rule.
-class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
+class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], ABC):
     """Base class for async prefetch readers.
 
     This class provides async read operations with automatic prefetching
@@ -52,12 +52,12 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         self,
         *,
         mode: str = "rb",
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
         block_size: int = READER_BLOCK_SIZE,
         max_buffer_size: int = READER_MAX_BUFFER_SIZE,
-        block_forward: Optional[int] = None,
+        block_forward: T.Optional[int] = None,
         max_retries: int = DEFAULT_MAX_RETRY_TIMES,
         **kwargs,
     ):
@@ -87,7 +87,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         if not self._is_text_mode:
             self._newline = NEWLINE
         elif not newline:
-            self._newline = NEWLINE.decode(self._encoding)
+            self._newline = NEWLINE.decode(self._encoding)  # pyre-ignore[6]
         else:
             self._newline = newline
 
@@ -121,7 +121,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         self._offset = 0
         self._cached_buffer = None
         self._block_index = 0  # Current block index
-        self._cached_offset = 0  # Current offset in the current block
+        self._cached_offset: T.Optional[int] = 0  # Current offset in the current block
         self._seek_history = []
 
         # Initialize tasks manager
@@ -148,7 +148,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
             raise RuntimeError(
                 "Content size not initialized. Call _init_content_size() first."
             )
-        return self._cached_content_size
+        return self._cached_content_size  # pyre-ignore[16]
 
     @property
     def _block_stop(self) -> int:
@@ -157,7 +157,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
 
     async def _init_content_size(self) -> None:
         """Initialize content size asynchronously."""
-        self._cached_content_size = await self._get_content_size()
+        self._cached_content_size = await self._get_content_size()  # pyre-ignore[16]
 
     async def __aenter__(self):
         await self._init_content_size()
@@ -222,7 +222,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
             buffer = await self._get_next_buffer()
             yield buffer.read()
 
-    async def read(self, size: Optional[int] = None) -> bytes | str:
+    async def read(self, size: T.Optional[int] = None) -> T.AnyStr:
         """Read at most size bytes/characters, returned as bytes or str.
 
         If the size argument is negative, read until EOF is reached.
@@ -292,7 +292,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         self._offset += bytes_offset
         return str_buffer.getvalue()
 
-    async def readline(self, size: Optional[int] = None) -> bytes | str:
+    async def readline(self, size: T.Optional[int] = None) -> T.AnyStr:
         """Next line from the file, as bytes or str.
 
         Retain newline. A non-negative size argument limits the maximum
@@ -332,7 +332,9 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
 
                 if self._is_text_mode:
                     current_bytes_offset = len(
-                        latest_chars.encode(self._encoding, errors=self._errors)
+                        latest_chars.encode(  # pytype: disable=attribute-error
+                            self._encoding, errors=self._errors
+                        )
                     )
                 else:
                     current_bytes_offset = len(latest_chars)
@@ -351,7 +353,9 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
                 _buffer.write(latest_chars)
                 if self._is_text_mode:
                     current_bytes_offset = len(
-                        latest_chars.encode(self._encoding, errors=self._errors)
+                        latest_chars.encode(  # pytype: disable=attribute-error
+                            self._encoding, errors=self._errors
+                        )
                     )
                 else:
                     current_bytes_offset = len(latest_chars)
@@ -370,7 +374,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         else:
             if decoder:
                 decoded = decoder.decode(b"", True)
-                _buffer.write(decoded)
+                _buffer.write(decoded)  # pyre-ignore[6]
             bytes_offset = self._content_size - self._offset
 
         self._offset += bytes_offset
@@ -464,7 +468,10 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         if self._cached_offset is not None:
             if self._block_forward > 0:  # pyre-ignore[58]
                 start = self._block_index
-                stop = min(start + self._block_forward, self._block_stop)
+                stop = min(
+                    start + self._block_forward,  # pyre-ignore[58]
+                    self._block_stop,
+                )
 
                 for index in range(start, stop + 1):
                     await self._submit_task(index)
@@ -528,7 +535,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
 
     @abstractmethod
     async def _fetch_response(
-        self, start: Optional[int] = None, end: Optional[int] = None
+        self, start: T.Optional[int] = None, end: T.Optional[int] = None
     ) -> dict:
         """Fetch response from storage.
 
@@ -580,7 +587,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
     async def close(self) -> None:
         """Close the reader and cleanup resources."""
         _logger.debug("close file: %r" % self.name)
-        await self._tasks.clear()  # clean memory
+        await self._tasks.aclear()  # clean memory
 
 
 class AsyncLRUCacheTaskManager(OrderedDict):
@@ -645,7 +652,7 @@ class AsyncLRUCacheTaskManager(OrderedDict):
             _logger.debug("cleanup tasks: %r, keys: %s" % (self._name, keys))
         return keys
 
-    async def clear(self) -> None:
+    async def aclear(self) -> None:
         """Clear all tasks and cancel pending ones."""
         await self.cleanup(0)
-        super().clear()
+        self.clear()

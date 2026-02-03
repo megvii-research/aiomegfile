@@ -72,7 +72,9 @@ def s3_should_retry(exception: Exception):
         logger.debug("Retryable exception encountered: %s", exception)
         return True
     if isinstance(exception, botocore.exceptions.ClientError):
-        error_data = exception.response.get("Error", {})
+        error_data = exception.response.get(  # pytype: disable=attribute-error
+            "Error", {}
+        )
         error_code = error_data.get("Code") or error_data.get("code", "Unknown")
         if error_code in S3_RETRY_ERROR_CODES:
             logger.debug("Retryable error code encountered: %s", error_code)

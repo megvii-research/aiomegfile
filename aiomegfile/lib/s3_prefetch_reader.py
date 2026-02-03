@@ -147,8 +147,8 @@ class AsyncS3PrefetchReader(AsyncBasePrefetchReader):
                 )
                 # Read the streaming body into BytesIO
                 body_bytes = await response["Body"].read()
-                response["Body"] = BytesIO(body_bytes)
-                return response
+                response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
+                return response  # pyre-ignore[7]
 
             range_str = f"bytes={start}-{end}"
             response = await self._client.get_object(
@@ -156,8 +156,8 @@ class AsyncS3PrefetchReader(AsyncBasePrefetchReader):
             )
             # Read the streaming body into BytesIO
             body_bytes = await response["Body"].read()
-            response["Body"] = BytesIO(body_bytes)
-            return response
+            response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
+            return response  # pyre-ignore[7]
 
         with raise_s3_error(self.name):
             return await fetch_response()
