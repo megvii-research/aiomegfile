@@ -7,10 +7,11 @@ import pytest
 import urllib3.exceptions
 from aiobotocore.retries.standard import AioRetryHandler
 
-from aiomegfile.filesystem.s3 import (
+from aiomegfile.filesystem.s3 import S3FileSystem
+from aiomegfile.lib.s3_retry import (
     AioMegfileRetryConditions,
-    S3FileSystem,
     register_retry_handler,
+    s3_should_retry,
 )
 
 _aws_access_key_id = "testing"
@@ -23,6 +24,117 @@ def mock_s3_env(monkeypatch):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", _aws_access_key_id)
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", _aws_secret_access_key)
     monkeypatch.setenv("AWS_ENDPOINT_URL", "http://localhost:5000")
+
+
+class TestS3ShouldRetry:
+    """Test s3_should_retry function."""
+
+    def test_retry_on_read_timeout_error(self):
+        """Test that ReadTimeoutError triggers retry."""
+        exception = botocore.exceptions.ReadTimeoutError(
+            endpoint_url="http://example.com"
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_endpoint_connection_error(self):
+        """Test that EndpointConnectionError triggers retry."""
+        exception = botocore.exceptions.EndpointConnectionError(
+            endpoint_url="http://example.com"
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_incomplete_read_error(self):
+        """Test that IncompleteReadError from botocore triggers retry."""
+        exception = botocore.exceptions.IncompleteReadError(
+            actual_bytes=50, expected_bytes=100
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_urllib3_incomplete_read(self):
+        """Test that IncompleteRead from urllib3 triggers retry."""
+        exception = urllib3.exceptions.IncompleteRead(partial=b"", expected=100)
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_client_error_with_retryable_code(self):
+        """Test that ClientError with retryable error code triggers retry."""
+        # Mock a ClientError with a retryable error code
+        exception = botocore.exceptions.ClientError(
+            error_response={
+                "Error": {"Code": "503", "Message": "Service Unavailable"},
+                "ResponseMetadata": {"HTTPStatusCode": 503},
+            },
+            operation_name="HeadObject",
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_client_error_with_request_timeout(self):
+        """Test that ClientError with RequestTimeout code triggers retry."""
+        exception = botocore.exceptions.ClientError(
+            error_response={
+                "Error": {
+                    "Code": "RequestTimeout",
+                    "Message": (
+                        "Your socket connection to the server was not read "
+                        "from or written to within the timeout period."
+                    ),
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 400},
+            },
+            operation_name="HeadObject",
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_client_error_with_internal_error(self):
+        """Test that ClientError with InternalError code triggers retry."""
+        exception = botocore.exceptions.ClientError(
+            error_response={
+                "Error": {
+                    "Code": "InternalError",
+                    "Message": "We encountered an internal error. Please try again.",
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 500},
+            },
+            operation_name="GetObject",
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_retry_on_client_error_with_qps_limit_exceeded(self):
+        """Test that ClientError with QpsLimitExceeded code triggers retry."""
+        exception = botocore.exceptions.ClientError(
+            error_response={
+                "Error": {
+                    "Code": "QpsLimitExceeded",
+                    "Message": "Please reduce your request rate.",
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 429},
+            },
+            operation_name="ListObjects",
+        )
+        assert s3_should_retry(exception) is True
+
+    def test_no_retry_on_client_error_with_non_retryable_code(self):
+        """Test ClientError with non-retryable code doesn't trigger retry."""
+        exception = botocore.exceptions.ClientError(
+            error_response={
+                "Error": {
+                    "Code": "NoSuchKey",
+                    "Message": "The specified key does not exist.",
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 404},
+            },
+            operation_name="GetObject",
+        )
+        assert s3_should_retry(exception) is False
+
+    def test_no_retry_on_non_retryable_exception(self):
+        """Test that non-retryable exceptions don't trigger retry."""
+        exception = ValueError("Not a retryable error")
+        assert s3_should_retry(exception) is False
+
+    def test_no_retry_on_key_error(self):
+        """Test that KeyError doesn't trigger retry."""
+        exception = KeyError("missing_key")
+        assert s3_should_retry(exception) is False
 
 
 class TestAioMegfileRetryConditions:

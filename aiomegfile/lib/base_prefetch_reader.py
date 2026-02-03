@@ -18,7 +18,7 @@ from aiomegfile.interfaces import AsyncReadable, AsyncSeekable
 _logger = get_logger(__name__)
 
 # Newline byte value
-NEWLINE = ord(b"\n")
+NEWLINE = b"\n"
 
 
 class SeekRecord:
@@ -77,7 +77,9 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
             )
         self._errors = errors or "backslashreplace" if self._is_text_mode else None
 
-        if newline not in (None, "", "\n", "\r", "\r\n"):
+        if newline and not self._is_text_mode:
+            raise ValueError("newline parameter only supported in text mode")
+        elif newline not in (None, "", "\n", "\r", "\r\n"):
             raise ValueError(
                 f"Invalid newline value: {newline!r}, must be "
                 "None, '', '\\n', '\\r', or '\\r\\n'"
@@ -85,7 +87,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         if not self._is_text_mode:
             self._newline = NEWLINE
         elif not newline:
-            self._newline = chr(NEWLINE)
+            self._newline = NEWLINE.decode(self._encoding)
         else:
             self._newline = newline
 
@@ -157,6 +159,10 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         """Initialize content size asynchronously."""
         self._cached_content_size = await self._get_content_size()
 
+    async def __aenter__(self):
+        await self._init_content_size()
+        return self
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -207,12 +213,14 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         self._seek_buffer(block_index, block_offset)
         return self._offset
 
-    def _iterator_byte_blocks(self) -> asyncio.Iterator[bytes]:
-        loop = asyncio.get_event_loop()
-        yield loop.run_until_complete(self._get_buffer()).read()
+    async def _async_iterator_byte_blocks(self):
+        """Async generator for byte blocks."""
+        buffer = await self._get_buffer()
+        yield buffer.read()
 
         while self._block_index < self._block_stop - 1:
-            yield loop.run_until_complete(self._get_next_buffer()).read()
+            buffer = await self._get_next_buffer()
+            yield buffer.read()
 
     async def read(self, size: Optional[int] = None) -> bytes | str:
         """Read at most size bytes/characters, returned as bytes or str.
@@ -226,6 +234,7 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         if self.closed:
             raise IOError("file already closed: %r" % self.name)
 
+        print(self._offset, self._content_size)
         if self._offset >= self._content_size:
             return "" if self._is_text_mode else b""
         if size == 0:
@@ -244,25 +253,43 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         if len(self._seek_history) > 0:
             self._seek_history[-1].read_count += 1
 
-        decoded_iterator = codecs.iterdecode(
-            self._iterator_byte_blocks(),
-            self._encoding,
-            errors=self._errors,
-        )
+        # Text mode: manually decode bytes
         str_buffer = StringIO()
-        for chars in decoded_iterator:
-            if size is not None and size > 0 and str_buffer.tell() >= size:
-                latest_chars = chars[: size - str_buffer.tell()]
-                str_buffer.write(latest_chars)
-                self._offset += len(
-                    latest_chars.encode(self._encoding, errors=self._errors)
-                )
-                return str_buffer.getvalue()
-            str_buffer.write(chars)
-            self._offset += self._block_size
-        else:
-            self._offset = self._content_size
+        bytes_offset = 0
+        decoder = codecs.getincrementaldecoder(self._encoding)(errors=self._errors)
 
+        async for chunk in self._async_iterator_byte_blocks():
+            total_bytes = len(chunk)
+            decoded = decoder.decode(chunk, False)
+            if size is not None and size > 0:
+                chars_needed = size - str_buffer.tell()
+                if len(decoded) >= chars_needed:
+                    str_buffer.write(decoded[:chars_needed])
+
+                    # Calculate bytes consumed
+                    current_bytes_offset = len(
+                        decoded[:chars_needed].encode(
+                            self._encoding, errors=self._errors
+                        )
+                    )
+                    if self._cached_buffer:
+                        self._cached_buffer.seek(
+                            current_bytes_offset - total_bytes,
+                            os.SEEK_END,
+                        )
+                    bytes_offset += current_bytes_offset
+
+                    self._offset += bytes_offset
+                    return str_buffer.getvalue()
+            str_buffer.write(decoded)
+            bytes_offset += len(chunk)
+        else:
+            # Decode any remaining bytes
+            decoded = decoder.decode(b"", True)
+            str_buffer.write(decoded)
+            bytes_offset = self._content_size - self._offset
+
+        self._offset += bytes_offset
         return str_buffer.getvalue()
 
     async def readline(self, size: Optional[int] = None) -> bytes | str:
@@ -288,43 +315,65 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         if size == 0:
             return "" if self._is_text_mode else b""
 
-        _iterator = self._iterator_byte_blocks()
+        bytes_offset = 0
         if self._is_text_mode:
-            _iterator = codecs.iterdecode(
-                _iterator,
-                self._encoding,
-                errors=self._errors,
-            )
             _buffer = StringIO()
+            decoder = codecs.getincrementaldecoder(self._encoding)(errors=self._errors)
         else:
             _buffer = BytesIO()
-        for chars in _iterator:
-            if size is not None and size > 0 and len(chars) + _buffer.tell() >= size:
-                latest_chars = chars[: size - _buffer.tell()]
+            decoder = None
+        async for chunk in self._async_iterator_byte_blocks():
+            total_bytes = len(chunk)
+            if decoder:
+                chunk = decoder.decode(chunk, False)
+            if size is not None and size > 0 and len(chunk) + _buffer.tell() >= size:
+                latest_chars = chunk[: size - _buffer.tell()]
                 _buffer.write(latest_chars)
-                self._offset += (
-                    len(latest_chars.encode(self._encoding, errors=self._errors))
-                    if self._is_text_mode
-                    else len(latest_chars)
-                )
+
+                if self._is_text_mode:
+                    current_bytes_offset = len(
+                        latest_chars.encode(self._encoding, errors=self._errors)
+                    )
+                else:
+                    current_bytes_offset = len(latest_chars)
+                if self._cached_buffer:
+                    self._cached_buffer.seek(
+                        current_bytes_offset - total_bytes,
+                        os.SEEK_END,
+                    )
+                bytes_offset += current_bytes_offset
+                self._offset += bytes_offset
                 return _buffer.getvalue()
 
-            newline_index = chars.find(self._newline)
+            newline_index = chunk.find(self._newline)
             if newline_index >= 0:
-                latest_chars = chars[: newline_index + len(self._newline)]
+                latest_chars = chunk[: newline_index + len(self._newline)]
                 _buffer.write(latest_chars)
-                self._offset += (
-                    len(latest_chars.encode(self._encoding, errors=self._errors))
-                    if self._is_text_mode
-                    else len(latest_chars)
-                )
+                if self._is_text_mode:
+                    current_bytes_offset = len(
+                        latest_chars.encode(self._encoding, errors=self._errors)
+                    )
+                else:
+                    current_bytes_offset = len(latest_chars)
+                if self._cached_buffer:
+                    self._cached_buffer.seek(
+                        current_bytes_offset - total_bytes,
+                        os.SEEK_END,
+                    )
+                bytes_offset += current_bytes_offset
+                self._offset += bytes_offset
+                print(f"{self._offset} {current_bytes_offset}")
                 return _buffer.getvalue()
 
-            _buffer.write(chars)
-            self._offset += self._block_size
+            _buffer.write(chunk)
+            bytes_offset += self._block_size
         else:
-            self._offset = self._content_size
+            if decoder:
+                decoded = decoder.decode(b"", True)
+                _buffer.write(decoded)
+            bytes_offset = self._content_size - self._offset
 
+        self._offset += bytes_offset
         return _buffer.getvalue()
 
     async def _read(self, size: int) -> bytes:
@@ -392,11 +441,6 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         return size
 
     @property
-    def _is_downloading(self) -> bool:
-        """Return True if there are pending tasks."""
-        return not self._tasks.finished
-
-    @property
     def _cached_blocks(self) -> list:
         """Return list of cached block indices."""
         return list(self._tasks.keys())
@@ -408,7 +452,12 @@ class AsyncBasePrefetchReader(AsyncReadable[bytes], AsyncSeekable, ABC):
         """
         if self._block_capacity == 0:
             buffer = await self._fetch_buffer(index=self._block_index)
-            buffer.seek(self._cached_offset)
+            if self._cached_offset is not None:
+                # seek when change self._cached_offset
+                offset = self._cached_offset
+            else:
+                offset = self._offset % self._block_size
+            buffer.seek(offset)
             self._cached_offset = None
             return buffer
 
@@ -592,10 +641,6 @@ class AsyncLRUCacheTaskManager(OrderedDict):
             keys.append(key)
             if not task.done():
                 task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
         if keys:
             _logger.debug("cleanup tasks: %r, keys: %s" % (self._name, keys))
         return keys

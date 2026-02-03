@@ -33,6 +33,7 @@ __all__ = [
     "SameFileError",
     "translate_s3_error",
     "raise_s3_error",
+    "async_retry",
 ]
 
 

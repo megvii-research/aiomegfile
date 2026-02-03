@@ -13,11 +13,11 @@ from aiomegfile.errors import (
     S3InvalidRangeError,
     async_retry,
     raise_s3_error,
-    s3_should_retry,
 )
 from aiomegfile.lib.base_prefetch_reader import (
     AsyncBasePrefetchReader,
 )
+from aiomegfile.lib.s3_retry import s3_should_retry
 
 if TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
