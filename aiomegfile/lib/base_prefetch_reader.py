@@ -229,6 +229,30 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         """
         return T.cast(T.AnyStr, "" if self._is_text_mode else b"")
 
+    def _record_read(self) -> None:
+        """Record a read operation for auto-scaling seek history."""
+        if self._seek_history:
+            self._seek_history[-1].read_count += 1
+
+    def _bytes_length(self, data: T.AnyStr) -> int:
+        """Return byte length for provided data based on mode.
+
+        :param data: Data chunk in current mode.
+        :return: Byte length of the chunk.
+        """
+        if self._is_text_mode:
+            return len(T.cast(str, data).encode(self._encoding, errors=self._errors))
+        return len(T.cast(bytes, data))
+
+    def _adjust_cached_buffer(self, consumed_bytes: int, total_bytes: int) -> None:
+        """Adjust cached buffer position for partial block consumption.
+
+        :param consumed_bytes: Bytes consumed from the current block.
+        :param total_bytes: Total bytes in the current block.
+        """
+        if self._cached_buffer:
+            self._cached_buffer.seek(consumed_bytes - total_bytes, os.SEEK_END)
+
     async def read(self, size: T.Optional[int] = None) -> T.AnyStr:
         """Read at most size bytes/characters, returned as bytes or str.
 
@@ -256,8 +280,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             await self.readinto(buffer)
             return bytes(buffer)  # pyre-ignore[7]
 
-        if len(self._seek_history) > 0:
-            self._seek_history[-1].read_count += 1
+        self._record_read()
 
         # Text mode: manually decode bytes
         str_buffer = StringIO()
@@ -273,16 +296,8 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
                     str_buffer.write(decoded[:chars_needed])
 
                     # Calculate bytes consumed
-                    current_bytes_offset = len(
-                        decoded[:chars_needed].encode(
-                            self._encoding, errors=self._errors
-                        )
-                    )
-                    if self._cached_buffer:
-                        self._cached_buffer.seek(
-                            current_bytes_offset - total_bytes,
-                            os.SEEK_END,
-                        )
+                    current_bytes_offset = self._bytes_length(decoded[:chars_needed])
+                    self._adjust_cached_buffer(current_bytes_offset, total_bytes)
                     bytes_offset += current_bytes_offset
 
                     self._offset += bytes_offset
@@ -316,8 +331,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
 
         if self._offset >= self._content_size:
             return self._empty_value()
-        if len(self._seek_history) > 0:
-            self._seek_history[-1].read_count += 1
+        self._record_read()
         if size == 0:
             return self._empty_value()
 
@@ -336,19 +350,8 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
                 latest_chars = chunk[: size - _buffer.tell()]
                 _buffer.write(latest_chars)
 
-                if self._is_text_mode:
-                    current_bytes_offset = len(
-                        latest_chars.encode(  # pytype: disable=attribute-error
-                            self._encoding, errors=self._errors
-                        )
-                    )
-                else:
-                    current_bytes_offset = len(latest_chars)
-                if self._cached_buffer:
-                    self._cached_buffer.seek(
-                        current_bytes_offset - total_bytes,
-                        os.SEEK_END,
-                    )
+                current_bytes_offset = self._bytes_length(latest_chars)
+                self._adjust_cached_buffer(current_bytes_offset, total_bytes)
                 bytes_offset += current_bytes_offset
                 self._offset += bytes_offset
                 return _buffer.getvalue()  # pyre-ignore[7]
@@ -357,22 +360,10 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             if newline_index >= 0:
                 latest_chars = chunk[: newline_index + len(self._newline)]
                 _buffer.write(latest_chars)
-                if self._is_text_mode:
-                    current_bytes_offset = len(
-                        latest_chars.encode(  # pytype: disable=attribute-error
-                            self._encoding, errors=self._errors
-                        )
-                    )
-                else:
-                    current_bytes_offset = len(latest_chars)
-                if self._cached_buffer:
-                    self._cached_buffer.seek(
-                        current_bytes_offset - total_bytes,
-                        os.SEEK_END,
-                    )
+                current_bytes_offset = self._bytes_length(latest_chars)
+                self._adjust_cached_buffer(current_bytes_offset, total_bytes)
                 bytes_offset += current_bytes_offset
                 self._offset += bytes_offset
-                print(f"{self._offset} {current_bytes_offset}")
                 return _buffer.getvalue()  # pyre-ignore[7]
 
             _buffer.write(chunk)
@@ -413,8 +404,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         if self._is_text_mode:
             raise IOError("readinto() not supported in text mode")
 
-        if len(self._seek_history) > 0:
-            self._seek_history[-1].read_count += 1
+        self._record_read()
 
         if self._offset >= self._content_size:
             return 0

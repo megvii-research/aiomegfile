@@ -353,6 +353,26 @@ class TestAsyncS3PrefetchReader:
             line2 = await reader.readline()
             assert line2 == "世界"
 
+    async def test_readline_with_size_unicode_text(
+        self,
+        s3_client,
+        create_bucket,  # noqa: ARG002
+    ):
+        """Test readline with size in bytes for unicode text."""
+        content = "你好\n世界"
+        key = "test_readline_with_size_unicode_text.txt"
+        await self._put_object(s3_client, key, content.encode())
+
+        async with async_s3_prefetch_open(
+            _bucket_name, key, s3_client=s3_client, mode="r"
+        ) as reader:
+            line1 = await reader.readline(2)
+            assert line1 == "你好"
+            line2 = await reader.readline()
+            assert line2 == "\n"
+            line3 = await reader.readline()
+            assert line3 == "世界"
+
     # Test readinto() method (binary mode only)
 
     async def test_readinto_binary(self, s3_client, create_bucket):  # noqa: ARG002
