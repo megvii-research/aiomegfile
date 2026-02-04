@@ -434,7 +434,7 @@ class SmartPath(os.PathLike):
         if self._path in {"", "/"}:
             return self
         elif len(self.parents) > 0:
-            return self.parents[0]  # pytype: disable=bad-return-type
+            return self.parents[0]  # pytype: disable=bad-return-type # pyre-ignore[7]
         return self.from_uri(self.filesystem.build_uri(""))
 
     async def is_dir(self, followlinks: bool = False) -> bool:

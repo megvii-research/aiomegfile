@@ -169,7 +169,7 @@ class AsyncIOManager(AbstractAsyncContextManager):
         """Return self to provide a minimal awaitable interface."""
 
         async def dummy():
-            return self._thing
+            return await self.__aenter__()
 
         return dummy().__await__()
 
@@ -222,7 +222,7 @@ class AsyncScannableManager(AbstractAsyncContextManager):
         """Return self to provide a minimal awaitable interface."""
 
         async def dummy():
-            return self
+            return await self.__aenter__()
 
         return dummy().__await__()
 
@@ -548,6 +548,14 @@ class AsyncClosable(ABC):
         """
         pass  # pragma: no cover
 
+    def __await__(self):
+        """Return self to provide a minimal awaitable interface."""
+
+        async def dummy():
+            return await self.__aenter__()
+
+        return dummy().__await__()
+
     async def __aenter__(self: Self) -> Self:
         return self
 
@@ -616,7 +624,7 @@ class AsyncFileLike(AsyncClosable, T.Generic[T.AnyStr], ABC):
         """Return the current stream position."""
 
 
-class AsyncSeekable(AsyncFileLike, ABC):
+class AsyncSeekable(AsyncFileLike[T.AnyStr], ABC):
     """Async seekable file-like base class."""
 
     async def seekable(self) -> bool:
