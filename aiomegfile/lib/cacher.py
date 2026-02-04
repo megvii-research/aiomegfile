@@ -147,7 +147,10 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
         await aiofiles.os.unlink(cache_path)
         if "w" not in self._mode:
             try:
-                await self._download_fileobj(self._path, self._fileobj)
+                await self._download_fileobj(  # pytype: disable=wrong-arg-types
+                    self._path,
+                    self._fileobj,
+                )
                 if "a" not in self._mode:
                     await self._fileobj.seek(0)
             except FileNotFoundError:
@@ -181,7 +184,10 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
         if await self.writable():
             await self._fileobj.flush()
             await self._fileobj.seek(0)
-            await self._upload_fileobj(self._fileobj, self._path)
+            await self._upload_fileobj(  # pytype: disable=wrong-arg-types
+                self._fileobj,
+                self._path,
+            )
         await self._fileobj.close()
 
     async def _read_check(self) -> None:
