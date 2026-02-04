@@ -142,19 +142,23 @@ class AsyncS3PrefetchReader(AsyncBasePrefetchReader):
         @async_retry(should_retry=s3_should_retry, max_retries=self._max_retries)
         async def fetch_response() -> dict:
             if start is None or end is None:
-                response = await self._client.get_object(
-                    Bucket=self._bucket, Key=self._key
-                )
-                # Read the streaming body into BytesIO
+                with raise_s3_error(self.name):
+                    # The client has a retry mechanism;
+                    # raise_s3_error prevents nested retries.
+                    response = await self._client.get_object(
+                        Bucket=self._bucket, Key=self._key
+                    )
                 body_bytes = await response["Body"].read()
                 response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
                 return response  # pyre-ignore[7]
 
             range_str = f"bytes={start}-{end}"
-            response = await self._client.get_object(
-                Bucket=self._bucket, Key=self._key, Range=range_str
-            )
-            # Read the streaming body into BytesIO
+            with raise_s3_error(self.name):
+                # The client has a retry mechanism;
+                # raise_s3_error prevents nested retries.
+                response = await self._client.get_object(
+                    Bucket=self._bucket, Key=self._key, Range=range_str
+                )
             body_bytes = await response["Body"].read()
             response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
             return response  # pyre-ignore[7]

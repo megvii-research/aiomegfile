@@ -60,7 +60,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         block_forward: T.Optional[int] = None,
         max_retries: int = DEFAULT_MAX_RETRY_TIMES,
         **kwargs,
-    ):
+    ) -> None:
         self._mode = mode
 
         if mode not in ("r", "rb"):
@@ -222,6 +222,13 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             buffer = await self._get_next_buffer()
             yield buffer.read()
 
+    def _empty_value(self) -> T.AnyStr:
+        """Return the empty value for the current mode.
+
+        :return: Empty string in text mode or empty bytes in binary mode.
+        """
+        return T.cast(T.AnyStr, "" if self._is_text_mode else b"")
+
     async def read(self, size: T.Optional[int] = None) -> T.AnyStr:
         """Read at most size bytes/characters, returned as bytes or str.
 
@@ -234,11 +241,10 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         if self.closed:
             raise IOError("file already closed: %r" % self.name)
 
-        print(self._offset, self._content_size)
         if self._offset >= self._content_size:
-            return "" if self._is_text_mode else b""
+            return self._empty_value()
         if size == 0:
-            return "" if self._is_text_mode else b""
+            return self._empty_value()
 
         if not self._is_text_mode:
             if size is None or size < 0:
@@ -309,11 +315,11 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             raise IOError("file already closed: %r" % self.name)
 
         if self._offset >= self._content_size:
-            return "" if self._is_text_mode else b""
+            return self._empty_value()
         if len(self._seek_history) > 0:
             self._seek_history[-1].read_count += 1
         if size == 0:
-            return "" if self._is_text_mode else b""
+            return self._empty_value()
 
         bytes_offset = 0
         if self._is_text_mode:
