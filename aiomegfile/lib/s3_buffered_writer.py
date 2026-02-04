@@ -3,7 +3,7 @@ import os
 from collections import OrderedDict
 from io import BytesIO, TextIOWrapper
 from logging import getLogger as get_logger
-from typing import TYPE_CHECKING, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 from aiomegfile.config import (
     DEFAULT_WRITER_BLOCK_AUTOSCALE,
@@ -12,9 +12,6 @@ from aiomegfile.config import (
 )
 from aiomegfile.errors import translate_s3_error
 from aiomegfile.interfaces import AioWritable
-
-if TYPE_CHECKING:
-    from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
 
 _logger = get_logger(__name__)
 
@@ -59,7 +56,7 @@ class AioS3BufferedWriter(AioWritable):
         bucket: str,
         key: str,
         *,
-        s3_client: "S3Client",
+        filesystem,
         mode: str = "wb",
         encoding: Optional[str] = None,
         errors: Optional[str] = None,
@@ -76,7 +73,8 @@ class AioS3BufferedWriter(AioWritable):
         if mode not in ("w", "wb"):
             raise ValueError(f"Invalid mode: {mode!r}, must be 'w' or 'wb'")
 
-        self._client = s3_client
+        self._client = None
+        self._filesystem = filesystem
 
         # Text mode settings
         self._is_text_mode = "b" not in mode
@@ -124,14 +122,14 @@ class AioS3BufferedWriter(AioWritable):
 
         _logger.debug("open file: %r, mode: %s" % (self.name, self.mode))
 
+    async def __aenter__(self):
+        self._client = await self._filesystem._get_client()
+        return await super().__aenter__()
+
     @property
     def name(self) -> str:
         """Return the path of the file."""
-        # TODO: support URI with alias
-        return "%s/%s" % (
-            self._bucket,
-            self._key,
-        )
+        return self._filesystem.build_uri(f"{self._bucket}/{self._key}")
 
     @property
     def mode(self) -> str:
@@ -319,7 +317,7 @@ class AioS3BufferedWriter(AioWritable):
             await self._client.complete_multipart_upload(
                 Bucket=self._bucket,
                 Key=self._key,
-                MultipartUpload=multipart_upload,  # pyre-ignore[6]
+                MultipartUpload=multipart_upload,
                 UploadId=upload_id,
             )
         except Exception as e:

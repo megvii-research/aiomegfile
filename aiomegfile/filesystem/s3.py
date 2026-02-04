@@ -30,6 +30,9 @@ from aiomegfile.interfaces import (
     FileEntry,
     StatResult,
 )
+from aiomegfile.lib.cacher import AioCacher
+from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
+from aiomegfile.lib.s3_prefetch_reader import AioS3PrefetchReader
 from aiomegfile.lib.s3_retry import register_retry_handler
 from aiomegfile.utils.path import PathLike, fspath, split_uri
 
@@ -661,6 +664,64 @@ class S3FileSystem(BaseFileSystem):
         if await self.exists(path):
             raise S3FileExistsError(f"File exists: {self.build_uri(path)!r}")
 
+    def open(
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
+    ) -> T.AsyncContextManager:
+        """Open the file with mode.
+
+        :param path: File path to open.
+        :param mode: File open mode.
+        :param buffering: Buffering policy. Not used in s3.
+        :param encoding: Text encoding when using text modes.
+        :param errors: Error handling strategy for encoding/decoding.
+        :param newline: Newline handling in text mode.
+        :return: Async file context manager.
+        """
+        if "x" in mode:
+            raise ValueError("unacceptable 'x' mode: %r" % mode)
+
+        bucket, key = parse_s3_path(path)
+        if not bucket:
+            raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
+        if not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
+
+        if "a" in mode or "+" in mode:
+            return AioCacher(
+                path,
+                mode,
+                download_fileobj=self._download_fileobj,
+                upload_fileobj=self._upload_fileobj,
+            )
+
+        if "w" in mode:
+            fileobj = AioS3BufferedWriter(
+                bucket=bucket,
+                key=key,
+                filesystem=self,
+                mode=mode,
+                encoding=encoding,
+                errors=errors,
+                newline=newline,
+            )
+        else:
+            fileobj = AioS3PrefetchReader(
+                bucket=bucket,
+                key=key,
+                filesystem=self,
+                mode=mode,
+                encoding=encoding,
+                errors=errors,
+                newline=newline,
+            )
+        return fileobj
+
     async def upload(self, src_path: str, dst_path: str) -> None:
         """
         Upload a local file to S3.
@@ -706,6 +767,56 @@ class S3FileSystem(BaseFileSystem):
                     "Is a directory: %r" % self.build_uri(src_path)
                 )
             raise error from e
+
+    async def _download_fileobj(self, src_path: str, fileobj) -> None:
+        """Download S3 object to a file-like object.
+
+        :param src_path: S3 source path (without protocol).
+        :param fileobj: File-like object to write to.
+        :return: ``None``.
+        """
+        bucket, key = parse_s3_path(src_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(src_path)!r}")
+
+        with raise_s3_error(self.build_uri(src_path)):
+            mode = "rb" if "b" in fileobj.mode else "r"
+            async with AioS3PrefetchReader(
+                bucket=bucket,
+                key=key,
+                filesystem=self,
+                mode=mode,
+            ) as s3_file:
+                while True:
+                    chunk = await s3_file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    await fileobj.write(chunk)
+
+    async def _upload_fileobj(self, fileobj, dst_path: str) -> None:
+        """Upload from a file-like object to S3.
+
+        :param fileobj: File-like object to read from.
+        :param dst_path: S3 destination path (without protocol).
+        :return: ``None``.
+        """
+        bucket, key = parse_s3_path(dst_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(dst_path)!r}")
+
+        with raise_s3_error(self.build_uri(dst_path)):
+            mode = "wb" if "b" in fileobj.mode else "w"
+            async with AioS3BufferedWriter(
+                bucket=bucket,
+                key=key,
+                filesystem=self,
+                mode=mode,
+            ) as s3_file:
+                while True:
+                    chunk = await fileobj.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    await s3_file.write(chunk)
 
     async def copy(
         self,

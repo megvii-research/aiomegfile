@@ -63,7 +63,7 @@ class TestAioCacher:
         uploaded = {}
 
         async def download(path, fileobj):
-            await fileobj.write(b"hello")
+            await fileobj.write("hello")
 
         async def upload(fileobj, path):
             uploaded["data"] = await fileobj.read()
@@ -79,10 +79,10 @@ class TestAioCacher:
             pos = await cacher.seek(0)
             assert pos == 0
             result = await cacher.read()
-            assert result == b"hello"
-            await cacher.write(b"world")
+            assert result == "hello"
+            await cacher.write("world")
 
-        assert uploaded["data"] == b"helloworld"
+        assert uploaded["data"] == "helloworld"
 
     async def test_read_before_open_raises(self):
         """Raise error when reading before open.

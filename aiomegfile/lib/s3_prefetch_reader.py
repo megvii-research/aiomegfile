@@ -1,6 +1,6 @@
 import asyncio
 from io import BytesIO
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from aiomegfile.config import (
     READER_BLOCK_SIZE,
@@ -18,9 +18,6 @@ from aiomegfile.lib.base_prefetch_reader import (
     AioBasePrefetchReader,
 )
 from aiomegfile.lib.s3_retry import s3_should_retry
-
-if TYPE_CHECKING:
-    from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
 
 __all__ = [
     "AioS3PrefetchReader",
@@ -55,7 +52,7 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
         bucket: str,
         key: str,
         *,
-        s3_client: "S3Client",
+        filesystem,
         mode: str = "rb",
         encoding: Optional[str] = None,
         errors: Optional[str] = None,
@@ -67,7 +64,8 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
     ):
         self._bucket = bucket
         self._key = key
-        self._client = s3_client
+        self._filesystem = filesystem
+        self._client = None
         self._content_etag = None
 
         super().__init__(
@@ -80,6 +78,10 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
             block_forward=block_forward,
             max_retries=max_retries,
         )
+
+    async def __aenter__(self):
+        self._client = await self._filesystem._get_client()
+        return await super().__aenter__()
 
     async def _get_content_size(self) -> int:
         """Get the content size of the S3 object.
@@ -126,8 +128,7 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
     @property
     def name(self) -> str:
         """Return the path of the file."""
-        # TODO: support URI with alias
-        return f"{self._bucket}/{self._key}"
+        return self._filesystem.build_uri(f"{self._bucket}/{self._key}")
 
     async def _fetch_response(
         self, start: Optional[int] = None, end: Optional[int] = None
@@ -149,8 +150,8 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
                         Bucket=self._bucket, Key=self._key
                     )
                 body_bytes = await response["Body"].read()
-                response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
-                return response  # pyre-ignore[7]
+                response["Body"] = BytesIO(body_bytes)
+                return response
 
             range_str = f"bytes={start}-{end}"
             with raise_s3_error(self.name):
@@ -160,8 +161,8 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
                     Bucket=self._bucket, Key=self._key, Range=range_str
                 )
             body_bytes = await response["Body"].read()
-            response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
-            return response  # pyre-ignore[7]
+            response["Body"] = BytesIO(body_bytes)
+            return response
 
         with raise_s3_error(self.name):
             return await fetch_response()

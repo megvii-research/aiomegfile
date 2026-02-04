@@ -511,6 +511,254 @@ class TestS3FileSystem:
         assert fs1.same_endpoint(fs2) is True
         assert fs1.same_endpoint(fs3) is False
 
+    async def test_open_read_binary(self, filesystem):
+        """Test open in binary read mode."""
+        await self._create_bucket(filesystem)
+
+        content = b"hello world"
+        key = "test_read.txt"
+        await self._put_object(filesystem, key, content)
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            result = await f.read()
+            assert result == content
+
+    async def test_open_read_text(self, filesystem):
+        """Test open in text read mode."""
+        await self._create_bucket(filesystem)
+
+        content = "hello world"
+        key = "test_read_text.txt"
+        await self._put_object(filesystem, key, content.encode())
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="r") as f:
+            result = await f.read()
+            assert result == content
+
+    async def test_open_read_with_encoding(self, filesystem):
+        """Test open in text mode with specific encoding."""
+        await self._create_bucket(filesystem)
+
+        content = "你好世界"
+        key = "test_read_encoding.txt"
+        await self._put_object(filesystem, key, content.encode("utf-8"))
+
+        async with filesystem.open(
+            f"{_bucket_name}/{key}", mode="r", encoding="utf-8"
+        ) as f:
+            result = await f.read()
+            assert result == content
+
+    async def test_open_write_binary(self, filesystem):
+        """Test open in binary write mode."""
+        await self._create_bucket(filesystem)
+
+        content = b"write test content"
+        key = "test_write.txt"
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="wb") as f:
+            await f.write(content)
+
+        # Verify content was written
+        head = await self._head_object(filesystem, key)
+        assert head["ContentLength"] == len(content)
+
+    async def test_open_write_text(self, filesystem):
+        """Test open in text write mode."""
+        await self._create_bucket(filesystem)
+
+        content = "write test content"
+        key = "test_write_text.txt"
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="w") as f:
+            await f.write(content)
+
+        # Verify content was written
+        head = await self._head_object(filesystem, key)
+        assert head["ContentLength"] == len(content.encode())
+
+    async def test_open_write_with_encoding(self, filesystem):
+        """Test open in text write mode with specific encoding."""
+        await self._create_bucket(filesystem)
+
+        content = "你好世界"
+        key = "test_write_encoding.txt"
+
+        async with filesystem.open(
+            f"{_bucket_name}/{key}", mode="w", encoding="utf-8"
+        ) as f:
+            await f.write(content)
+
+        # Verify content was written
+        head = await self._head_object(filesystem, key)
+        assert head["ContentLength"] == len(content.encode("utf-8"))
+
+    async def test_open_append_binary(self, filesystem):
+        """Test open in binary append mode."""
+        await self._create_bucket(filesystem)
+
+        initial_content = b"initial content"
+        append_content = b" appended"
+        key = "test_append.txt"
+        await self._put_object(filesystem, key, initial_content)
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="ab") as f:
+            await f.write(append_content)
+
+        # Read back to verify
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            result = await f.read()
+            assert result == initial_content + append_content
+
+    async def test_open_append_text(self, filesystem):
+        """Test open in text append mode."""
+        await self._create_bucket(filesystem)
+
+        initial_content = "initial content"
+        append_content = " appended"
+        key = "test_append_text.txt"
+        await self._put_object(filesystem, key, initial_content.encode())
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="a") as f:
+            await f.write(append_content)
+
+        # Read back to verify
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="r") as f:
+            result = await f.read()
+            assert result == initial_content + append_content
+
+    async def test_open_append_plus_binary(self, filesystem):
+        """Test open in binary append+ mode (read and write)."""
+        await self._create_bucket(filesystem)
+
+        initial_content = b"initial content"
+        key = "test_append_plus.txt"
+        await self._put_object(filesystem, key, initial_content)
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="ab+") as f:
+            # Read existing content
+            await f.seek(0)
+            result = await f.read()
+            assert result == initial_content
+
+            # Append new content
+            await f.write(b" appended")
+
+        # Read back to verify
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            result = await f.read()
+            assert result == initial_content + b" appended"
+
+    async def test_open_append_plus_text(self, filesystem):
+        """Test open in text append+ mode (read and write)."""
+        await self._create_bucket(filesystem)
+
+        initial_content = "initial content"
+        key = "test_append_plus_text.txt"
+        await self._put_object(filesystem, key, initial_content.encode())
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="a+") as f:
+            # Read existing content
+            await f.seek(0)
+            result = await f.read()
+            assert result == initial_content
+
+            # Append new content
+            await f.write(" appended")
+
+        # Read back to verify
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="r") as f:
+            result = await f.read()
+            assert result == initial_content + " appended"
+
+    async def test_open_invalid_mode_x(self, filesystem):
+        """Test open with unsupported 'x' mode raises ValueError."""
+        await self._create_bucket(filesystem)
+
+        with pytest.raises(ValueError, match="unacceptable 'x' mode"):
+            filesystem.open(f"{_bucket_name}/test.txt", mode="x")
+
+    async def test_open_empty_bucket(self, filesystem):
+        """Test open with empty bucket raises error."""
+        await self._create_bucket(filesystem)
+
+        with pytest.raises(S3BucketNotFoundError):
+            filesystem.open("/key.txt", mode="r")
+
+    async def test_open_directory_path(self, filesystem):
+        """Test open with directory path raises error."""
+        await self._create_bucket(filesystem)
+
+        with pytest.raises(S3IsADirectoryError):
+            filesystem.open(f"{_bucket_name}/", mode="r")
+
+        with pytest.raises(S3IsADirectoryError):
+            filesystem.open(f"{_bucket_name}/dir/", mode="w")
+
+    async def test_open_file_not_found_read(self, filesystem):
+        """Test open non-existent file in read mode raises error."""
+        await self._create_bucket(filesystem)
+
+        # Opening non-existent file in read mode should raise when entering context
+        with pytest.raises(S3FileNotFoundError):
+            async with filesystem.open(f"{_bucket_name}/nonexistent.txt", mode="rb"):
+                pass
+
+    async def test_open_read_multiline(self, filesystem):
+        """Test reading multiline content."""
+        await self._create_bucket(filesystem)
+
+        content = b"line1\nline2\nline3"
+        key = "test_multiline.txt"
+        await self._put_object(filesystem, key, content)
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            line1 = await f.readline()
+            assert line1 == b"line1\n"
+            line2 = await f.readline()
+            assert line2 == b"line2\n"
+            line3 = await f.readline()
+            assert line3 == b"line3"
+
+    async def test_open_write_multiple_chunks(self, filesystem):
+        """Test writing multiple chunks."""
+        await self._create_bucket(filesystem)
+
+        key = "test_chunks.txt"
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="wb") as f:
+            await f.write(b"chunk1 ")
+            await f.write(b"chunk2 ")
+            await f.write(b"chunk3")
+
+        # Read back to verify
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            result = await f.read()
+            assert result == b"chunk1 chunk2 chunk3"
+
+    async def test_open_name_property(self, filesystem):
+        """Test that opened file has correct name property."""
+        await self._create_bucket(filesystem)
+
+        key = "test_name_property.txt"
+        await self._put_object(filesystem, key, b"test")
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            assert f.name == f"s3://{_bucket_name}/{key}"
+
+    async def test_open_mode_property(self, filesystem):
+        """Test that opened file has correct mode property."""
+        await self._create_bucket(filesystem)
+
+        key = "test_mode_property.txt"
+        await self._put_object(filesystem, key, b"test")
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="rb") as f:
+            assert f.mode == "rb"
+
+        async with filesystem.open(f"{_bucket_name}/{key}", mode="r") as f:
+            assert f.mode == "r"
+
 
 class TestHelperFunctions:
     """Test helper functions."""
