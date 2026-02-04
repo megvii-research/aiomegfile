@@ -632,7 +632,7 @@ class AioFileLike(AioClosable, T.Generic[T.AnyStr], ABC):
         """Return the current stream position."""
 
 
-class AsyncSeekable(AioFileLike[T.AnyStr], ABC):
+class AioSeekable(AioFileLike[T.AnyStr], ABC):
     """Async seekable file-like base class."""
 
     async def seekable(self) -> bool:

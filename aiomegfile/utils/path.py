@@ -34,6 +34,8 @@ def split_uri(uri: PathLike) -> T.Tuple[str, str, T.Optional[str]]:
     return protocol, path, profile_name
 
 
-def generate_cache_path(filename: str, cache_dir: str = "/tmp") -> str:
+def generate_cache_path(filename: str, cache_dir: T.Optional[str] = None) -> str:
+    if cache_dir is None:
+        cache_dir = "/tmp"
     suffix = os.path.splitext(filename)[1]
     return os.path.join(cache_dir, str(uuid.uuid4()) + suffix)
