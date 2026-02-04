@@ -124,7 +124,7 @@ class AioS3BufferedWriter(AioWritable):
 
     async def __aenter__(self):
         self._client = await self._filesystem._get_client()
-        return self
+        return super().__aenter__()
 
     @property
     def name(self) -> str:
