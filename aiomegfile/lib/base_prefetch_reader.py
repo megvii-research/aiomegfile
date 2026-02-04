@@ -13,7 +13,7 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
-from aiomegfile.interfaces import AioReadable, AsyncSeekable
+from aiomegfile.interfaces import AioReadable, AioSeekable
 
 _logger = get_logger(__name__)
 
@@ -28,7 +28,7 @@ class SeekRecord:
         self.read_count = 0
 
 
-class AioBasePrefetchReader(AioReadable[T.AnyStr], AsyncSeekable[T.AnyStr], ABC):
+class AioBasePrefetchReader(AioReadable[T.AnyStr], AioSeekable[T.AnyStr], ABC):
     """Base class for async prefetch readers.
 
     This class provides async read operations with automatic prefetching
