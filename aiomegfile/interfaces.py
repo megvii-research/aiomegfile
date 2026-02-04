@@ -241,14 +241,6 @@ class BaseFileSystem(ABC):
             )
         FILE_SYSTEMS[cls.protocol] = cls
 
-    def __await__(self: Self) -> T.Generator[T.Any, None, Self]:
-        """Return self to provide a minimal awaitable interface."""
-
-        async def dummy():
-            return self
-
-        return dummy().__await__()
-
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
 
