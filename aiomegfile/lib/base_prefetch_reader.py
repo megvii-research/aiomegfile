@@ -296,7 +296,9 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
                     str_buffer.write(decoded[:chars_needed])
 
                     # Calculate bytes consumed
-                    current_bytes_offset = self._bytes_length(decoded[:chars_needed])
+                    current_bytes_offset = self._bytes_length(
+                        decoded[:chars_needed]  # pyre-ignore[6]
+                    )
                     self._adjust_cached_buffer(current_bytes_offset, total_bytes)
                     bytes_offset += current_bytes_offset
 
