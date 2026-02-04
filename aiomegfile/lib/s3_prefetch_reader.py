@@ -11,11 +11,11 @@ from aiomegfile.config import (
 from aiomegfile.errors import (
     S3FileChangedError,
     S3InvalidRangeError,
-    async_retry,
+    aioretry,
     raise_s3_error,
 )
 from aiomegfile.lib.base_prefetch_reader import (
-    AsyncBasePrefetchReader,
+    AioBasePrefetchReader,
 )
 from aiomegfile.lib.s3_retry import s3_should_retry
 
@@ -23,11 +23,11 @@ if TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
 
 __all__ = [
-    "AsyncS3PrefetchReader",
+    "AioS3PrefetchReader",
 ]
 
 
-class AsyncS3PrefetchReader(AsyncBasePrefetchReader):
+class AioS3PrefetchReader(AioBasePrefetchReader):
     """Async reader to fast read S3 content.
 
     This will divide the file content into equal parts of block_size size,
@@ -139,7 +139,7 @@ class AsyncS3PrefetchReader(AsyncBasePrefetchReader):
         :return: Response dict with 'Body' key.
         """
 
-        @async_retry(should_retry=s3_should_retry, max_retries=self._max_retries)
+        @aioretry(should_retry=s3_should_retry, max_retries=self._max_retries)
         async def fetch_response() -> dict:
             if start is None or end is None:
                 with raise_s3_error(self.name):

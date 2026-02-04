@@ -9,7 +9,7 @@ import aiofiles.os
 import aiofiles.ospath
 
 from aiomegfile.interfaces import (
-    AsyncScannableManager,
+    AioScannableManager,
     BaseFileSystem,
     FileEntry,
     StatResult,
@@ -197,7 +197,7 @@ class LocalFileSystem(BaseFileSystem):
         async def aexit(exc_type, exc_value, traceback) -> None:
             sync_scandir.close()
 
-        return AsyncScannableManager(aiterator(), aexit)
+        return AioScannableManager(aiterator(), aexit)
 
     def scanfile(
         self,
@@ -228,7 +228,7 @@ class LocalFileSystem(BaseFileSystem):
                         ),
                     )
 
-        return AsyncScannableManager(aiterator())
+        return AioScannableManager(aiterator())
 
     async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
         """

@@ -10,9 +10,9 @@ from aiomegfile.config import (
     WRITER_MAX_BUFFER_SIZE,
 )
 from aiomegfile.filesystem.s3 import get_s3_client
-from aiomegfile.interfaces import AsyncIOManager
+from aiomegfile.interfaces import AIOManager
 from aiomegfile.lib.s3_buffered_writer import (
-    AsyncS3BufferedWriter,
+    AioS3BufferedWriter,
 )
 
 _aws_access_key_id = "testing"
@@ -41,7 +41,7 @@ def mock_s3(moto_server, monkeypatch):
     monkeypatch.setenv("AWS_ENDPOINT_URL", moto_server)
 
 
-def async_s3_buffered_open(
+def aio_s3_buffered_open(
     bucket: str,
     key: str,
     *,
@@ -66,9 +66,9 @@ def async_s3_buffered_open(
     :param block_size: Size of each upload part in bytes.
     :param block_autoscale: Whether to auto-scale block size based on part number.
     :param max_buffer_size: Maximum total buffer size for pending uploads.
-    :yields: AsyncS3BufferedWriter instance.
+    :yields: AioS3BufferedWriter instance.
     """
-    writer = AsyncS3BufferedWriter(
+    writer = AioS3BufferedWriter(
         bucket,
         key,
         s3_client=s3_client,
@@ -80,11 +80,11 @@ def async_s3_buffered_open(
         block_autoscale=block_autoscale,
         max_buffer_size=max_buffer_size,
     )
-    return AsyncIOManager(writer)
+    return AIOManager(writer)
 
 
-class TestAsyncS3BufferedWriter:
-    """Test AsyncS3BufferedWriter class."""
+class TestAioS3BufferedWriter:
+    """Test AioS3BufferedWriter class."""
 
     @pytest.fixture
     async def s3_client(self, mock_s3):  # noqa: ARG002
@@ -109,7 +109,7 @@ class TestAsyncS3BufferedWriter:
         content = b"hello world"
         key = "small_file.txt"
 
-        writer = AsyncS3BufferedWriter(
+        writer = AioS3BufferedWriter(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -130,7 +130,7 @@ class TestAsyncS3BufferedWriter:
         content = b"context manager content"
         key = "context_manager.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             await writer.write(content)
@@ -143,7 +143,7 @@ class TestAsyncS3BufferedWriter:
         """Test multiple sequential writes."""
         key = "multiple_writes.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             await writer.write(b"hello ")
@@ -161,7 +161,7 @@ class TestAsyncS3BufferedWriter:
         content = b"x" * content_size
         key = "multipart.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -179,7 +179,7 @@ class TestAsyncS3BufferedWriter:
         """Test tell() returns correct position."""
         key = "tell_test.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             assert await writer.tell() == 0
@@ -192,7 +192,7 @@ class TestAsyncS3BufferedWriter:
         """Test name property returns correct S3 URI."""
         key = "name_test.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             assert writer.name == f"{_bucket_name}/{key}"
@@ -201,7 +201,7 @@ class TestAsyncS3BufferedWriter:
         """Test mode property returns 'wb'."""
         key = "mode_test.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             assert writer.mode == "wb"
@@ -210,7 +210,7 @@ class TestAsyncS3BufferedWriter:
         """Test writable() returns True."""
         key = "writable_test.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             assert await writer.writable() is True
@@ -219,7 +219,7 @@ class TestAsyncS3BufferedWriter:
         """Test closed property."""
         key = "closed_test.txt"
 
-        writer = AsyncS3BufferedWriter(_bucket_name, key, s3_client=s3_client)
+        writer = AioS3BufferedWriter(_bucket_name, key, s3_client=s3_client)
         assert writer.closed is False
         await writer.write(b"test")
         await writer.close()
@@ -233,7 +233,7 @@ class TestAsyncS3BufferedWriter:
         """Test writing after close raises IOError."""
         key = "write_after_close.txt"
 
-        writer = AsyncS3BufferedWriter(_bucket_name, key, s3_client=s3_client)
+        writer = AioS3BufferedWriter(_bucket_name, key, s3_client=s3_client)
         await writer.write(b"test")
         await writer.close()
 
@@ -244,7 +244,7 @@ class TestAsyncS3BufferedWriter:
         """Test closing twice is safe."""
         key = "double_close.txt"
 
-        writer = AsyncS3BufferedWriter(_bucket_name, key, s3_client=s3_client)
+        writer = AioS3BufferedWriter(_bucket_name, key, s3_client=s3_client)
         await writer.write(b"test")
         await writer.close()
         await writer.close()  # Should not raise
@@ -253,7 +253,7 @@ class TestAsyncS3BufferedWriter:
         """Test writelines method."""
         key = "writelines.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             await writer.writelines([b"line1\n", b"line2\n", b"line3\n"])
@@ -265,7 +265,7 @@ class TestAsyncS3BufferedWriter:
         """Test writing empty file."""
         key = "empty.txt"
 
-        async with async_s3_buffered_open(_bucket_name, key, s3_client=s3_client):
+        async with aio_s3_buffered_open(_bucket_name, key, s3_client=s3_client):
             pass  # Write nothing
 
         result = await self._get_object_content(s3_client, key)
@@ -284,7 +284,7 @@ class TestAsyncS3BufferedWriter:
         content = b"x" * content_size
         key = "buffer_control.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -302,7 +302,7 @@ class TestAsyncS3BufferedWriter:
         key = "autoscale.txt"
         base_block_size = 8 * 1024 * 1024  # 8MB
 
-        writer = AsyncS3BufferedWriter(
+        writer = AioS3BufferedWriter(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -333,7 +333,7 @@ class TestAsyncS3BufferedWriter:
         key2 = "concurrent2.txt"
 
         async def write_file(key, content):
-            async with async_s3_buffered_open(
+            async with aio_s3_buffered_open(
                 _bucket_name, key, s3_client=s3_client
             ) as writer:
                 await writer.write(content)
@@ -352,11 +352,11 @@ class TestAsyncS3BufferedWriter:
         """Test __repr__ method."""
         key = "repr_test.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client
         ) as writer:
             repr_str = repr(writer)
-            assert "AsyncS3BufferedWriter" in repr_str
+            assert "AioS3BufferedWriter" in repr_str
             assert f"{_bucket_name}/{key}" in repr_str
             assert "wb" in repr_str
 
@@ -367,7 +367,7 @@ class TestAsyncS3BufferedWriter:
         content = "hello world"
         key = "text_mode.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w"
         ) as writer:
             await writer.write(content)
@@ -379,7 +379,7 @@ class TestAsyncS3BufferedWriter:
         """Test mode property returns 'w' for text mode."""
         key = "text_mode_prop.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w"
         ) as writer:
             assert writer.mode == "w"
@@ -393,7 +393,7 @@ class TestAsyncS3BufferedWriter:
         content = "你好世界"
         key = "text_encoding.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w", encoding="utf-8"
         ) as writer:
             await writer.write(content)
@@ -409,7 +409,7 @@ class TestAsyncS3BufferedWriter:
         """Test writelines in text mode."""
         key = "text_writelines.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w"
         ) as writer:
             await writer.writelines(["line1\n", "line2\n", "line3\n"])
@@ -426,7 +426,7 @@ class TestAsyncS3BufferedWriter:
         content = "line1\nline2\nline3"
         key = "text_newline_crlf.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w", newline="\r\n"
         ) as writer:
             await writer.write(content)
@@ -443,7 +443,7 @@ class TestAsyncS3BufferedWriter:
         content = "line1\nline2"
         key = "text_newline_cr.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w", newline="\r"
         ) as writer:
             await writer.write(content)
@@ -459,7 +459,7 @@ class TestAsyncS3BufferedWriter:
         """Test that writing bytes to text mode raises TypeError."""
         key = "text_type_error.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w"
         ) as writer:
             with pytest.raises(TypeError, match="must be str"):
@@ -473,7 +473,7 @@ class TestAsyncS3BufferedWriter:
         """Test that writing str to binary mode raises TypeError."""
         key = "binary_type_error.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="wb"
         ) as writer:
             with pytest.raises(TypeError, match="bytes-like object is required"):
@@ -488,7 +488,7 @@ class TestAsyncS3BufferedWriter:
         key = "invalid_mode.txt"
 
         with pytest.raises(ValueError, match="Invalid mode"):
-            AsyncS3BufferedWriter(_bucket_name, key, s3_client=s3_client, mode="r")
+            AioS3BufferedWriter(_bucket_name, key, s3_client=s3_client, mode="r")
 
     async def test_text_mode_tell_position(
         self,
@@ -498,7 +498,7 @@ class TestAsyncS3BufferedWriter:
         """Test tell() returns byte position in text mode."""
         key = "text_tell.txt"
 
-        async with async_s3_buffered_open(
+        async with aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="w"
         ) as writer:
             assert await writer.tell() == 0
@@ -515,7 +515,7 @@ class TestAsyncS3BufferedWriter:
         """Test that writing str to binary mode raises TypeError."""
         key = "binary_type_error.txt"
 
-        writer = await async_s3_buffered_open(
+        writer = await aio_s3_buffered_open(
             _bucket_name, key, s3_client=s3_client, mode="wb"
         )
         await writer.write(b"data without with")

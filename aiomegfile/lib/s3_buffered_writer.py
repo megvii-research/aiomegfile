@@ -11,7 +11,7 @@ from aiomegfile.config import (
     WRITER_MAX_BUFFER_SIZE,
 )
 from aiomegfile.errors import translate_s3_error
-from aiomegfile.interfaces import AsyncWritable
+from aiomegfile.interfaces import AioWritable
 
 if TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
@@ -31,7 +31,7 @@ class PartResult(NamedTuple):
         return {"PartNumber": self.part_number, "ETag": self.etag}
 
 
-class AsyncS3BufferedWriter(AsyncWritable):
+class AioS3BufferedWriter(AioWritable):
     """Async buffered writer for S3 using asyncio tasks.
 
     This class provides async write operations to S3 with automatic multipart

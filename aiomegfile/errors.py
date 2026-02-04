@@ -33,7 +33,7 @@ __all__ = [
     "SameFileError",
     "translate_s3_error",
     "raise_s3_error",
-    "async_retry",
+    "aioretry",
 ]
 
 
@@ -195,7 +195,7 @@ def raise_s3_error(s3_url: PathLike, suppress_error_callback=None):
         raise error from e
 
 
-def async_retry(
+def aioretry(
     should_retry: T.Callable[[Exception], bool],
     max_retries: int = DEFAULT_MAX_RETRY_TIMES,
     before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
