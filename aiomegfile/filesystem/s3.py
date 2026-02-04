@@ -720,7 +720,6 @@ class S3FileSystem(BaseFileSystem):
                 errors=errors,
                 newline=newline,
             )
-        fileobj.name = self.build_uri(path)
         return fileobj
 
     async def upload(self, src_path: str, dst_path: str) -> None:
@@ -780,13 +779,12 @@ class S3FileSystem(BaseFileSystem):
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {self.build_uri(src_path)!r}")
 
-        client = await self._get_client()
         with raise_s3_error(self.build_uri(src_path)):
             mode = "rb" if "b" in fileobj.mode else "r"
             async with AioS3PrefetchReader(
                 bucket=bucket,
                 key=key,
-                s3_client=client,
+                filesystem=self,
                 mode=mode,
             ) as s3_file:
                 while True:
@@ -806,14 +804,12 @@ class S3FileSystem(BaseFileSystem):
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {self.build_uri(dst_path)!r}")
 
-        client = await self._get_client()
-
         with raise_s3_error(self.build_uri(dst_path)):
             mode = "wb" if "b" in fileobj.mode else "w"
             async with AioS3BufferedWriter(
                 bucket=bucket,
                 key=key,
-                s3_client=client,
+                filesystem=self,
                 mode=mode,
             ) as s3_file:
                 while True:

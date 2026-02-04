@@ -158,32 +158,6 @@ class FileEntry(T.NamedTuple):
         return self.stat.islnk
 
 
-class AIOManager(AbstractAsyncContextManager):
-    """
-    Async-compatible wrapper around `AioReadable` or `AioWritable`
-    """
-
-    def __init__(self, thing):
-        self._thing = thing
-
-    def __await__(self):
-        """Return self to provide a minimal awaitable interface."""
-
-        async def dummy():
-            return await self.__aenter__()
-
-        return dummy().__await__()
-
-    async def __aenter__(self):
-        """Return the underlying iterator."""
-        return self._thing
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        """Close the underlying iterator."""
-        if self._thing:
-            await self._thing.close()
-
-
 class AioScannableManager(AbstractAsyncContextManager):
     """
     Async-compatible wrapper around ``scandir`` or ``scanfile``
@@ -267,7 +241,7 @@ class BaseFileSystem(ABC):
             )
         FILE_SYSTEMS[cls.protocol] = cls
 
-    def __await__(self: Self) -> Self:
+    def __await__(self: Self) -> T.Generator[T.Any, None, Self]:
         """Return self to provide a minimal awaitable interface."""
 
         async def dummy():

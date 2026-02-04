@@ -317,7 +317,7 @@ class AioS3BufferedWriter(AioWritable):
             await self._client.complete_multipart_upload(
                 Bucket=self._bucket,
                 Key=self._key,
-                MultipartUpload=multipart_upload,  # pyre-ignore[6]
+                MultipartUpload=multipart_upload,
                 UploadId=upload_id,
             )
         except Exception as e:

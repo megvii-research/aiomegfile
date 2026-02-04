@@ -80,8 +80,8 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
         )
 
     async def __aenter__(self):
-        self._client = await self.filesystem._get_client()
-        return self
+        self._client = await self._filesystem._get_client()
+        return await super().__aenter__()
 
     async def _get_content_size(self) -> int:
         """Get the content size of the S3 object.
@@ -150,8 +150,8 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
                         Bucket=self._bucket, Key=self._key
                     )
                 body_bytes = await response["Body"].read()
-                response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
-                return response  # pyre-ignore[7]
+                response["Body"] = BytesIO(body_bytes)
+                return response
 
             range_str = f"bytes={start}-{end}"
             with raise_s3_error(self.name):
@@ -161,8 +161,8 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
                     Bucket=self._bucket, Key=self._key, Range=range_str
                 )
             body_bytes = await response["Body"].read()
-            response["Body"] = BytesIO(body_bytes)  # pyre-ignore[54]
-            return response  # pyre-ignore[7]
+            response["Body"] = BytesIO(body_bytes)
+            return response
 
         with raise_s3_error(self.name):
             return await fetch_response()
