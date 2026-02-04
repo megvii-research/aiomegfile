@@ -13,7 +13,7 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
-from aiomegfile.interfaces import AsyncReadable, AsyncSeekable
+from aiomegfile.interfaces import AioReadable, AsyncSeekable
 
 _logger = get_logger(__name__)
 
@@ -28,11 +28,7 @@ class SeekRecord:
         self.read_count = 0
 
 
-# A tricky aspect of TextIOWrapper is that its offset-related methods work with
-# bytes (e.g., seek(1) moves 1 byte), while its read methods work with characters
-# (e.g., read(1) reads 1 char). To ensure consistency,
-# the following Reader must observe this rule.
-class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], ABC):
+class AioBasePrefetchReader(AioReadable[T.AnyStr], AsyncSeekable[T.AnyStr], ABC):
     """Base class for async prefetch readers.
 
     This class provides async read operations with automatic prefetching
@@ -213,7 +209,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         self._seek_buffer(block_index, block_offset)
         return self._offset
 
-    async def _async_iterator_byte_blocks(self):
+    async def _aio_iterator_byte_blocks(self):
         """Async generator for byte blocks."""
         buffer = await self._get_buffer()
         yield buffer.read()
@@ -287,7 +283,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         bytes_offset = 0
         decoder = codecs.getincrementaldecoder(self._encoding)(errors=self._errors)
 
-        async for chunk in self._async_iterator_byte_blocks():
+        async for chunk in self._aio_iterator_byte_blocks():
             total_bytes = len(chunk)
             decoded = decoder.decode(chunk, False)
             if size is not None and size > 0:
@@ -344,7 +340,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
         else:
             _buffer = BytesIO()
             decoder = None
-        async for chunk in self._async_iterator_byte_blocks():
+        async for chunk in self._aio_iterator_byte_blocks():
             total_bytes = len(chunk)
             if decoder:
                 chunk = decoder.decode(chunk, False)

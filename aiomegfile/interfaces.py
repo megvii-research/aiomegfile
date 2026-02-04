@@ -1,3 +1,4 @@
+import asyncio
 import io
 import logging
 import os
@@ -157,9 +158,9 @@ class FileEntry(T.NamedTuple):
         return self.stat.islnk
 
 
-class AsyncIOManager(AbstractAsyncContextManager):
+class AIOManager(AbstractAsyncContextManager):
     """
-    Async-compatible wrapper around `AsyncReadable` or `AsyncWritable`
+    Async-compatible wrapper around `AioReadable` or `AioWritable`
     """
 
     def __init__(self, thing):
@@ -183,7 +184,7 @@ class AsyncIOManager(AbstractAsyncContextManager):
             await self._thing.close()
 
 
-class AsyncScannableManager(AbstractAsyncContextManager):
+class AioScannableManager(AbstractAsyncContextManager):
     """
     Async-compatible wrapper around ``scandir`` or ``scanfile``
     that yields ``FileEntry`` objects.
@@ -516,7 +517,7 @@ def get_filesystem_by_uri(
     )
 
 
-class AsyncClosable(ABC):
+class AioClosable(ABC):
     """Async closable base class for file-like objects."""
 
     def __init_subclass__(cls) -> None:
@@ -562,8 +563,15 @@ class AsyncClosable(ABC):
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
 
+    def __del__(self):
+        """Ensure the file-like object is closed upon deletion."""
+        try:
+            asyncio.get_running_loop().create_task(self.close())
+        except RuntimeError:
+            pass
 
-class AsyncFileLike(AsyncClosable, T.Generic[T.AnyStr], ABC):
+
+class AioFileLike(AioClosable, T.Generic[T.AnyStr], ABC):
     """Async file-like base class."""
 
     @property
@@ -624,7 +632,7 @@ class AsyncFileLike(AsyncClosable, T.Generic[T.AnyStr], ABC):
         """Return the current stream position."""
 
 
-class AsyncSeekable(AsyncFileLike[T.AnyStr], ABC):
+class AsyncSeekable(AioFileLike[T.AnyStr], ABC):
     """Async seekable file-like base class."""
 
     async def seekable(self) -> bool:
@@ -644,7 +652,7 @@ class AsyncSeekable(AsyncFileLike[T.AnyStr], ABC):
         """
 
 
-class AsyncReadable(AsyncFileLike[T.AnyStr], ABC):
+class AioReadable(AioFileLike[T.AnyStr], ABC):
     """Async readable file-like base class."""
 
     async def readable(self) -> bool:
@@ -706,7 +714,7 @@ class AsyncReadable(AsyncFileLike[T.AnyStr], ABC):
         raise OSError("not writable")
 
 
-class AsyncWritable(AsyncFileLike[T.AnyStr], ABC):
+class AioWritable(AioFileLike[T.AnyStr], ABC):
     """Async writable file-like base class."""
 
     async def writable(self) -> bool:

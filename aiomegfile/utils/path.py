@@ -1,5 +1,6 @@
 import os
 import typing as T
+import uuid
 
 PathLike = T.Union[str, os.PathLike]
 
@@ -31,3 +32,8 @@ def split_uri(uri: PathLike) -> T.Tuple[str, str, T.Optional[str]]:
     else:
         profile_name = None
     return protocol, path, profile_name
+
+
+def generate_cache_path(filename: str, cache_dir: str = "/tmp") -> str:
+    suffix = os.path.splitext(filename)[1]
+    return os.path.join(cache_dir, str(uuid.uuid4()) + suffix)

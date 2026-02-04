@@ -4,7 +4,7 @@ import pytest
 from moto.server import ThreadedMotoServer
 
 from aiomegfile.filesystem.s3 import get_s3_client
-from aiomegfile.lib.s3_prefetch_reader import AsyncS3PrefetchReader
+from aiomegfile.lib.s3_prefetch_reader import AioS3PrefetchReader
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"
@@ -32,7 +32,7 @@ def mock_s3(moto_server, monkeypatch):
     monkeypatch.setenv("AWS_ENDPOINT_URL", moto_server)
 
 
-def async_s3_prefetch_open(
+def aio_s3_prefetch_open(
     bucket: str,
     key: str,
     *,
@@ -57,9 +57,9 @@ def async_s3_prefetch_open(
     :param block_size: Size of each prefetch block in bytes.
     :param max_buffer_size: Maximum total buffer size for prefetch.
     :param block_forward: Number of blocks to prefetch ahead.
-    :yields: AsyncS3PrefetchReader instance.
+    :yields: AioS3PrefetchReader instance.
     """
-    return AsyncS3PrefetchReader(
+    return AioS3PrefetchReader(
         bucket,
         key,
         s3_client=s3_client,
@@ -74,7 +74,7 @@ def async_s3_prefetch_open(
 
 
 class TestAsyncS3PrefetchReader:
-    """Test AsyncS3PrefetchReader class."""
+    """Test AioS3PrefetchReader class."""
 
     @pytest.fixture
     async def s3_client(self, mock_s3):  # noqa: ARG002
@@ -101,7 +101,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_all_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             result = await reader.read()
@@ -113,7 +113,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_with_size_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             result = await reader.read(5)
@@ -127,7 +127,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_chunked_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -144,7 +144,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_empty_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             result = await reader.read()
@@ -156,7 +156,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_zero_size_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             result = await reader.read(0)
@@ -170,7 +170,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_all_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             result = await reader.read()
@@ -182,7 +182,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_with_size_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             result = await reader.read(5)
@@ -194,7 +194,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_chunked_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -211,7 +211,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_empty_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             result = await reader.read()
@@ -223,7 +223,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_unicode_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             result = await reader.read()
@@ -237,7 +237,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             line1 = await reader.readline()
@@ -253,7 +253,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_with_size_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             result = await reader.readline(5)
@@ -265,7 +265,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_chunked_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -284,7 +284,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_empty_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             result = await reader.readline()
@@ -298,7 +298,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             line1 = await reader.readline()
@@ -314,7 +314,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_with_size_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             result = await reader.readline(5)
@@ -326,7 +326,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_chunked_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -345,7 +345,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_unicode_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             line1 = await reader.readline()
@@ -363,7 +363,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readline_with_size_unicode_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             line1 = await reader.readline(2)
@@ -381,7 +381,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readinto_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             buffer = bytearray(11)
@@ -395,7 +395,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readinto_partial_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             buffer = bytearray(5)
@@ -409,7 +409,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readinto_chunked_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -428,7 +428,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readinto_multiple_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             buffer1 = bytearray(5)
@@ -447,7 +447,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readinto_eof_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             buffer = bytearray(10)
@@ -467,7 +467,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_no_prefetch_read_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -483,7 +483,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_no_prefetch_readline_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -503,7 +503,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_no_prefetch_readinto_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -521,7 +521,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_no_prefetch_read_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -537,7 +537,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_no_prefetch_readline_text.txt"
         await self._put_object(s3_client, key, content.encode())
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -559,7 +559,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_seek_tell_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             assert await reader.tell() == 0
@@ -582,7 +582,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_seek_read_binary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             await reader.seek(6)
@@ -596,7 +596,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_name.txt"
         await self._put_object(s3_client, key, b"test")
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             assert reader.name == f"{_bucket_name}/{key}"
@@ -606,12 +606,12 @@ class TestAsyncS3PrefetchReader:
         key = "test_mode.txt"
         await self._put_object(s3_client, key, b"test")
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="rb"
         ) as reader:
             assert reader.mode == "rb"
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             assert reader.mode == "r"
@@ -621,9 +621,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_closed.txt"
         await self._put_object(s3_client, key, b"test")
 
-        reader = AsyncS3PrefetchReader(
-            _bucket_name, key, s3_client=s3_client, mode="rb"
-        )
+        reader = AioS3PrefetchReader(_bucket_name, key, s3_client=s3_client, mode="rb")
         await reader._init_content_size()
         assert reader.closed is False
         await reader.close()
@@ -638,9 +636,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_read_after_close.txt"
         await self._put_object(s3_client, key, b"test")
 
-        reader = AsyncS3PrefetchReader(
-            _bucket_name, key, s3_client=s3_client, mode="rb"
-        )
+        reader = AioS3PrefetchReader(_bucket_name, key, s3_client=s3_client, mode="rb")
         await reader._init_content_size()
         await reader.close()
 
@@ -656,7 +652,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_readinto_text.txt"
         await self._put_object(s3_client, key, b"test")
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name, key, s3_client=s3_client, mode="r"
         ) as reader:
             buffer = bytearray(10)
@@ -671,7 +667,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_single_block.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -687,7 +683,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_exact_boundary.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
@@ -703,7 +699,7 @@ class TestAsyncS3PrefetchReader:
         key = "test_multiple_blocks_sequential.txt"
         await self._put_object(s3_client, key, content)
 
-        async with async_s3_prefetch_open(
+        async with aio_s3_prefetch_open(
             _bucket_name,
             key,
             s3_client=s3_client,
