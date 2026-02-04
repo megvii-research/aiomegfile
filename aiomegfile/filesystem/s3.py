@@ -30,6 +30,9 @@ from aiomegfile.interfaces import (
     FileEntry,
     StatResult,
 )
+from aiomegfile.lib.cacher import AioCacher
+from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
+from aiomegfile.lib.s3_prefetch_reader import AioS3PrefetchReader
 from aiomegfile.lib.s3_retry import register_retry_handler
 from aiomegfile.utils.path import PathLike, fspath, split_uri
 
@@ -660,6 +663,64 @@ class S3FileSystem(BaseFileSystem):
             return
         if await self.exists(path):
             raise S3FileExistsError(f"File exists: {self.build_uri(path)!r}")
+
+    def open(
+        self,
+        path: str,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: T.Optional[str] = None,
+        errors: T.Optional[str] = None,
+        newline: T.Optional[str] = None,
+    ) -> T.AsyncContextManager:
+        """Open the file with mode.
+
+        :param path: File path to open.
+        :param mode: File open mode.
+        :param buffering: Buffering policy. Not used in s3.
+        :param encoding: Text encoding when using text modes.
+        :param errors: Error handling strategy for encoding/decoding.
+        :param newline: Newline handling in text mode.
+        :return: Async file context manager.
+        """
+        if "x" in mode:
+            raise ValueError("unacceptable 'x' mode: %r" % mode)
+
+        bucket, key = parse_s3_path(path)
+        if not bucket:
+            raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
+        if not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
+
+        if "a" in mode or "+" in mode:
+            return AioCacher(
+                path,
+                mode,
+                download_fileobj=self._download_fileobj,
+                upload_fileobj=self._upload_fileobj,
+            )
+        if "w" in mode:
+            fileobj = AioS3BufferedWriter(
+                bucket=bucket,
+                key=key,
+                s3_client=self._client,
+                mode=mode,
+                encoding=encoding,
+                errors=errors,
+                newline=newline,
+            )
+        else:
+            fileobj = AioS3PrefetchReader(
+                bucket=bucket,
+                key=key,
+                s3_client=self._client,
+                mode=mode,
+                encoding=encoding,
+                errors=errors,
+                newline=newline,
+            )
+        fileobj.name = self.build_uri(path)
+        return fileobj
 
     async def upload(self, src_path: str, dst_path: str) -> None:
         """

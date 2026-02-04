@@ -127,11 +127,18 @@ class AioS3BufferedWriter(AioWritable):
     @property
     def name(self) -> str:
         """Return the path of the file."""
-        # TODO: support URI with alias
+        if hasattr(self, "_name"):
+            return self._name
+
         return "%s/%s" % (
             self._bucket,
             self._key,
         )
+
+    @name.setter
+    def name(self, value: str) -> None:
+        """Set the path of the file."""
+        self._name = value
 
     @property
     def mode(self) -> str:

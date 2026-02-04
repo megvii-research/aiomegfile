@@ -126,8 +126,14 @@ class AioS3PrefetchReader(AioBasePrefetchReader):
     @property
     def name(self) -> str:
         """Return the path of the file."""
-        # TODO: support URI with alias
+        if hasattr(self, "_name"):
+            return self._name
         return f"{self._bucket}/{self._key}"
+
+    @name.setter
+    def name(self, value: str) -> None:
+        """Set the path of the file."""
+        self._name = value
 
     async def _fetch_response(
         self, start: Optional[int] = None, end: Optional[int] = None
