@@ -86,7 +86,7 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
         :rtype: int
         """
         await self._read_check()
-        return await self._fileobj.readinto(buffer)
+        return await self._fileobj.readinto(buffer)  # pytype: disable=attribute-error
 
     async def write(self, data: T.AnyStr) -> int:
         """Write data to cache file.
@@ -143,7 +143,8 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
         """
         await aiofiles.os.makedirs(self._cache_dir, exist_ok=True)
         cache_path = generate_cache_path(self._path, self._cache_dir)
-        self._fileobj = await aiofiles.open(cache_path, mode="wb+")
+        mode = "wb+" if "b" in self._mode else "w+"
+        self._fileobj = await aiofiles.open(cache_path, mode=mode)
         await aiofiles.os.unlink(cache_path)
         if "w" not in self._mode:
             try:

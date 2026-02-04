@@ -593,9 +593,6 @@ class TestS3FileSystem:
         head = await self._head_object(filesystem, key)
         assert head["ContentLength"] == len(content.encode("utf-8"))
 
-    @pytest.mark.skip(
-        reason="S3FileSystem._download_fileobj and _upload_fileobj not implemented"
-    )
     async def test_open_append_binary(self, filesystem):
         """Test open in binary append mode."""
         await self._create_bucket(filesystem)
@@ -613,9 +610,6 @@ class TestS3FileSystem:
             result = await f.read()
             assert result == initial_content + append_content
 
-    @pytest.mark.skip(
-        reason="S3FileSystem._download_fileobj and _upload_fileobj not implemented"
-    )
     async def test_open_append_text(self, filesystem):
         """Test open in text append mode."""
         await self._create_bucket(filesystem)
@@ -633,9 +627,6 @@ class TestS3FileSystem:
             result = await f.read()
             assert result == initial_content + append_content
 
-    @pytest.mark.skip(
-        reason="S3FileSystem._download_fileobj and _upload_fileobj not implemented"
-    )
     async def test_open_append_plus_binary(self, filesystem):
         """Test open in binary append+ mode (read and write)."""
         await self._create_bucket(filesystem)
@@ -658,9 +649,6 @@ class TestS3FileSystem:
             result = await f.read()
             assert result == initial_content + b" appended"
 
-    @pytest.mark.skip(
-        reason="S3FileSystem._download_fileobj and _upload_fileobj not implemented"
-    )
     async def test_open_append_plus_text(self, filesystem):
         """Test open in text append+ mode (read and write)."""
         await self._create_bucket(filesystem)

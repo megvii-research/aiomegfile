@@ -768,6 +768,59 @@ class S3FileSystem(BaseFileSystem):
                 )
             raise error from e
 
+    async def _download_fileobj(self, src_path: str, fileobj) -> None:
+        """Download S3 object to a file-like object.
+
+        :param src_path: S3 source path (without protocol).
+        :param fileobj: File-like object to write to.
+        :return: ``None``.
+        """
+        bucket, key = parse_s3_path(src_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(src_path)!r}")
+
+        client = await self._get_client()
+        with raise_s3_error(self.build_uri(src_path)):
+            mode = "rb" if "b" in fileobj.mode else "r"
+            async with AioS3PrefetchReader(
+                bucket=bucket,
+                key=key,
+                s3_client=client,
+                mode=mode,
+            ) as s3_file:
+                while True:
+                    chunk = await s3_file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    await fileobj.write(chunk)
+
+    async def _upload_fileobj(self, fileobj, dst_path: str) -> None:
+        """Upload from a file-like object to S3.
+
+        :param fileobj: File-like object to read from.
+        :param dst_path: S3 destination path (without protocol).
+        :return: ``None``.
+        """
+        bucket, key = parse_s3_path(dst_path)
+        if not bucket or not key or key.endswith("/"):
+            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(dst_path)!r}")
+
+        client = await self._get_client()
+
+        with raise_s3_error(self.build_uri(dst_path)):
+            mode = "wb" if "b" in fileobj.mode else "w"
+            async with AioS3BufferedWriter(
+                bucket=bucket,
+                key=key,
+                s3_client=client,
+                mode=mode,
+            ) as s3_file:
+                while True:
+                    chunk = await fileobj.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    await s3_file.write(chunk)
+
     async def copy(
         self,
         src_path: str,
