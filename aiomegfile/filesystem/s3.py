@@ -699,11 +699,12 @@ class S3FileSystem(BaseFileSystem):
                 download_fileobj=self._download_fileobj,
                 upload_fileobj=self._upload_fileobj,
             )
+
         if "w" in mode:
             fileobj = AioS3BufferedWriter(
                 bucket=bucket,
                 key=key,
-                s3_client=self._client,
+                filesystem=self,
                 mode=mode,
                 encoding=encoding,
                 errors=errors,
@@ -713,7 +714,7 @@ class S3FileSystem(BaseFileSystem):
             fileobj = AioS3PrefetchReader(
                 bucket=bucket,
                 key=key,
-                s3_client=self._client,
+                filesystem=self,
                 mode=mode,
                 encoding=encoding,
                 errors=errors,

@@ -144,7 +144,7 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
         await aiofiles.os.makedirs(self._cache_dir, exist_ok=True)
         cache_path = generate_cache_path(self._path, self._cache_dir)
         mode = "wb+" if "b" in self._mode else "w+"
-        self._fileobj = await aiofiles.open(cache_path, mode=mode)
+        self._fileobj = await aiofiles.open(cache_path, mode=mode)  # pyre-ignore[6]
         await aiofiles.os.unlink(cache_path)
         if "w" not in self._mode:
             try:
