@@ -122,7 +122,7 @@ async def _glob1(
 ) -> T.AsyncIterator[str]:
     names = [name async for name in _iterdir(dirname, dironly, fs)]
     if not _ishidden(pattern):
-        names = (x for x in names if not _ishidden(x))
+        names = [x for x in names if not _ishidden(x)]
     for name in fnmatch.filter(names, pattern):
         yield name
 

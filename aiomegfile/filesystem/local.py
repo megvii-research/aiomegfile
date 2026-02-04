@@ -88,7 +88,7 @@ class LocalFileSystem(BaseFileSystem):
 
         return StatResult(
             st_size=stat_result.st_size,
-            st_ctime=stat_result.st_ctime,
+            st_ctime=stat_result.st_ctime,  # pyre-ignore[16]
             st_mtime=stat_result.st_mtime,
             isdir=stat.S_ISDIR(stat_result.st_mode),
             islnk=stat.S_ISLNK(stat_result.st_mode),
@@ -163,7 +163,7 @@ class LocalFileSystem(BaseFileSystem):
 
         return aiofiles.open(  # pytype: disable=wrong-arg-types
             path,
-            mode=mode,
+            mode=mode,  # pyre-ignore[6]
             buffering=buffering,
             encoding=encoding,
             errors=errors,
@@ -309,7 +309,7 @@ class LocalFileSystem(BaseFileSystem):
             await self.mkdir(dir_name, parents=True, exist_ok=True)
         return await asyncio.to_thread(shutil.copyfile, src_path, dst_path)
 
-    def same_endpoint(self, other_filesystem: "LocalFileSystem") -> bool:
+    def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
         """
         Local filesystem endpoints match when protocols match.
 

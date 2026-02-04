@@ -254,7 +254,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
 
             buffer = bytearray(size)
             await self.readinto(buffer)
-            return bytes(buffer)
+            return bytes(buffer)  # pyre-ignore[7]
 
         if len(self._seek_history) > 0:
             self._seek_history[-1].read_count += 1
@@ -286,7 +286,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
                     bytes_offset += current_bytes_offset
 
                     self._offset += bytes_offset
-                    return str_buffer.getvalue()
+                    return str_buffer.getvalue()  # pyre-ignore[7]
             str_buffer.write(decoded)
             bytes_offset += len(chunk)
         else:
@@ -296,7 +296,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             bytes_offset = self._content_size - self._offset
 
         self._offset += bytes_offset
-        return str_buffer.getvalue()
+        return str_buffer.getvalue()  # pyre-ignore[7]
 
     async def readline(self, size: T.Optional[int] = None) -> T.AnyStr:
         """Next line from the file, as bytes or str.
@@ -351,7 +351,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
                     )
                 bytes_offset += current_bytes_offset
                 self._offset += bytes_offset
-                return _buffer.getvalue()
+                return _buffer.getvalue()  # pyre-ignore[7]
 
             newline_index = chunk.find(self._newline)
             if newline_index >= 0:
@@ -373,7 +373,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
                 bytes_offset += current_bytes_offset
                 self._offset += bytes_offset
                 print(f"{self._offset} {current_bytes_offset}")
-                return _buffer.getvalue()
+                return _buffer.getvalue()  # pyre-ignore[7]
 
             _buffer.write(chunk)
             bytes_offset += self._block_size
@@ -384,7 +384,7 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             bytes_offset = self._content_size - self._offset
 
         self._offset += bytes_offset
-        return _buffer.getvalue()
+        return _buffer.getvalue()  # pyre-ignore[7]
 
     async def _read(self, size: int) -> bytes:
         """Read data without prefetch buffer.
@@ -489,7 +489,8 @@ class AsyncBasePrefetchReader(AsyncReadable[T.AnyStr], AsyncSeekable[T.AnyStr], 
             await self._cleanup_tasks()
 
             self._cached_buffer = await self._fetch_task_result(self._block_index)
-            self._cached_buffer.seek(self._cached_offset)
+            if self._cached_offset is not None:
+                self._cached_buffer.seek(self._cached_offset)
             self._cached_offset = None
 
         return self._cached_buffer
