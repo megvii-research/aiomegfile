@@ -812,3 +812,112 @@ class TestHelperFunctions:
         finally:
             loop2.close()
             asyncio.set_event_loop(None)
+
+
+class TestMD5Header:
+    """Test that Content-MD5 header is added to DeleteObjects operations.
+
+    This is a workaround for https://github.com/aws/aws-cli/issues/9214
+    """
+
+    @pytest.fixture
+    def filesystem(self, mock_s3):  # noqa: ARG002
+        """Create S3FileSystem that reads credentials from environment."""
+        return S3FileSystem()
+
+    async def _create_bucket(self, filesystem: S3FileSystem):
+        """Helper to create test bucket."""
+        client = await filesystem._get_client()
+        try:
+            await client.create_bucket(Bucket=_bucket_name)
+        except Exception:
+            pass  # Bucket may already exist
+
+    async def _put_object(self, filesystem: S3FileSystem, key: str, body: bytes = b"0"):
+        """Helper to put object in test bucket."""
+        client = await filesystem._get_client()
+        await client.put_object(Bucket=_bucket_name, Key=key, Body=body)
+
+    async def test_delete_objects_has_md5_header(self, filesystem):
+        """Test that DeleteObjects operation includes Content-MD5 header."""
+        await self._create_bucket(filesystem)
+
+        # Create some test objects in a directory
+        # DeleteObjects is only called when removing multiple files (directory)
+        await self._put_object(filesystem, "test_dir/file1.txt", b"content1")
+        await self._put_object(filesystem, "test_dir/file2.txt", b"content2")
+        await self._put_object(filesystem, "test_dir/file3.txt", b"content3")
+
+        # Track if MD5 header is present
+        md5_headers_found = []
+
+        def capture_md5_header(params, **kwargs):
+            """Capture Content-MD5 header from request params."""
+            if "headers" in params and "Content-MD5" in params["headers"]:
+                md5_headers_found.append(params["headers"]["Content-MD5"])
+
+        # Register our test handler
+        client = await filesystem._get_client()
+        client.meta.events.register("before-call.s3.DeleteObjects", capture_md5_header)
+
+        # Trigger DeleteObjects by removing a directory with multiple files
+        await filesystem.remove(f"{_bucket_name}/test_dir/")
+
+        # Verify MD5 header was added
+        assert len(md5_headers_found) > 0, (
+            "Content-MD5 header should be added to DeleteObjects"
+        )
+
+        # Verify MD5 value is a valid base64 string
+        md5_value = md5_headers_found[0]
+        assert isinstance(md5_value, str)
+        assert len(md5_value) > 0
+        # Base64 encoded MD5 should be 24 characters long (16 bytes -> 24 base64 chars)
+        assert len(md5_value) == 24, f"MD5 should be 24 chars, got {len(md5_value)}"
+
+    async def test_delete_objects_md5_value_correctness(self, filesystem):
+        """Test that the MD5 value is correctly calculated."""
+        import base64
+        import hashlib
+
+        await self._create_bucket(filesystem)
+
+        # Create test objects in a directory to trigger DeleteObjects
+        await self._put_object(filesystem, "delete_test/obj1.txt", b"data1")
+        await self._put_object(filesystem, "delete_test/obj2.txt", b"data2")
+
+        # Capture the actual request body and MD5 header
+        captured_data = {}
+
+        def capture_request_data(params, **kwargs):
+            """Capture both body and MD5 header."""
+            if "body" in params:
+                captured_data["body"] = params["body"]
+            if "headers" in params and "Content-MD5" in params["headers"]:
+                captured_data["md5_header"] = params["headers"]["Content-MD5"]
+
+        client = await filesystem._get_client()
+        client.meta.events.register(
+            "before-call.s3.DeleteObjects", capture_request_data
+        )
+
+        # Trigger DeleteObjects by removing the directory
+        await filesystem.remove(f"{_bucket_name}/delete_test/")
+
+        # Verify we captured the data
+        assert "body" in captured_data, "Should have captured request body"
+        assert "md5_header" in captured_data, "Should have captured MD5 header"
+
+        # Calculate expected MD5
+        body_bytes = captured_data["body"]
+        if isinstance(body_bytes, str):
+            body_bytes = body_bytes.encode("utf-8")
+
+        expected_md5 = base64.b64encode(hashlib.md5(body_bytes).digest()).decode(
+            "utf-8"
+        )
+        actual_md5 = captured_data["md5_header"]
+
+        assert actual_md5 == expected_md5, (
+            f"MD5 mismatch: expected {expected_md5}, got {actual_md5}"
+        )

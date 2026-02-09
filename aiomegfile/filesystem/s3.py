@@ -8,6 +8,7 @@ import weakref
 import aiobotocore.session  # type: ignore
 import botocore
 from aiobotocore.config import AioConfig
+from botocore.utils import calculate_md5 as botocore_calculate_md5
 
 from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.errors import (
@@ -43,6 +44,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_ENDPOINT_URL = "https://s3.amazonaws.com"
 MAX_KEYS = 1000
+
+# Patch for https://github.com/aws/aws-cli/issues/9214
+CALCULATE_MD5_FOR_OPERATIONS = {
+    "DeleteObjects",
+}
 
 _S3_CLIENT_CACHE = weakref.WeakKeyDictionary()
 _S3_CLIENT_LOCKS = weakref.WeakKeyDictionary()
@@ -153,6 +159,25 @@ def get_access_token(
     return access_key, secret_key, session_token
 
 
+def _register_add_md5_header(client: "S3Client") -> None:
+    # botocore > 1.36.0 change default checksum from md5sum to crc32.
+    # Even though `request_checksum_calculation` and `response_checksum_validation`
+    # are set to "when_required", some endpoints are still encountering issues.
+    # Therefore, I am applying a patch.
+    # Related issues:
+    # https://github.com/aws/aws-cli/issues/9214
+    # https://github.com/boto/boto3/issues/4409
+    # https://github.com/boto/boto3/issues/4400
+    def _add_md5_header(params: T.Dict[str, T.Any], **kwargs) -> None:
+        if "body" in params and "headers" in params:
+            if "Content-MD5" not in params["headers"]:
+                md5_digest = botocore_calculate_md5(params["body"])
+                params["headers"]["Content-MD5"] = md5_digest
+
+    for operation in CALCULATE_MD5_FOR_OPERATIONS:
+        client.meta.events.register(f"before-call.s3.{operation}", _add_md5_header)
+
+
 async def _get_s3_client(
     profile_name: T.Optional[str] = None,
     *,
@@ -208,6 +233,7 @@ async def _get_s3_client(
     if max_attempts is not None:
         kwargs["max_attempts"] = max_attempts
     register_retry_handler(**kwargs)
+    _register_add_md5_header(client)
     return client
 
 
