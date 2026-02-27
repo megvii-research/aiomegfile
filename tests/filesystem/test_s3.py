@@ -258,6 +258,24 @@ class TestS3FileSystem:
         for entry in entries:
             assert entry.stat.isdir is False
 
+    async def test_scanfile_file_path(self, filesystem):
+        """Test scanfile returns the file when path is a file."""
+        await self._create_bucket(filesystem)
+
+        filename = "scanfile_single.txt"
+        await self._put_object(filesystem, filename, b"content")
+
+        entries = []
+        async with filesystem.scanfile(f"{_bucket_name}/{filename}") as scanner:
+            async for entry in scanner:
+                entries.append(entry)
+
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.name == filename
+        assert entry.path == f"{_bucket_name}/{filename}"
+        assert entry.stat.isdir is False
+
     async def test_mkdir(self, filesystem):
         """Test mkdir creates directory marker."""
         await self._create_bucket(filesystem)

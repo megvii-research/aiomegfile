@@ -637,6 +637,15 @@ class S3FileSystem(BaseFileSystem):
             bucket, key = parse_s3_path(path)
             if not bucket:
                 return
+            if key and not key.endswith("/"):
+                if await self.is_file(path):
+                    stat_result = await self.stat(path)
+                    yield FileEntry(
+                        os.path.basename(key),
+                        f"{bucket}/{key}",
+                        stat_result,
+                    )
+                    return
 
             prefix = _become_prefix(key)
 

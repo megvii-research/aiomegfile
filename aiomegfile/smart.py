@@ -1,7 +1,9 @@
+import os
 import typing as T
 
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
+from aiomegfile.utils.compare import get_sync_type, is_same_file
 from aiomegfile.utils.path import PathLike
 
 __all__ = [
@@ -20,8 +22,10 @@ __all__ = [
     "smart_rename",
     "smart_scandir",
     "smart_stat",
+    "smart_sync",
     "smart_touch",
     "smart_unlink",
+    "smart_remove",
     "smart_walk",
     "smart_realpath",
     "smart_relpath",
@@ -98,6 +102,17 @@ async def smart_unlink(path: PathLike, missing_ok: bool = False) -> None:
     :raises IsADirectoryError: If the target is a directory.
     """
     await SmartPath(path).unlink(missing_ok=missing_ok)
+
+
+async def smart_remove(path: PathLike, missing_ok: bool = False) -> None:
+    """Remove (delete) the file or directory.
+
+    :param path: Path to remove.
+    :param missing_ok: If False, raise when the path does not exist.
+    :raises FileNotFoundError: When missing_ok is False and the path is absent.
+    """
+    path_obj = SmartPath(path)
+    await path_obj.filesystem.remove(path_obj._path, missing_ok=missing_ok)
 
 
 async def smart_makedirs(
@@ -305,3 +320,162 @@ async def smart_readlink(path: PathLike) -> str:
     """
     result = await SmartPath(path).readlink()
     return str(result)
+
+
+async def _iter_file_stats(
+    path: PathLike,
+    *,
+    missing_ok: bool = True,
+    followlinks: bool = False,
+) -> T.AsyncIterator[FileEntry]:
+    """Iterate file entries with stats under the given path.
+
+    :param path: Root path to scan.
+    :param missing_ok: If False and path is missing, raise FileNotFoundError.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator of FileEntry objects.
+    :rtype: T.AsyncIterator[FileEntry]
+    :raises FileNotFoundError: If missing_ok is False and path is absent.
+    """
+    smart_path = SmartPath(path)
+    if not await smart_path.exists(followlinks=followlinks):
+        if missing_ok:
+            return
+        raise FileNotFoundError(f"No match file: {smart_path}")
+    if followlinks:
+        try:
+            smart_path = await smart_path.readlink()
+        except OSError:
+            if missing_ok:
+                return
+            raise
+
+    async with smart_path.filesystem.scanfile(smart_path._path) as iterator:
+        async for entry in iterator:
+            stat = entry.stat
+            path = entry.path
+            name = entry.name
+            if followlinks and entry.is_symlink():
+                path = await smart_path.filesystem.readlink(entry.path)
+                name = os.path.basename(path)
+                stat = await smart_path.filesystem.stat(path, followlinks=followlinks)
+            yield FileEntry(
+                name=name,
+                path=smart_path.filesystem.build_uri(path),
+                stat=stat,
+            )
+
+
+async def _smart_sync_single_file(items: dict) -> bool:
+    """Sync a single file entry according to the provided items.
+
+    :param items: Mapping of sync parameters.
+    :return: True if the file was copied, otherwise False.
+    :rtype: bool
+    """
+    src_root_path = items["src_root_path"]
+    dst_root_path = items["dst_root_path"]
+    src_file_entry = items["src_file_entry"]
+    callback = items["callback"]
+    followlinks = items["followlinks"]
+    force = items["force"]
+    overwrite = items["overwrite"]
+
+    src_file_path = src_file_entry.path
+    src_file_stat = src_file_entry.stat
+
+    content_path = await smart_relpath(src_file_path, start=src_root_path)
+    if content_path and content_path != ".":
+        content_path = content_path.lstrip("/")
+        dst_abs_file_path = await smart_path_join(dst_root_path, content_path)
+    else:
+        dst_abs_file_path = dst_root_path
+
+    src_protocol = SmartPath(src_file_path).filesystem.protocol
+    dst_protocol = SmartPath(dst_abs_file_path).filesystem.protocol
+    sync_type = get_sync_type(src_protocol, dst_protocol)
+
+    should_sync = True
+    try:
+        if not force:
+            dst_file_stat = await smart_stat(
+                dst_abs_file_path, follow_symlinks=followlinks
+            )
+            if not overwrite:
+                should_sync = False
+            elif is_same_file(src_file_stat, dst_file_stat, sync_type):
+                should_sync = False
+    except (NotImplementedError, FileNotFoundError):
+        pass
+
+    if should_sync:
+        await smart_copy(
+            src_file_path,
+            dst_abs_file_path,
+            followlinks=followlinks,
+        )
+        if callback:
+            callback(src_file_path, src_file_stat.st_size)
+    elif callback:
+        callback(src_file_path, src_file_stat.st_size)
+
+    return should_sync
+
+
+async def smart_sync(
+    src_path: PathLike,
+    dst_path: PathLike,
+    callback: T.Optional[T.Callable[[str, int], None]] = None,
+    followlinks: bool = False,
+    force: bool = False,
+    overwrite: bool = True,
+) -> None:
+    """Sync file or directory to the destination path.
+
+    .. note ::
+
+        When the parameter is file, this function behaves like ``smart_copy``.
+
+        If file and directory of same name and same level, sync considers it as file
+        first.
+
+    :param src_path: Given source path.
+    :param dst_path: Given destination path.
+    :param callback: Called after each file copy attempt. The callback receives
+        ``(src_path, num_bytes)`` where ``num_bytes`` is the file size.
+    :param followlinks: False if regard symlink as file, else True.
+    :param force: Sync file forcible, do not ignore same files, priority is higher than
+        ``overwrite``.
+    :param overwrite: Whether to overwrite files when they already exist.
+    :raises FileNotFoundError: If source path does not exist.
+    """
+    if not await smart_exists(src_path):
+        raise FileNotFoundError(f"No match file: {src_path}")
+
+    src_root_path = str(SmartPath(src_path))
+    dst_root_path = str(SmartPath(dst_path))
+
+    src_file_stats = _iter_file_stats(
+        src_root_path, missing_ok=True, followlinks=followlinks
+    )
+
+    if not await smart_exists(dst_path):
+        force = True
+
+    async for entry in src_file_stats:
+        if not entry.name:
+            continue
+        items = {
+            "src_root_path": src_root_path,
+            "dst_root_path": dst_root_path,
+            "src_file_entry": FileEntry(
+                name=entry.name,
+                path=entry.path,
+                stat=entry.stat,
+            ),
+            "callback": callback,
+            "followlinks": followlinks,
+            "force": force,
+            "overwrite": overwrite,
+        }
+        await _smart_sync_single_file(items)

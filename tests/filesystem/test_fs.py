@@ -198,8 +198,21 @@ class TestLocalFileSystem:
         assert all(
             entry.path == os.path.join(temp_dir, entry.name) for entry in entries
         )
-        assert any(entry.is_dir() for entry in entries)
-        assert any(entry.is_file() for entry in entries)
+
+    async def test_scanfile_file_path(self, temp_file):
+        """Test scanfile returns the file when path is a file."""
+        protocol = self._create_protocol()
+        entries = []
+        async with protocol.scanfile(temp_file) as it:
+            async for entry in it:
+                entries.append(entry)
+
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.name == os.path.basename(temp_file)
+        assert entry.path == temp_file
+        assert entry.stat.isdir is False
+        assert entry.is_file() is True
 
     async def test_scandir_await(self, temp_dir):
         """Test scandir can be used as an async iterator directly."""

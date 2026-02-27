@@ -212,6 +212,21 @@ class LocalFileSystem(BaseFileSystem):
         """
 
         async def aiterator():
+            if await aiofiles.ospath.isfile(path):
+                stat_result = await aiofiles.os.stat(path)
+                yield FileEntry(
+                    name=os.path.basename(path),
+                    path=path,
+                    stat=StatResult(
+                        st_size=stat_result.st_size,
+                        st_ctime=stat_result.st_ctime,
+                        st_mtime=stat_result.st_mtime,
+                        isdir=stat.S_ISDIR(stat_result.st_mode),
+                        islnk=stat.S_ISLNK(stat_result.st_mode),
+                        extra=stat_result,
+                    ),
+                )
+                return
             for dirpath, _, filenames in await asyncio.to_thread(os.walk, path):
                 for filename in filenames:
                     file_path = os.path.join(dirpath, filename)
