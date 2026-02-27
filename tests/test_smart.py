@@ -1,18 +1,22 @@
+import io
 import os
 
 import pytest
 
 from aiomegfile.smart import (
+    smart_abspath,
     smart_copy,
     smart_exists,
     smart_glob,
     smart_iglob,
+    smart_isabs,
     smart_isdir,
     smart_isfile,
     smart_islink,
     smart_listdir,
     smart_load_content,
     smart_load_from,
+    smart_load_text,
     smart_makedirs,
     smart_move,
     smart_open,
@@ -22,6 +26,10 @@ from aiomegfile.smart import (
     smart_relpath,
     smart_remove,
     smart_rename,
+    smart_save_as,
+    smart_save_content,
+    smart_save_text,
+    smart_scan,
     smart_scandir,
     smart_stat,
     smart_symlink,
@@ -88,6 +96,52 @@ async def test_smart_open_read_write(tmp_path):
         await f.write("hello")
     async with smart_open(file_path, "r") as f:
         assert await f.read() == "hello"
+
+
+async def test_smart_save_as_and_load_text(tmp_path):
+    """Test smart_save_as writes stream content and smart_load_text reads it."""
+    file_path = tmp_path / "stream.txt"
+    buffer = io.BytesIO(b"stream")
+
+    await smart_save_as(buffer, file_path)
+
+    assert await smart_load_text(file_path) == "stream"
+
+
+async def test_smart_save_content_and_text(tmp_path):
+    """Test smart_save_content and smart_save_text write data."""
+    bytes_path = tmp_path / "bytes.bin"
+    text_path = tmp_path / "text.txt"
+
+    await smart_save_content(bytes_path, b"abc")
+    await smart_save_text(text_path, "hello")
+
+    assert bytes_path.read_bytes() == b"abc"
+    assert text_path.read_text() == "hello"
+
+
+async def test_smart_scan_and_isabs_abspath(tmp_path):
+    """Test smart_scan yields file paths and isabs/abspath behavior."""
+    root = tmp_path / "scan_root"
+    root.mkdir()
+    file_a = root / "a.txt"
+    file_b = root / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("a")
+    file_b.write_text("b")
+
+    scanned = []
+    async for path in smart_scan(root):
+        scanned.append(path)
+
+    assert str(file_a) in scanned
+    assert str(file_b) in scanned
+
+    abs_path = await smart_abspath(file_a)
+    assert os.path.isabs(abs_path)
+    assert await smart_isabs(abs_path) is True
+    assert await smart_isabs("relative/path") is False
+    assert await smart_isabs("s3://bucket/key") is True
 
 
 async def test_smart_load_from(tmp_path):

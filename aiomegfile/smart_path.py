@@ -882,7 +882,7 @@ class SmartPath(os.PathLike):
         :return: Absolute SmartPath without symlink resolution.
         """
         result = await self.filesystem.absolute(self._path)
-        return self.from_uri(result)
+        return self.from_uri(self.filesystem.build_uri(result))
 
     async def full_match(
         self, pattern: str, *, case_sensitive: T.Optional[bool] = None

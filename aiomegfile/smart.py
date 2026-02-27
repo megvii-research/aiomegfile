@@ -5,25 +5,32 @@ import typing as T
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
-from aiomegfile.utils.path import PathLike
+from aiomegfile.utils.path import PathLike, fspath
 
 __all__ = [
+    "smart_abspath",
     "smart_copy",
     "smart_exists",
     "smart_glob",
     "smart_iglob",
+    "smart_isabs",
     "smart_isdir",
     "smart_isfile",
     "smart_islink",
     "smart_listdir",
     "smart_load_content",
     "smart_load_from",
+    "smart_load_text",
     "smart_makedirs",
     "smart_open",
     "smart_path_join",
     "smart_move",
     "smart_rename",
     "smart_scandir",
+    "smart_scan",
+    "smart_save_as",
+    "smart_save_content",
+    "smart_save_text",
     "smart_stat",
     "smart_sync",
     "smart_touch",
@@ -247,6 +254,25 @@ async def smart_listdir(path: PathLike) -> T.List[str]:
     return names
 
 
+async def smart_scan(
+    path: PathLike, *, missing_ok: bool = True, followlinks: bool = False
+) -> T.AsyncIterator[str]:
+    """Iteratively traverse only files in the given path.
+
+    If the path is a file, yields that file only.
+
+    :param path: Given path.
+    :param missing_ok: If False and the path is missing, raise FileNotFoundError.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator of file paths.
+    :rtype: T.AsyncIterator[str]
+    """
+    async for entry in _iter_file_stats(
+        path, missing_ok=missing_ok, followlinks=followlinks
+    ):
+        yield entry.path
+
+
 async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
     """Join path components and return the combined path string.
 
@@ -259,6 +285,30 @@ async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
     for part in paths:
         result = result / part
     return str(result)
+
+
+async def smart_abspath(path: PathLike) -> str:
+    """Return the absolute path of the given path.
+
+    :param path: Given path.
+    :return: Absolute path string.
+    :rtype: str
+    """
+    result = await SmartPath(path).absolute()
+    return str(result)
+
+
+async def smart_isabs(path: PathLike) -> bool:
+    """Test whether a path is absolute.
+
+    :param path: Given path.
+    :return: True if a path is absolute, else False.
+    :rtype: bool
+    """
+    path_str = fspath(path)
+    if "://" in path_str:
+        return True
+    return os.path.isabs(path_str)
 
 
 async def smart_copy(
@@ -351,6 +401,53 @@ async def smart_realpath(path: PathLike, *, strict: bool = False) -> str:
     """
     result = await SmartPath(path).resolve(strict=strict)
     return str(result)
+
+
+async def smart_save_as(file_object: T.BinaryIO, path: PathLike) -> None:
+    """Write an opened binary stream to the specified path.
+
+    The input stream will not be closed.
+
+    :param file_object: Stream to be read.
+    :param path: Target path to save the stream content.
+    """
+    async with smart_open(path, "wb") as f:
+        while True:
+            chunk = file_object.read(16 * 1024)
+            if not chunk:
+                break
+            await f.write(chunk)
+
+
+async def smart_save_content(path: PathLike, content: bytes) -> None:
+    """Save bytes content to the specified path.
+
+    :param path: Path to save content.
+    :param content: Bytes content to write.
+    """
+    async with smart_open(path, "wb") as f:
+        await f.write(content)
+
+
+async def smart_load_text(path: PathLike) -> str:
+    """Read text content from the specified path.
+
+    :param path: Path to read.
+    :return: File content as text.
+    :rtype: str
+    """
+    async with smart_open(path, "r") as f:
+        return await f.read()  # pytype: disable=bad-return-type
+
+
+async def smart_save_text(path: PathLike, text: str) -> None:
+    """Save text to the specified path.
+
+    :param path: Path to save text.
+    :param text: Text content to write.
+    """
+    async with smart_open(path, "w") as f:
+        await f.write(text)
 
 
 async def smart_relpath(path: PathLike, start: PathLike) -> str:
