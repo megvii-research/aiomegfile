@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.filesystem.local &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../aiomegfile.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aiomegfile.filesystem.local</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aiomegfile.filesystem.local</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">stat</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">aiofiles</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">aiofiles.os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">aiofiles.ospath</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AioScannableManager</span><span class="p">,</span>
+    <span class="n">BaseFileSystem</span><span class="p">,</span>
+    <span class="n">FileEntry</span><span class="p">,</span>
+    <span class="n">StatResult</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">split_uri</span>
+
+
+<div class="viewcode-block" id="LocalFileSystem">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LocalFileSystem</span><span class="p">(</span><span class="n">BaseFileSystem</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Protocol for local filesystem operations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;file&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocol_in_path</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a LocalFileSystem instance.</span>
+
+<span class="sd">        :param protocol_in_path: Whether incoming paths include the ``file://`` prefix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol_in_path</span> <span class="o">=</span> <span class="n">protocol_in_path</span>
+
+<div class="viewcode-block" id="LocalFileSystem.is_dir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_dir">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a directory.</span>
+
+<span class="sd">        :param path: Path to check.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">        :return: True if the path is a directory, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">followlinks</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">lstat</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.is_file">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_file">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a regular file.</span>
+
+<span class="sd">        :param path: Path to check.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">        :return: True if the path is a regular file, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">followlinks</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">lstat</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_ISREG</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.exists">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.exists">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether the path points to an existing file or directory.</span>
+
+<span class="sd">        :param path: Path to check.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">        :return: True if the path exists, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">followlinks</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">lstat</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.stat">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.stat">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the status of the path.</span>
+
+<span class="sd">        :param path: Path to stat.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">        :raises FileNotFoundError: If the path does not exist.</span>
+<span class="sd">        :return: Populated StatResult for the path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">StatResult</span><span class="p">(</span>
+            <span class="n">st_size</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
+            <span class="n">st_ctime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_ctime</span><span class="p">,</span>  <span class="c1"># pyre-ignore[16]</span>
+            <span class="n">st_mtime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span>
+            <span class="n">isdir</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+            <span class="n">islnk</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISLNK</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+            <span class="n">extra</span><span class="o">=</span><span class="n">stat_result</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.remove">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.remove">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove (delete) the file or directory.</span>
+
+<span class="sd">        If path is a file, remove it directly.</span>
+<span class="sd">        If path is a directory, remove it and all its contents recursively.</span>
+
+<span class="sd">        :param path: Path to remove.</span>
+<span class="sd">        :param missing_ok: If False, raise when the path does not exist.</span>
+<span class="sd">        :raises FileNotFoundError: When missing_ok is False and the path is absent.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_dir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">missing_ok</span><span class="p">:</span>
+                <span class="k">raise</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.mkdir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.mkdir">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">mkdir</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mo">0o777</span><span class="p">,</span>
+        <span class="n">parents</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">exist_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a directory.</span>
+
+<span class="sd">        :param path: Directory path to create.</span>
+<span class="sd">        :param mode: Permission bits for the new directory.</span>
+<span class="sd">        :param parents: Whether to create missing parents.</span>
+<span class="sd">        :param exist_ok: Whether to ignore if the directory exists.</span>
+<span class="sd">        :raises FileExistsError: When directory exists and exist_ok is False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">parents</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="n">exist_ok</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileExistsError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">exist_ok</span><span class="p">:</span>
+                <span class="k">raise</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.open">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.open">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">open</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+        <span class="n">buffering</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open the file with mode.</span>
+
+<span class="sd">        :param path: File path to open.</span>
+<span class="sd">        :param mode: File open mode.</span>
+<span class="sd">        :param buffering: Buffering policy.</span>
+<span class="sd">        :param encoding: Text encoding when using text modes.</span>
+<span class="sd">        :param errors: Error handling strategy for encoding/decoding.</span>
+<span class="sd">        :param newline: Newline handling in text mode.</span>
+<span class="sd">        :return: Async file context manager.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dir_path</span> <span class="ow">and</span> <span class="n">dir_path</span> <span class="o">!=</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>  <span class="c1"># pytype: disable=wrong-arg-types</span>
+            <span class="n">path</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>  <span class="c1"># pyre-ignore[6]</span>
+            <span class="n">buffering</span><span class="o">=</span><span class="n">buffering</span><span class="p">,</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">,</span>
+            <span class="n">errors</span><span class="o">=</span><span class="n">errors</span><span class="p">,</span>
+            <span class="n">newline</span><span class="o">=</span><span class="n">newline</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.scandir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.scandir">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">scandir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return an async context manager for iterating directory entries.</span>
+
+<span class="sd">        :param path: Directory to scan.</span>
+<span class="sd">        :return: Async context manager producing ``FileEntry`` items.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sync_scandir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">aiterator</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">sync_scandir</span><span class="p">:</span>
+                <span class="n">stat_result</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span>
+                <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">path</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                    <span class="n">stat</span><span class="o">=</span><span class="n">StatResult</span><span class="p">(</span>
+                        <span class="n">st_size</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
+                        <span class="n">st_ctime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_ctime</span><span class="p">,</span>
+                        <span class="n">st_mtime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span>
+                        <span class="n">isdir</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                        <span class="n">islnk</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISLNK</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                        <span class="n">extra</span><span class="o">=</span><span class="n">stat_result</span><span class="p">,</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">aexit</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sync_scandir</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">AioScannableManager</span><span class="p">(</span><span class="n">aiterator</span><span class="p">(),</span> <span class="n">aexit</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.scanfile">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.scanfile">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">scanfile</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iteratively traverse only files in given directory.</span>
+<span class="sd">        Every iteration on generator yields FileEntry object.</span>
+
+<span class="sd">        :returns: Async context manager yielding an async iterator of FileEntry objects.</span>
+<span class="sd">        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">aiterator</span><span class="p">():</span>
+            <span class="k">if</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+                    <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+                    <span class="n">stat</span><span class="o">=</span><span class="n">StatResult</span><span class="p">(</span>
+                        <span class="n">st_size</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
+                        <span class="n">st_ctime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_ctime</span><span class="p">,</span>
+                        <span class="n">st_mtime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span>
+                        <span class="n">isdir</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                        <span class="n">islnk</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISLNK</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                        <span class="n">extra</span><span class="o">=</span><span class="n">stat_result</span><span class="p">,</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+                    <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                    <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
+                        <span class="n">path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span>
+                        <span class="n">stat</span><span class="o">=</span><span class="n">StatResult</span><span class="p">(</span>
+                            <span class="n">st_size</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
+                            <span class="n">st_ctime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_ctime</span><span class="p">,</span>
+                            <span class="n">st_mtime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span>
+                            <span class="n">isdir</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                            <span class="n">islnk</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISLNK</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                        <span class="p">),</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">AioScannableManager</span><span class="p">(</span><span class="n">aiterator</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.move">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.move">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Move file or directory.</span>
+
+<span class="sd">        :param src_path: Source path to move.</span>
+<span class="sd">        :param dst_path: Given destination path</span>
+<span class="sd">        :param overwrite: whether or not overwrite file when exists</span>
+<span class="sd">        :raises FileExistsError: If overwrite is False and destination exists.</span>
+<span class="sd">        :return: The destination path</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dst_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Destination path already exists: </span><span class="si">{</span><span class="n">dst_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dir_path</span> <span class="ow">and</span> <span class="n">dir_path</span> <span class="o">!=</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dst_path</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.symlink">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.symlink">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">symlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a symbolic link pointing to src_path named dst_path.</span>
+
+<span class="sd">        :param src_path: Source path the link should reference.</span>
+<span class="sd">        :param dst_path: The symbolic link path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.readlink">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.readlink">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a new path representing the symbolic link&#39;s target.</span>
+
+<span class="sd">        :param path: Path to the symbolic link.</span>
+<span class="sd">        :return: Target path of the symbolic link.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">readlink</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.is_symlink">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_symlink">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_symlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a symbolic link.</span>
+
+<span class="sd">        :param path: Path to check.</span>
+<span class="sd">        :return: True if the path is a symbolic link, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.absolute">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.absolute">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">absolute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make the path absolute, without normalization or resolving symlinks.</span>
+<span class="sd">        Returns a new path object.</span>
+
+<span class="sd">        :param path: Path to convert.</span>
+<span class="sd">        :return: Absolute version of the provided path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.samefile">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.samefile">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">samefile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">other_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return True if the path points to the same file as other_path.</span>
+
+<span class="sd">        :param path: First path to compare.</span>
+<span class="sd">        :param other_path: Other path to compare.</span>
+<span class="sd">        :return: True if both paths point to the same file, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">samefile</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">other_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.copy">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.copy">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        copy single file, not directory</span>
+
+<span class="sd">        :param src_path: Given source path</span>
+<span class="sd">        :param dst_path: Given destination path</span>
+<span class="sd">        :return: Destination path after copy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dir_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dir_name</span> <span class="ow">and</span> <span class="n">dir_name</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">,</span> <span class="n">src_path</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.same_endpoint">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.same_endpoint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">same_endpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_filesystem</span><span class="p">:</span> <span class="n">BaseFileSystem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Local filesystem endpoints match when protocols match.</span>
+
+<span class="sd">        :param other_filesystem: Filesystem to compare.</span>
+<span class="sd">        :return: True if both represent the same endpoint.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other_filesystem</span><span class="p">,</span> <span class="n">LocalFileSystem</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.parse_uri">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.parse_uri">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the path part from a URI.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: Path part string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">split_uri</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.build_uri">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.build_uri">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build URI for the filesystem by path part.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :return: URI string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocol_in_path</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">path</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="LocalFileSystem.from_uri">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.from_uri">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;LocalFileSystem&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create LocalFileSystem from uri string.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: LocalFileSystem instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">protocol_in_path</span><span class="o">=</span><span class="s2">&quot;file://&quot;</span> <span class="ow">in</span> <span class="n">uri</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

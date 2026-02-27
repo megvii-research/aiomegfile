@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.smart &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../aiomegfile.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aiomegfile.smart</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aiomegfile.smart</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileEntry</span><span class="p">,</span> <span class="n">StatResult</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.smart_path</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartPath</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.compare</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_sync_type</span><span class="p">,</span> <span class="n">is_same_file</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">copyfileobj</span><span class="p">,</span> <span class="n">fspath</span><span class="p">,</span> <span class="n">split_uri</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;smart_abspath&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_copy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_exists&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_glob&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_iglob&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_isabs&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_isdir&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_isfile&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_islink&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_listdir&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_load_content&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_load_from&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_load_text&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_makedirs&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_open&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_path_join&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_move&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_rename&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_scandir&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_scan&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_save_as&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_save_content&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_save_text&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_stat&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_sync&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_touch&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_unlink&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_remove&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_walk&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_realpath&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_relpath&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_symlink&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_readlink&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smart_concat&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="smart_exists">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_exists">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_exists</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return whether the path points to an existing file or directory.</span>
+
+<span class="sd">    :param path: Path to check.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: True if the path exists, otherwise False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_isdir">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_isdir">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_isdir</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a directory.</span>
+
+<span class="sd">    :param path: Path to check.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: True if the path is a directory, otherwise False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">(</span><span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_isfile">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_isfile">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_isfile</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a regular file.</span>
+
+<span class="sd">    :param path: Path to check.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: True if the path is a regular file, otherwise False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">is_file</span><span class="p">(</span><span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_islink">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_islink">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_islink</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a symbolic link.</span>
+
+<span class="sd">    :param path: Path to check.</span>
+<span class="sd">    :return: True if the path is a symlink, otherwise False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">is_symlink</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="smart_stat">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_stat">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_stat</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the status of the path.</span>
+
+<span class="sd">    :param path: Path to stat.</span>
+<span class="sd">    :param follow_symlinks: Whether to follow symbolic links when resolving.</span>
+<span class="sd">    :return: StatResult for the path.</span>
+<span class="sd">    :rtype: StatResult</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">follow_symlinks</span><span class="o">=</span><span class="n">follow_symlinks</span><span class="p">)</span></div>
+
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_getsize</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the size of the file at the given path.</span>
+
+<span class="sd">    :param path: Path to the file.</span>
+<span class="sd">    :param follow_symlinks: Whether to follow symbolic links when resolving.</span>
+<span class="sd">    :return: Size of the file in bytes.</span>
+<span class="sd">    :rtype: int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_stat</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="n">follow_symlinks</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_getmtime</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the last modification time of the file at the given path.</span>
+
+<span class="sd">    :param path: Path to the file.</span>
+<span class="sd">    :param follow_symlinks: Whether to follow symbolic links when resolving.</span>
+<span class="sd">    :return: Last modification time in seconds since the epoch.</span>
+<span class="sd">    :rtype: float</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_stat</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="n">follow_symlinks</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span>
+
+
+<div class="viewcode-block" id="smart_touch">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_touch">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_touch</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">exist_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create the file if missing, optionally raising on existence.</span>
+
+<span class="sd">    :param path: Path to create.</span>
+<span class="sd">    :param exist_ok: Whether to skip raising if the file already exists.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">touch</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="n">exist_ok</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_unlink">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_unlink">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_unlink</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove (delete) the file.</span>
+
+<span class="sd">    :param path: Path to remove.</span>
+<span class="sd">    :param missing_ok: If False, raise when the path does not exist.</span>
+<span class="sd">    :raises FileNotFoundError: When missing_ok is False and the file is absent.</span>
+<span class="sd">    :raises IsADirectoryError: If the target is a directory.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_remove">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_remove">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_remove</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove (delete) the file or directory.</span>
+
+<span class="sd">    :param path: Path to remove.</span>
+<span class="sd">    :param missing_ok: If False, raise when the path does not exist.</span>
+<span class="sd">    :raises FileNotFoundError: When missing_ok is False and the path is absent.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path_obj</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">await</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path_obj</span><span class="o">.</span><span class="n">_path</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_makedirs">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_makedirs">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_makedirs</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mo">0o777</span><span class="p">,</span> <span class="n">exist_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a directory and any missing parents.</span>
+
+<span class="sd">    :param path: Directory path to create.</span>
+<span class="sd">    :param mode: Permission bits for the new directory.</span>
+<span class="sd">    :param exist_ok: Whether to ignore if the directory exists.</span>
+<span class="sd">    :raises FileExistsError: When directory exists and exist_ok is False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="n">exist_ok</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_open">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_open">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">smart_open</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+    <span class="n">buffering</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">encoding</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">errors</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Open the file with mode.</span>
+
+<span class="sd">    :param path: File path to open.</span>
+<span class="sd">    :param mode: File open mode.</span>
+<span class="sd">    :param buffering: Buffering policy.</span>
+<span class="sd">    :param encoding: Text encoding in text mode.</span>
+<span class="sd">    :param errors: Error handling strategy.</span>
+<span class="sd">    :param newline: Newline handling policy in text mode.</span>
+<span class="sd">    :return: Async file context manager.</span>
+<span class="sd">    :rtype: T.AsyncContextManager</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>
+        <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+        <span class="n">buffering</span><span class="o">=</span><span class="n">buffering</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">,</span>
+        <span class="n">errors</span><span class="o">=</span><span class="n">errors</span><span class="p">,</span>
+        <span class="n">newline</span><span class="o">=</span><span class="n">newline</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_load_from">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_load_from">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_load_from</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">BinaryIO</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read content in binary from the specified path into memory.</span>
+
+<span class="sd">    Caller is responsible for closing the returned BinaryIO.</span>
+
+<span class="sd">    :param path: Specified path to read.</span>
+<span class="sd">    :return: BinaryIO containing file content.</span>
+<span class="sd">    :rtype: T.BinaryIO</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">content</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_load_content">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_load_content">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_load_content</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">stop</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get specified file range in bytes.</span>
+
+<span class="sd">    :param path: Specified path.</span>
+<span class="sd">    :param start: Start index.</span>
+<span class="sd">    :param stop: Stop index (exclusive).</span>
+<span class="sd">    :return: Bytes content in range ``[start, stop)``.</span>
+<span class="sd">    :rtype: bytes</span>
+<span class="sd">    :raises ValueError: If stop is less than start.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">stop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">stop</span> <span class="o">-</span> <span class="p">(</span><span class="n">start</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">offset</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;stop should be greater than start&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_scandir">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_scandir">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">smart_scandir</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return an async context manager for iterating directory entries.</span>
+
+<span class="sd">    :param path: Directory path to scan.</span>
+<span class="sd">    :return: Async context manager producing FileEntry items.</span>
+<span class="sd">    :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path_obj</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">path_obj</span><span class="o">.</span><span class="n">_path</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_listdir">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_listdir">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_listdir</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return names of entries in the given directory.</span>
+
+<span class="sd">    :param path: Directory path to list.</span>
+<span class="sd">    :return: List of entry names.</span>
+<span class="sd">    :rtype: T.List[str]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">smart_path</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">iterdir</span><span class="p">():</span>
+        <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">names</span></div>
+
+
+
+<div class="viewcode-block" id="smart_scan">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_scan">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_scan</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iteratively traverse only files in the given path.</span>
+
+<span class="sd">    If the path is a file, yields that file only.</span>
+
+<span class="sd">    :param path: Given path.</span>
+<span class="sd">    :param missing_ok: If False and the path is missing, raise FileNotFoundError.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: Async iterator of file paths.</span>
+<span class="sd">    :rtype: T.AsyncIterator[str]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">_iter_file_stats</span><span class="p">(</span>
+        <span class="n">path</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span>
+    <span class="p">):</span>
+        <span class="k">yield</span> <span class="n">entry</span><span class="o">.</span><span class="n">path</span></div>
+
+
+
+<div class="viewcode-block" id="smart_path_join">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_path_join">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_path_join</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Join path components and return the combined path string.</span>
+
+<span class="sd">    :param path: Base path.</span>
+<span class="sd">    :param paths: Additional path components to join.</span>
+<span class="sd">    :return: Combined path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">result</span> <span class="o">/</span> <span class="n">part</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_abspath">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_abspath">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_abspath</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the absolute path of the given path.</span>
+
+<span class="sd">    :param path: Given path.</span>
+<span class="sd">    :return: Absolute path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_isabs">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_isabs">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_isabs</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test whether a path is absolute.</span>
+
+<span class="sd">    :param path: Given path.</span>
+<span class="sd">    :return: True if a path is absolute, else False.</span>
+<span class="sd">    :rtype: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path_str</span> <span class="o">=</span> <span class="n">fspath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">in</span> <span class="n">path_str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">path_str</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_copy">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_copy">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_copy</span><span class="p">(</span>
+    <span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Copy a file or directory and return the destination path string.</span>
+
+<span class="sd">    :param src_path: Source path to copy.</span>
+<span class="sd">    :param dst_path: Destination path.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: Destination path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">dst_path</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_move">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_move">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_move</span><span class="p">(</span><span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Move a file or directory and return the destination path string.</span>
+
+<span class="sd">    :param src_path: Source path to move.</span>
+<span class="sd">    :param dst_path: Destination path.</span>
+<span class="sd">    :return: Destination path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_rename">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_rename">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_rename</span><span class="p">(</span><span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rename a file or directory and return the destination path string.</span>
+
+<span class="sd">    :param src_path: Source path to rename.</span>
+<span class="sd">    :param dst_path: Destination path.</span>
+<span class="sd">    :return: Destination path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_walk">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_walk">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_walk</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate the file names in a directory tree by walking the tree.</span>
+
+<span class="sd">    :param path: Root directory to walk.</span>
+<span class="sd">    :param followlinks: Whether to traverse symbolic links to directories.</span>
+<span class="sd">    :return: Async iterator of (root, dirs, files).</span>
+<span class="sd">    :rtype: T.AsyncIterator[T.Tuple[str, T.List[str], T.List[str]]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">follow_symlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">item</span></div>
+
+
+
+<div class="viewcode-block" id="smart_glob">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_glob">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_glob</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return paths whose paths match the glob pattern.</span>
+
+<span class="sd">    :param path: Base path to search under.</span>
+<span class="sd">    :param recursive: If False, ``**`` will not search directory recursively.</span>
+<span class="sd">    :return: List of matching path strings.</span>
+<span class="sd">    :rtype: T.List[str]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="smart_iglob">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_iglob">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_iglob</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Yield paths whose paths match the glob pattern.</span>
+
+<span class="sd">    :param path: Base path to search under.</span>
+<span class="sd">    :param recursive: If False, ``**`` will not search directory recursively.</span>
+<span class="sd">    :return: Async iterator of matching path strings.</span>
+<span class="sd">    :rtype: T.AsyncIterator[str]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">iglob</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_realpath">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_realpath">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_realpath</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve symlinks and return the absolute path string.</span>
+
+<span class="sd">    :param path: Path to resolve.</span>
+<span class="sd">    :param strict: Whether to raise if a symlink points to itself.</span>
+<span class="sd">    :return: Resolved absolute path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    :raises OSError: If a symlink points to itself and strict is True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_save_as">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_save_as">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_save_as</span><span class="p">(</span><span class="n">file_object</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">BinaryIO</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write an opened binary stream to the specified path.</span>
+
+<span class="sd">    The input stream will not be closed.</span>
+
+<span class="sd">    :param file_object: Stream to be read.</span>
+<span class="sd">    :param path: Target path to save the stream content.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">file_object</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">16</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_save_content">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_save_content">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_save_content</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save bytes content to the specified path.</span>
+
+<span class="sd">    :param path: Path to save content.</span>
+<span class="sd">    :param content: Bytes content to write.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_load_text">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_load_text">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_load_text</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read text content from the specified path.</span>
+
+<span class="sd">    :param path: Path to read.</span>
+<span class="sd">    :return: File content as text.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>  <span class="c1"># pytype: disable=bad-return-type</span></div>
+
+
+
+<div class="viewcode-block" id="smart_save_text">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_save_text">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_save_text</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save text to the specified path.</span>
+
+<span class="sd">    :param path: Path to save text.</span>
+<span class="sd">    :param text: Text content to write.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_relpath">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_relpath">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_relpath</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute a relative path from start to path.</span>
+
+<span class="sd">    :param path: Target path.</span>
+<span class="sd">    :param start: Base path to compute the relative path against.</span>
+<span class="sd">    :return: Relative path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    :raises ValueError: If path is not under the given start path.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">start</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_symlink">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_symlink">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_symlink</span><span class="p">(</span><span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a symbolic link at dst_path pointing to src_path.</span>
+
+<span class="sd">    :param src_path: Target path the link should point to.</span>
+<span class="sd">    :param dst_path: Path of the symlink to create.</span>
+<span class="sd">    :raises TypeError: If src_path and dst_path are on different filesystems.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="smart_readlink">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_readlink">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_readlink</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the target path string of a symbolic link.</span>
+
+<span class="sd">    :param path: Path to the symbolic link.</span>
+<span class="sd">    :return: Target path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">readlink</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_iter_file_stats</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate file entries with stats under the given path.</span>
+
+<span class="sd">    :param path: Root path to scan.</span>
+<span class="sd">    :param missing_ok: If False and path is missing, raise FileNotFoundError.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: Async iterator of FileEntry objects.</span>
+<span class="sd">    :rtype: T.AsyncIterator[FileEntry]</span>
+<span class="sd">    :raises FileNotFoundError: If missing_ok is False and path is absent.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">smart_path</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">missing_ok</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No match file: </span><span class="si">{</span><span class="n">smart_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">followlinks</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">smart_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">readlink</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">missing_ok</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">raise</span>
+
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">scanfile</span><span class="p">(</span><span class="n">smart_path</span><span class="o">.</span><span class="n">_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">iterator</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
+            <span class="n">stat</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">stat</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">path</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">if</span> <span class="n">followlinks</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_symlink</span><span class="p">():</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">readlink</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="n">stat</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">path</span><span class="o">=</span><span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+                <span class="n">stat</span><span class="o">=</span><span class="n">stat</span><span class="p">,</span>
+            <span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_smart_sync_single_file</span><span class="p">(</span><span class="n">items</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sync a single file entry according to the provided items.</span>
+
+<span class="sd">    :param items: Mapping of sync parameters.</span>
+<span class="sd">    :return: True if the file was copied, otherwise False.</span>
+<span class="sd">    :rtype: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">src_root_path</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;src_root_path&quot;</span><span class="p">]</span>
+    <span class="n">dst_root_path</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;dst_root_path&quot;</span><span class="p">]</span>
+    <span class="n">src_file_entry</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;src_file_entry&quot;</span><span class="p">]</span>
+    <span class="n">callback</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;callback&quot;</span><span class="p">]</span>
+    <span class="n">followlinks</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;followlinks&quot;</span><span class="p">]</span>
+    <span class="n">force</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;force&quot;</span><span class="p">]</span>
+    <span class="n">overwrite</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;overwrite&quot;</span><span class="p">]</span>
+
+    <span class="n">src_file_path</span> <span class="o">=</span> <span class="n">src_file_entry</span><span class="o">.</span><span class="n">path</span>
+    <span class="n">src_file_stat</span> <span class="o">=</span> <span class="n">src_file_entry</span><span class="o">.</span><span class="n">stat</span>
+
+    <span class="n">content_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_relpath</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">src_root_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">content_path</span> <span class="ow">and</span> <span class="n">content_path</span> <span class="o">!=</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
+        <span class="n">content_path</span> <span class="o">=</span> <span class="n">content_path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path_join</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">,</span> <span class="n">content_path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="n">dst_root_path</span>
+
+    <span class="n">src_protocol</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
+    <span class="n">dst_protocol</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_abs_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
+    <span class="n">sync_type</span> <span class="o">=</span> <span class="n">get_sync_type</span><span class="p">(</span><span class="n">src_protocol</span><span class="p">,</span> <span class="n">dst_protocol</span><span class="p">)</span>
+
+    <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="n">dst_file_stat</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_stat</span><span class="p">(</span>
+                <span class="n">dst_abs_file_path</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="n">followlinks</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+                <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">elif</span> <span class="n">is_same_file</span><span class="p">(</span><span class="n">src_file_stat</span><span class="p">,</span> <span class="n">dst_file_stat</span><span class="p">,</span> <span class="n">sync_type</span><span class="p">):</span>
+                <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">if</span> <span class="n">should_sync</span><span class="p">:</span>
+        <span class="k">await</span> <span class="n">smart_copy</span><span class="p">(</span>
+            <span class="n">src_file_path</span><span class="p">,</span>
+            <span class="n">dst_abs_file_path</span><span class="p">,</span>
+            <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+            <span class="n">callback</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="n">src_file_stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">callback</span><span class="p">:</span>
+        <span class="n">callback</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="n">src_file_stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">should_sync</span>
+
+
+<div class="viewcode-block" id="smart_sync">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_sync">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_sync</span><span class="p">(</span>
+    <span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sync file or directory to the destination path.</span>
+
+<span class="sd">    .. note ::</span>
+
+<span class="sd">        When the parameter is file, this function behaves like ``smart_copy``.</span>
+
+<span class="sd">        If file and directory of same name and same level, sync considers it as file</span>
+<span class="sd">        first.</span>
+
+<span class="sd">    :param src_path: Given source path.</span>
+<span class="sd">    :param dst_path: Given destination path.</span>
+<span class="sd">    :param callback: Called after each file copy attempt. The callback receives</span>
+<span class="sd">        ``(src_path, num_bytes)`` where ``num_bytes`` is the file size.</span>
+<span class="sd">    :param followlinks: False if regard symlink as file, else True.</span>
+<span class="sd">    :param force: Sync file forcible, do not ignore same files, priority is higher than</span>
+<span class="sd">        ``overwrite``.</span>
+<span class="sd">    :param overwrite: Whether to overwrite files when they already exist.</span>
+<span class="sd">    :raises FileNotFoundError: If source path does not exist.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="k">await</span> <span class="n">smart_exists</span><span class="p">(</span><span class="n">src_path</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No match file: </span><span class="si">{</span><span class="n">src_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">src_root_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">))</span>
+    <span class="n">dst_root_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_path</span><span class="p">))</span>
+
+    <span class="n">src_file_stats</span> <span class="o">=</span> <span class="n">_iter_file_stats</span><span class="p">(</span>
+        <span class="n">src_root_path</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="k">await</span> <span class="n">smart_exists</span><span class="p">(</span><span class="n">dst_path</span><span class="p">):</span>
+        <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">src_file_stats</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;src_root_path&quot;</span><span class="p">:</span> <span class="n">src_root_path</span><span class="p">,</span>
+            <span class="s2">&quot;dst_root_path&quot;</span><span class="p">:</span> <span class="n">dst_root_path</span><span class="p">,</span>
+            <span class="s2">&quot;src_file_entry&quot;</span><span class="p">:</span> <span class="n">FileEntry</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">path</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                <span class="n">stat</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;callback&quot;</span><span class="p">:</span> <span class="n">callback</span><span class="p">,</span>
+            <span class="s2">&quot;followlinks&quot;</span><span class="p">:</span> <span class="n">followlinks</span><span class="p">,</span>
+            <span class="s2">&quot;force&quot;</span><span class="p">:</span> <span class="n">force</span><span class="p">,</span>
+            <span class="s2">&quot;overwrite&quot;</span><span class="p">:</span> <span class="n">overwrite</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">await</span> <span class="n">_smart_sync_single_file</span><span class="p">(</span><span class="n">items</span><span class="p">)</span></div>
+
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_default_concat</span><span class="p">(</span><span class="n">src_paths</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">PathLike</span><span class="p">],</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default implementation for concatenating files.</span>
+
+<span class="sd">    :param src_paths: List of source file paths to concatenate.</span>
+<span class="sd">    :param dst_path: Destination path for the concatenated file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">dst_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst_file</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">src_path</span> <span class="ow">in</span> <span class="n">src_paths</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">src_file</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">copyfileobj</span><span class="p">(</span><span class="n">src_file</span><span class="p">,</span> <span class="n">dst_file</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="smart_concat">
+<a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_concat">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_concat</span><span class="p">(</span><span class="n">src_paths</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">PathLike</span><span class="p">],</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concatenate files in src_paths into a single file at dst_path.</span>
+
+<span class="sd">    :param src_paths: List of source file paths to concatenate.</span>
+<span class="sd">    :param dst_path: Destination path for the concatenated file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">src_paths</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">smart_path</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+
+    <span class="n">concat_func</span> <span class="o">=</span> <span class="n">_default_concat</span>
+    <span class="n">dst_protocol</span> <span class="o">=</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
+    <span class="k">for</span> <span class="n">src_path</span> <span class="ow">in</span> <span class="n">src_paths</span><span class="p">:</span>
+        <span class="n">src_protocol</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">split_uri</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">src_protocol</span> <span class="o">!=</span> <span class="n">dst_protocol</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="p">,</span> <span class="s2">&quot;concat&quot;</span><span class="p">):</span>
+            <span class="n">concat_func</span> <span class="o">=</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">concat</span>
+    <span class="k">await</span> <span class="n">concat_func</span><span class="p">(</span><span class="n">src_paths</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
