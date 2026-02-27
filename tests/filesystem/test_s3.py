@@ -71,9 +71,7 @@ class TestS3FileSystem:
         client = await filesystem._get_client()
         return await client.head_object(Bucket=_bucket_name, Key=key)
 
-    async def _get_object_content(
-        self, filesystem: S3FileSystem, key: str
-    ) -> bytes:
+    async def _get_object_content(self, filesystem: S3FileSystem, key: str) -> bytes:
         """Return object content from the test bucket.
 
         :param filesystem: S3FileSystem instance.
@@ -820,9 +818,7 @@ class TestS3FileSystem:
         content = await self._get_object_content(filesystem, dest_key)
         assert content == b"a" * part_size + b"b" * part_size
 
-    async def test_multipart_writer_upload_part_by_paths_with_range(
-        self, filesystem
-    ):
+    async def test_multipart_writer_upload_part_by_paths_with_range(self, filesystem):
         """Test upload_part_by_paths concatenates ranged content.
 
         :param filesystem: S3FileSystem fixture.
