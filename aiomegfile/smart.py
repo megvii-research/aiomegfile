@@ -1,3 +1,4 @@
+import io
 import os
 import typing as T
 
@@ -15,6 +16,8 @@ __all__ = [
     "smart_isfile",
     "smart_islink",
     "smart_listdir",
+    "smart_load_content",
+    "smart_load_from",
     "smart_makedirs",
     "smart_open",
     "smart_path_join",
@@ -73,7 +76,7 @@ async def smart_islink(path: PathLike) -> bool:
     return await SmartPath(path).is_symlink()
 
 
-async def smart_stat(path: PathLike, *, follow_symlinks: bool = True) -> StatResult:
+async def smart_stat(path: PathLike, *, follow_symlinks: bool = False) -> StatResult:
     """Get the status of the path.
 
     :param path: Path to stat.
@@ -82,6 +85,30 @@ async def smart_stat(path: PathLike, *, follow_symlinks: bool = True) -> StatRes
     :rtype: StatResult
     """
     return await SmartPath(path).stat(follow_symlinks=follow_symlinks)
+
+
+async def smart_getsize(path: PathLike, *, follow_symlinks: bool = False) -> int:
+    """Return the size of the file at the given path.
+
+    :param path: Path to the file.
+    :param follow_symlinks: Whether to follow symbolic links when resolving.
+    :return: Size of the file in bytes.
+    :rtype: int
+    """
+    stat_result = await smart_stat(path, follow_symlinks=follow_symlinks)
+    return stat_result.st_size
+
+
+async def smart_getmtime(path: PathLike, *, follow_symlinks: bool = False) -> float:
+    """Return the last modification time of the file at the given path.
+
+    :param path: Path to the file.
+    :param follow_symlinks: Whether to follow symbolic links when resolving.
+    :return: Last modification time in seconds since the epoch.
+    :rtype: float
+    """
+    stat_result = await smart_stat(path, follow_symlinks=follow_symlinks)
+    return stat_result.st_mtime
 
 
 async def smart_touch(path: PathLike, exist_ok: bool = True) -> None:
@@ -154,6 +181,43 @@ def smart_open(
         errors=errors,
         newline=newline,
     )
+
+
+async def smart_load_from(path: PathLike) -> T.BinaryIO:
+    """Read content in binary from the specified path into memory.
+
+    Caller is responsible for closing the returned BinaryIO.
+
+    :param path: Specified path to read.
+    :return: BinaryIO containing file content.
+    :rtype: T.BinaryIO
+    """
+    async with smart_open(path, "rb") as f:
+        content = await f.read()
+    return io.BytesIO(content)
+
+
+async def smart_load_content(
+    path: PathLike, start: T.Optional[int] = None, stop: T.Optional[int] = None
+) -> bytes:
+    """Get specified file range in bytes.
+
+    :param path: Specified path.
+    :param start: Start index.
+    :param stop: Stop index (exclusive).
+    :return: Bytes content in range ``[start, stop)``.
+    :rtype: bytes
+    :raises ValueError: If stop is less than start.
+    """
+    async with smart_open(path, "rb") as f:
+        if start is not None:
+            await f.seek(start)
+        offset = -1
+        if stop is not None:
+            offset = stop - (start or 0)
+            if offset < 0:
+                raise ValueError("stop should be greater than start")
+        return await f.read(offset)
 
 
 def smart_scandir(

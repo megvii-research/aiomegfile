@@ -468,7 +468,7 @@ class SmartPath(os.PathLike):
         """
         return await self.filesystem.exists(self._path, followlinks=followlinks)
 
-    async def stat(self, *, follow_symlinks=True) -> StatResult:
+    async def stat(self, *, follow_symlinks: bool = False) -> StatResult:
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links when resolving.

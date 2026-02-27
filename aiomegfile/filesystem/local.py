@@ -76,7 +76,7 @@ class LocalFileSystem(BaseFileSystem):
         except OSError:
             return False
 
-    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
         """Get the status of the path.
 
         :param path: Path to stat.

@@ -11,6 +11,8 @@ from aiomegfile.smart import (
     smart_isfile,
     smart_islink,
     smart_listdir,
+    smart_load_content,
+    smart_load_from,
     smart_makedirs,
     smart_move,
     smart_open,
@@ -86,6 +88,27 @@ async def test_smart_open_read_write(tmp_path):
         await f.write("hello")
     async with smart_open(file_path, "r") as f:
         assert await f.read() == "hello"
+
+
+async def test_smart_load_from(tmp_path):
+    """Test smart_load_from returns a binary reader with content."""
+    file_path = tmp_path / "load.bin"
+    file_path.write_bytes(b"abc")
+
+    reader = await smart_load_from(file_path)
+    try:
+        assert reader.read() == b"abc"
+    finally:
+        reader.close()
+
+
+async def test_smart_load_content(tmp_path):
+    """Test smart_load_content reads full and ranged content."""
+    file_path = tmp_path / "range.bin"
+    file_path.write_bytes(b"abcdef")
+
+    assert await smart_load_content(file_path) == b"abcdef"
+    assert await smart_load_content(file_path, start=2, stop=5) == b"cde"
 
 
 async def test_smart_path_join(tmp_path):
