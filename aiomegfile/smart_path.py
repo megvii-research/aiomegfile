@@ -468,7 +468,7 @@ class SmartPath(os.PathLike):
         """
         return await self.filesystem.exists(self._path, followlinks=followlinks)
 
-    async def stat(self, *, follow_symlinks=True) -> StatResult:
+    async def stat(self, *, follow_symlinks: bool = False) -> StatResult:
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links when resolving.
@@ -882,7 +882,7 @@ class SmartPath(os.PathLike):
         :return: Absolute SmartPath without symlink resolution.
         """
         result = await self.filesystem.absolute(self._path)
-        return self.from_uri(result)
+        return self.from_uri(self.filesystem.build_uri(result))
 
     async def full_match(
         self, pattern: str, *, case_sensitive: T.Optional[bool] = None

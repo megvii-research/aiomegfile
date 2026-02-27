@@ -1,32 +1,47 @@
+import io
+import os
 import typing as T
 
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
-from aiomegfile.utils.path import PathLike
+from aiomegfile.utils.compare import get_sync_type, is_same_file
+from aiomegfile.utils.path import PathLike, copyfileobj, fspath, split_uri
 
 __all__ = [
+    "smart_abspath",
     "smart_copy",
     "smart_exists",
     "smart_glob",
     "smart_iglob",
+    "smart_isabs",
     "smart_isdir",
     "smart_isfile",
     "smart_islink",
     "smart_listdir",
+    "smart_load_content",
+    "smart_load_from",
+    "smart_load_text",
     "smart_makedirs",
     "smart_open",
     "smart_path_join",
     "smart_move",
     "smart_rename",
     "smart_scandir",
+    "smart_scan",
+    "smart_save_as",
+    "smart_save_content",
+    "smart_save_text",
     "smart_stat",
+    "smart_sync",
     "smart_touch",
     "smart_unlink",
+    "smart_remove",
     "smart_walk",
     "smart_realpath",
     "smart_relpath",
     "smart_symlink",
     "smart_readlink",
+    "smart_concat",
 ]
 
 
@@ -69,7 +84,7 @@ async def smart_islink(path: PathLike) -> bool:
     return await SmartPath(path).is_symlink()
 
 
-async def smart_stat(path: PathLike, *, follow_symlinks: bool = True) -> StatResult:
+async def smart_stat(path: PathLike, *, follow_symlinks: bool = False) -> StatResult:
     """Get the status of the path.
 
     :param path: Path to stat.
@@ -78,6 +93,30 @@ async def smart_stat(path: PathLike, *, follow_symlinks: bool = True) -> StatRes
     :rtype: StatResult
     """
     return await SmartPath(path).stat(follow_symlinks=follow_symlinks)
+
+
+async def smart_getsize(path: PathLike, *, follow_symlinks: bool = False) -> int:
+    """Return the size of the file at the given path.
+
+    :param path: Path to the file.
+    :param follow_symlinks: Whether to follow symbolic links when resolving.
+    :return: Size of the file in bytes.
+    :rtype: int
+    """
+    stat_result = await smart_stat(path, follow_symlinks=follow_symlinks)
+    return stat_result.st_size
+
+
+async def smart_getmtime(path: PathLike, *, follow_symlinks: bool = False) -> float:
+    """Return the last modification time of the file at the given path.
+
+    :param path: Path to the file.
+    :param follow_symlinks: Whether to follow symbolic links when resolving.
+    :return: Last modification time in seconds since the epoch.
+    :rtype: float
+    """
+    stat_result = await smart_stat(path, follow_symlinks=follow_symlinks)
+    return stat_result.st_mtime
 
 
 async def smart_touch(path: PathLike, exist_ok: bool = True) -> None:
@@ -98,6 +137,17 @@ async def smart_unlink(path: PathLike, missing_ok: bool = False) -> None:
     :raises IsADirectoryError: If the target is a directory.
     """
     await SmartPath(path).unlink(missing_ok=missing_ok)
+
+
+async def smart_remove(path: PathLike, missing_ok: bool = False) -> None:
+    """Remove (delete) the file or directory.
+
+    :param path: Path to remove.
+    :param missing_ok: If False, raise when the path does not exist.
+    :raises FileNotFoundError: When missing_ok is False and the path is absent.
+    """
+    path_obj = SmartPath(path)
+    await path_obj.filesystem.remove(path_obj._path, missing_ok=missing_ok)
 
 
 async def smart_makedirs(
@@ -141,6 +191,43 @@ def smart_open(
     )
 
 
+async def smart_load_from(path: PathLike) -> T.BinaryIO:
+    """Read content in binary from the specified path into memory.
+
+    Caller is responsible for closing the returned BinaryIO.
+
+    :param path: Specified path to read.
+    :return: BinaryIO containing file content.
+    :rtype: T.BinaryIO
+    """
+    async with smart_open(path, "rb") as f:
+        content = await f.read()
+    return io.BytesIO(content)
+
+
+async def smart_load_content(
+    path: PathLike, start: T.Optional[int] = None, stop: T.Optional[int] = None
+) -> bytes:
+    """Get specified file range in bytes.
+
+    :param path: Specified path.
+    :param start: Start index.
+    :param stop: Stop index (exclusive).
+    :return: Bytes content in range ``[start, stop)``.
+    :rtype: bytes
+    :raises ValueError: If stop is less than start.
+    """
+    async with smart_open(path, "rb") as f:
+        if start is not None:
+            await f.seek(start)
+        offset = -1
+        if stop is not None:
+            offset = stop - (start or 0)
+            if offset < 0:
+                raise ValueError("stop should be greater than start")
+        return await f.read(offset)
+
+
 def smart_scandir(
     path: PathLike,
 ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
@@ -168,6 +255,25 @@ async def smart_listdir(path: PathLike) -> T.List[str]:
     return names
 
 
+async def smart_scan(
+    path: PathLike, *, missing_ok: bool = True, followlinks: bool = False
+) -> T.AsyncIterator[str]:
+    """Iteratively traverse only files in the given path.
+
+    If the path is a file, yields that file only.
+
+    :param path: Given path.
+    :param missing_ok: If False and the path is missing, raise FileNotFoundError.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator of file paths.
+    :rtype: T.AsyncIterator[str]
+    """
+    async for entry in _iter_file_stats(
+        path, missing_ok=missing_ok, followlinks=followlinks
+    ):
+        yield entry.path
+
+
 async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
     """Join path components and return the combined path string.
 
@@ -180,6 +286,30 @@ async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
     for part in paths:
         result = result / part
     return str(result)
+
+
+async def smart_abspath(path: PathLike) -> str:
+    """Return the absolute path of the given path.
+
+    :param path: Given path.
+    :return: Absolute path string.
+    :rtype: str
+    """
+    result = await SmartPath(path).absolute()
+    return str(result)
+
+
+async def smart_isabs(path: PathLike) -> bool:
+    """Test whether a path is absolute.
+
+    :param path: Given path.
+    :return: True if a path is absolute, else False.
+    :rtype: bool
+    """
+    path_str = fspath(path)
+    if "://" in path_str:
+        return True
+    return os.path.isabs(path_str)
 
 
 async def smart_copy(
@@ -274,6 +404,53 @@ async def smart_realpath(path: PathLike, *, strict: bool = False) -> str:
     return str(result)
 
 
+async def smart_save_as(file_object: T.BinaryIO, path: PathLike) -> None:
+    """Write an opened binary stream to the specified path.
+
+    The input stream will not be closed.
+
+    :param file_object: Stream to be read.
+    :param path: Target path to save the stream content.
+    """
+    async with smart_open(path, "wb") as f:
+        while True:
+            chunk = file_object.read(16 * 1024)
+            if not chunk:
+                break
+            await f.write(chunk)
+
+
+async def smart_save_content(path: PathLike, content: bytes) -> None:
+    """Save bytes content to the specified path.
+
+    :param path: Path to save content.
+    :param content: Bytes content to write.
+    """
+    async with smart_open(path, "wb") as f:
+        await f.write(content)
+
+
+async def smart_load_text(path: PathLike) -> str:
+    """Read text content from the specified path.
+
+    :param path: Path to read.
+    :return: File content as text.
+    :rtype: str
+    """
+    async with smart_open(path, "r") as f:
+        return await f.read()  # pytype: disable=bad-return-type
+
+
+async def smart_save_text(path: PathLike, text: str) -> None:
+    """Save text to the specified path.
+
+    :param path: Path to save text.
+    :param text: Text content to write.
+    """
+    async with smart_open(path, "w") as f:
+        await f.write(text)
+
+
 async def smart_relpath(path: PathLike, start: PathLike) -> str:
     """Compute a relative path from start to path.
 
@@ -305,3 +482,197 @@ async def smart_readlink(path: PathLike) -> str:
     """
     result = await SmartPath(path).readlink()
     return str(result)
+
+
+async def _iter_file_stats(
+    path: PathLike,
+    *,
+    missing_ok: bool = True,
+    followlinks: bool = False,
+) -> T.AsyncIterator[FileEntry]:
+    """Iterate file entries with stats under the given path.
+
+    :param path: Root path to scan.
+    :param missing_ok: If False and path is missing, raise FileNotFoundError.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator of FileEntry objects.
+    :rtype: T.AsyncIterator[FileEntry]
+    :raises FileNotFoundError: If missing_ok is False and path is absent.
+    """
+    smart_path = SmartPath(path)
+    if not await smart_path.exists(followlinks=followlinks):
+        if missing_ok:
+            return
+        raise FileNotFoundError(f"No match file: {smart_path}")
+    if followlinks:
+        try:
+            smart_path = await smart_path.readlink()
+        except OSError:
+            if missing_ok:
+                return
+            raise
+
+    async with smart_path.filesystem.scanfile(smart_path._path) as iterator:
+        async for entry in iterator:
+            stat = entry.stat
+            path = entry.path
+            name = entry.name
+            if followlinks and entry.is_symlink():
+                path = await smart_path.filesystem.readlink(entry.path)
+                name = os.path.basename(path)
+                stat = await smart_path.filesystem.stat(path, followlinks=followlinks)
+            yield FileEntry(
+                name=name,
+                path=smart_path.filesystem.build_uri(path),
+                stat=stat,
+            )
+
+
+async def _smart_sync_single_file(items: dict) -> bool:
+    """Sync a single file entry according to the provided items.
+
+    :param items: Mapping of sync parameters.
+    :return: True if the file was copied, otherwise False.
+    :rtype: bool
+    """
+    src_root_path = items["src_root_path"]
+    dst_root_path = items["dst_root_path"]
+    src_file_entry = items["src_file_entry"]
+    callback = items["callback"]
+    followlinks = items["followlinks"]
+    force = items["force"]
+    overwrite = items["overwrite"]
+
+    src_file_path = src_file_entry.path
+    src_file_stat = src_file_entry.stat
+
+    content_path = await smart_relpath(src_file_path, start=src_root_path)
+    if content_path and content_path != ".":
+        content_path = content_path.lstrip("/")
+        dst_abs_file_path = await smart_path_join(dst_root_path, content_path)
+    else:
+        dst_abs_file_path = dst_root_path
+
+    src_protocol = SmartPath(src_file_path).filesystem.protocol
+    dst_protocol = SmartPath(dst_abs_file_path).filesystem.protocol
+    sync_type = get_sync_type(src_protocol, dst_protocol)
+
+    should_sync = True
+    try:
+        if not force:
+            dst_file_stat = await smart_stat(
+                dst_abs_file_path, follow_symlinks=followlinks
+            )
+            if not overwrite:
+                should_sync = False
+            elif is_same_file(src_file_stat, dst_file_stat, sync_type):
+                should_sync = False
+    except (NotImplementedError, FileNotFoundError):
+        pass
+
+    if should_sync:
+        await smart_copy(
+            src_file_path,
+            dst_abs_file_path,
+            followlinks=followlinks,
+        )
+        if callback:
+            callback(src_file_path, src_file_stat.st_size)
+    elif callback:
+        callback(src_file_path, src_file_stat.st_size)
+
+    return should_sync
+
+
+async def smart_sync(
+    src_path: PathLike,
+    dst_path: PathLike,
+    callback: T.Optional[T.Callable[[str, int], None]] = None,
+    followlinks: bool = False,
+    force: bool = False,
+    overwrite: bool = True,
+) -> None:
+    """Sync file or directory to the destination path.
+
+    .. note ::
+
+        When the parameter is file, this function behaves like ``smart_copy``.
+
+        If file and directory of same name and same level, sync considers it as file
+        first.
+
+    :param src_path: Given source path.
+    :param dst_path: Given destination path.
+    :param callback: Called after each file copy attempt. The callback receives
+        ``(src_path, num_bytes)`` where ``num_bytes`` is the file size.
+    :param followlinks: False if regard symlink as file, else True.
+    :param force: Sync file forcible, do not ignore same files, priority is higher than
+        ``overwrite``.
+    :param overwrite: Whether to overwrite files when they already exist.
+    :raises FileNotFoundError: If source path does not exist.
+    """
+    if not await smart_exists(src_path):
+        raise FileNotFoundError(f"No match file: {src_path}")
+
+    src_root_path = str(SmartPath(src_path))
+    dst_root_path = str(SmartPath(dst_path))
+
+    src_file_stats = _iter_file_stats(
+        src_root_path, missing_ok=True, followlinks=followlinks
+    )
+
+    if not await smart_exists(dst_path):
+        force = True
+
+    async for entry in src_file_stats:
+        if not entry.name:
+            continue
+        items = {
+            "src_root_path": src_root_path,
+            "dst_root_path": dst_root_path,
+            "src_file_entry": FileEntry(
+                name=entry.name,
+                path=entry.path,
+                stat=entry.stat,
+            ),
+            "callback": callback,
+            "followlinks": followlinks,
+            "force": force,
+            "overwrite": overwrite,
+        }
+        await _smart_sync_single_file(items)
+
+
+async def _default_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
+    """Default implementation for concatenating files.
+
+    :param src_paths: List of source file paths to concatenate.
+    :param dst_path: Destination path for the concatenated file.
+    """
+    async with smart_open(dst_path, "wb") as dst_file:
+        for src_path in src_paths:
+            async with smart_open(src_path, "rb") as src_file:
+                await copyfileobj(src_file, dst_file)
+
+
+async def smart_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
+    """Concatenate files in src_paths into a single file at dst_path.
+
+    :param src_paths: List of source file paths to concatenate.
+    :param dst_path: Destination path for the concatenated file.
+    """
+    if not src_paths:
+        return
+
+    smart_path = SmartPath(dst_path)
+
+    concat_func = _default_concat
+    dst_protocol = smart_path.filesystem.protocol
+    for src_path in src_paths:
+        src_protocol, _, _ = split_uri(src_path)
+        if src_protocol != dst_protocol:
+            break
+    else:
+        if hasattr(smart_path.filesystem, "concat"):
+            concat_func = smart_path.filesystem.concat
+    await concat_func(src_paths, dst_path)

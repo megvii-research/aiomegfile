@@ -1,14 +1,23 @@
+import io
 import os
 
+import pytest
+
 from aiomegfile.smart import (
+    smart_abspath,
+    smart_concat,
     smart_copy,
     smart_exists,
     smart_glob,
     smart_iglob,
+    smart_isabs,
     smart_isdir,
     smart_isfile,
     smart_islink,
     smart_listdir,
+    smart_load_content,
+    smart_load_from,
+    smart_load_text,
     smart_makedirs,
     smart_move,
     smart_open,
@@ -16,10 +25,16 @@ from aiomegfile.smart import (
     smart_readlink,
     smart_realpath,
     smart_relpath,
+    smart_remove,
     smart_rename,
+    smart_save_as,
+    smart_save_content,
+    smart_save_text,
+    smart_scan,
     smart_scandir,
     smart_stat,
     smart_symlink,
+    smart_sync,
     smart_touch,
     smart_unlink,
     smart_walk,
@@ -53,12 +68,102 @@ async def test_smart_touch_unlink_makedirs(tmp_path):
     assert not file_path.exists()
 
 
+async def test_smart_remove_file_and_dir(tmp_path):
+    """Test removing a file and a directory recursively."""
+    file_path = tmp_path / "remove.txt"
+    file_path.write_text("data")
+    await smart_remove(file_path)
+    assert not file_path.exists()
+
+    dir_path = tmp_path / "remove_dir"
+    dir_path.mkdir()
+    (dir_path / "nested.txt").write_text("nested")
+    await smart_remove(dir_path)
+    assert not dir_path.exists()
+
+
+async def test_smart_remove_missing_ok(tmp_path):
+    """Test missing_ok behavior for smart_remove."""
+    missing_path = tmp_path / "missing.txt"
+    await smart_remove(missing_path, missing_ok=True)
+
+    with pytest.raises(FileNotFoundError):
+        await smart_remove(missing_path, missing_ok=False)
+
+
 async def test_smart_open_read_write(tmp_path):
     file_path = tmp_path / "open.txt"
     async with smart_open(file_path, "w") as f:
         await f.write("hello")
     async with smart_open(file_path, "r") as f:
         assert await f.read() == "hello"
+
+
+async def test_smart_save_as_and_load_text(tmp_path):
+    """Test smart_save_as writes stream content and smart_load_text reads it."""
+    file_path = tmp_path / "stream.txt"
+    buffer = io.BytesIO(b"stream")
+
+    await smart_save_as(buffer, file_path)
+
+    assert await smart_load_text(file_path) == "stream"
+
+
+async def test_smart_save_content_and_text(tmp_path):
+    """Test smart_save_content and smart_save_text write data."""
+    bytes_path = tmp_path / "bytes.bin"
+    text_path = tmp_path / "text.txt"
+
+    await smart_save_content(bytes_path, b"abc")
+    await smart_save_text(text_path, "hello")
+
+    assert bytes_path.read_bytes() == b"abc"
+    assert text_path.read_text() == "hello"
+
+
+async def test_smart_scan_and_isabs_abspath(tmp_path):
+    """Test smart_scan yields file paths and isabs/abspath behavior."""
+    root = tmp_path / "scan_root"
+    root.mkdir()
+    file_a = root / "a.txt"
+    file_b = root / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("a")
+    file_b.write_text("b")
+
+    scanned = []
+    async for path in smart_scan(root):
+        scanned.append(path)
+
+    assert str(file_a) in scanned
+    assert str(file_b) in scanned
+
+    abs_path = await smart_abspath(file_a)
+    assert os.path.isabs(abs_path)
+    assert await smart_isabs(abs_path) is True
+    assert await smart_isabs("relative/path") is False
+    assert await smart_isabs("s3://bucket/key") is True
+
+
+async def test_smart_load_from(tmp_path):
+    """Test smart_load_from returns a binary reader with content."""
+    file_path = tmp_path / "load.bin"
+    file_path.write_bytes(b"abc")
+
+    reader = await smart_load_from(file_path)
+    try:
+        assert reader.read() == b"abc"
+    finally:
+        reader.close()
+
+
+async def test_smart_load_content(tmp_path):
+    """Test smart_load_content reads full and ranged content."""
+    file_path = tmp_path / "range.bin"
+    file_path.write_bytes(b"abcdef")
+
+    assert await smart_load_content(file_path) == b"abcdef"
+    assert await smart_load_content(file_path, start=2, stop=5) == b"cde"
 
 
 async def test_smart_path_join(tmp_path):
@@ -90,6 +195,61 @@ async def test_smart_copy_move_rename(tmp_path):
     assert renamed == str(rename_dst)
     assert rename_dst.exists()
     assert not rename_src.exists()
+
+
+async def test_smart_sync_directory(tmp_path):
+    """Test syncing directory contents to a destination path."""
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    (src_dir / "a.txt").write_text("a")
+    subdir = src_dir / "sub"
+    subdir.mkdir()
+    (subdir / "b.txt").write_text("b")
+
+    dst_dir = tmp_path / "dst"
+    await smart_sync(src_dir, dst_dir)
+
+    assert (dst_dir / "a.txt").read_text() == "a"
+    assert (dst_dir / "sub" / "b.txt").read_text() == "b"
+
+
+async def test_smart_sync_file(tmp_path):
+    """Test syncing a single file to a destination path."""
+    src_file = tmp_path / "src.txt"
+    src_file.write_text("sync")
+    dst_file = tmp_path / "dst.txt"
+
+    await smart_sync(src_file, dst_file)
+
+    assert dst_file.read_text() == "sync"
+
+
+async def test_smart_sync_no_overwrite(tmp_path):
+    """Test syncing does not overwrite when overwrite is disabled."""
+    src_file = tmp_path / "src.txt"
+    src_file.write_text("new")
+    dst_file = tmp_path / "dst.txt"
+    dst_file.write_text("old")
+
+    await smart_sync(src_file, dst_file, overwrite=False)
+
+    assert dst_file.read_text() == "old"
+
+
+async def test_smart_sync_skip_when_dest_newer(tmp_path):
+    """Test sync skips when destination is newer with same size."""
+    src_file = tmp_path / "src.txt"
+    src_file.write_text("data")
+    dst_file = tmp_path / "dst.txt"
+    dst_file.write_text("data")
+
+    future_time = os.path.getmtime(dst_file) + 3600
+    os.utime(dst_file, (future_time, future_time))
+    before_mtime = os.path.getmtime(dst_file)
+
+    await smart_sync(src_file, dst_file)
+
+    assert os.path.getmtime(dst_file) == before_mtime
 
 
 async def test_smart_scandir_and_listdir(tmp_path):
@@ -160,3 +320,25 @@ async def test_smart_realpath_relpath_symlink(tmp_path):
 
     rel = await smart_relpath(src_file, tmp_path)
     assert rel == "src.txt"
+
+
+async def test_smart_concat_concatenates_files(tmp_path):
+    """Test smart_concat concatenates files in order."""
+    first_path = tmp_path / "first.bin"
+    second_path = tmp_path / "second.bin"
+    first_path.write_bytes(b"hello-")
+    second_path.write_bytes(b"world")
+
+    dest_path = tmp_path / "combined.bin"
+    await smart_concat([first_path, second_path], dest_path)
+
+    assert dest_path.read_bytes() == b"hello-world"
+
+
+async def test_smart_concat_empty_source_noop(tmp_path):
+    """Test smart_concat does nothing when source list is empty."""
+    dest_path = tmp_path / "combined.bin"
+
+    await smart_concat([], dest_path)
+
+    assert not dest_path.exists()

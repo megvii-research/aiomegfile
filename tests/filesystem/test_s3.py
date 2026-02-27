@@ -1,4 +1,5 @@
 import asyncio
+import io
 
 import pytest
 from moto.server import ThreadedMotoServer
@@ -12,7 +13,13 @@ from aiomegfile.errors import (
     S3NotALinkError,
     SameFileError,
 )
-from aiomegfile.filesystem.s3 import S3FileSystem, get_s3_client, is_s3, parse_s3_path
+from aiomegfile.filesystem.s3 import (
+    MultiPartWriter,
+    S3FileSystem,
+    get_s3_client,
+    is_s3,
+    parse_s3_path,
+)
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"
@@ -63,6 +70,18 @@ class TestS3FileSystem:
         """Helper to head object in test bucket."""
         client = await filesystem._get_client()
         return await client.head_object(Bucket=_bucket_name, Key=key)
+
+    async def _get_object_content(self, filesystem: S3FileSystem, key: str) -> bytes:
+        """Return object content from the test bucket.
+
+        :param filesystem: S3FileSystem instance.
+        :param key: Object key to read.
+        :return: Object content.
+        :rtype: bytes
+        """
+        client = await filesystem._get_client()
+        resp = await client.get_object(Bucket=_bucket_name, Key=key)
+        return await resp["Body"].read()
 
     async def test_is_file(self, filesystem):
         await self._create_bucket(filesystem)
@@ -257,6 +276,24 @@ class TestS3FileSystem:
         # All should be files
         for entry in entries:
             assert entry.stat.isdir is False
+
+    async def test_scanfile_file_path(self, filesystem):
+        """Test scanfile returns the file when path is a file."""
+        await self._create_bucket(filesystem)
+
+        filename = "scanfile_single.txt"
+        await self._put_object(filesystem, filename, b"content")
+
+        entries = []
+        async with filesystem.scanfile(f"{_bucket_name}/{filename}") as scanner:
+            async for entry in scanner:
+                entries.append(entry)
+
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.name == filename
+        assert entry.path == f"{_bucket_name}/{filename}"
+        assert entry.stat.isdir is False
 
     async def test_mkdir(self, filesystem):
         """Test mkdir creates directory marker."""
@@ -758,6 +795,74 @@ class TestS3FileSystem:
 
         async with filesystem.open(f"{_bucket_name}/{key}", mode="r") as f:
             assert f.mode == "r"
+
+    async def test_multipart_writer_orders_parts(self, filesystem):
+        """Test MultiPartWriter orders parts before completion.
+
+        :param filesystem: S3FileSystem fixture.
+        """
+        await self._create_bucket(filesystem)
+        client = await filesystem._get_client()
+
+        part_size = 5 * 1024 * 1024
+        part1 = io.BytesIO(b"a" * part_size)
+        part2 = io.BytesIO(b"b" * part_size)
+
+        dest_key = "multipart_order.txt"
+        dest_path = f"{_bucket_name}/{dest_key}"
+
+        async with MultiPartWriter(client, dest_path) as writer:
+            await writer.upload_part(2, part2)
+            await writer.upload_part(1, part1)
+
+        content = await self._get_object_content(filesystem, dest_key)
+        assert content == b"a" * part_size + b"b" * part_size
+
+    async def test_multipart_writer_upload_part_by_paths_with_range(self, filesystem):
+        """Test upload_part_by_paths concatenates ranged content.
+
+        :param filesystem: S3FileSystem fixture.
+        """
+        await self._create_bucket(filesystem)
+        client = await filesystem._get_client()
+
+        part_size = 5 * 1024 * 1024
+        await self._put_object(filesystem, "range_a.bin", b"a" * (part_size + 1))
+        await self._put_object(filesystem, "range_b.bin", b"b" * 1024 * 1024)
+
+        dest_key = "multipart_range.txt"
+        dest_path = f"{_bucket_name}/{dest_key}"
+        range_end = part_size - 1
+        paths = [
+            (f"{_bucket_name}/range_a.bin", f"bytes=0-{range_end}"),
+            (f"{_bucket_name}/range_b.bin", None),
+        ]
+
+        async with MultiPartWriter(client, dest_path) as writer:
+            await writer.upload_part_by_paths(1, paths)
+
+        content = await self._get_object_content(filesystem, dest_key)
+        assert content == b"a" * part_size + b"b" * 1024 * 1024
+
+    async def test_concat_block_size_zero(self, filesystem):
+        """Test concat with block_size=0 concatenates by copy.
+
+        :param filesystem: S3FileSystem fixture.
+        """
+        await self._create_bucket(filesystem)
+        part_size = 5 * 1024 * 1024
+        await self._put_object(filesystem, "copy_a.bin", b"a" * part_size)
+        await self._put_object(filesystem, "copy_b.bin", b"b" * part_size)
+
+        dest_key = "concat_copy.bin"
+        await filesystem.concat(
+            [f"{_bucket_name}/copy_a.bin", f"{_bucket_name}/copy_b.bin"],
+            f"{_bucket_name}/{dest_key}",
+            block_size=0,
+        )
+
+        content = await self._get_object_content(filesystem, dest_key)
+        assert content == b"a" * part_size + b"b" * part_size
 
 
 class TestHelperFunctions:
