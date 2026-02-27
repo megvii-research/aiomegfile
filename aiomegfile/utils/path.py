@@ -2,6 +2,8 @@ import os
 import typing as T
 import uuid
 
+from aiomegfile.config import READER_BLOCK_SIZE
+
 PathLike = T.Union[str, os.PathLike]
 
 
@@ -39,3 +41,28 @@ def generate_cache_path(filename: str, cache_dir: T.Optional[str] = None) -> str
         cache_dir = "/tmp"
     suffix = os.path.splitext(filename)[1]
     return os.path.join(cache_dir, str(uuid.uuid4()) + suffix)
+
+
+async def copyfileobj(
+    fsrc,
+    fdst,
+    callback: T.Optional[T.Callable[[int], None]] = None,
+    buffer: int = READER_BLOCK_SIZE,
+) -> None:
+    """Copy data from fsrc to fdst with optional progress callback.
+
+    This is similar to shutil.copyfileobj but with callback support.
+
+    Args:
+        fsrc: Source file-like object (opened for reading)
+        fdst: Destination file-like object (opened for writing)
+        callback: Optional callback function called with number of bytes written
+        buffer: Buffer size for copying (default: READER_BLOCK_SIZE)
+    """
+    while True:
+        buf = await fsrc.read(buffer)
+        if not buf:
+            break
+        await fdst.write(buf)
+        if callback:
+            callback(len(buf))

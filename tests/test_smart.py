@@ -5,6 +5,7 @@ import pytest
 
 from aiomegfile.smart import (
     smart_abspath,
+    smart_concat,
     smart_copy,
     smart_exists,
     smart_glob,
@@ -319,3 +320,25 @@ async def test_smart_realpath_relpath_symlink(tmp_path):
 
     rel = await smart_relpath(src_file, tmp_path)
     assert rel == "src.txt"
+
+
+async def test_smart_concat_concatenates_files(tmp_path):
+    """Test smart_concat concatenates files in order."""
+    first_path = tmp_path / "first.bin"
+    second_path = tmp_path / "second.bin"
+    first_path.write_bytes(b"hello-")
+    second_path.write_bytes(b"world")
+
+    dest_path = tmp_path / "combined.bin"
+    await smart_concat([first_path, second_path], dest_path)
+
+    assert dest_path.read_bytes() == b"hello-world"
+
+
+async def test_smart_concat_empty_source_noop(tmp_path):
+    """Test smart_concat does nothing when source list is empty."""
+    dest_path = tmp_path / "combined.bin"
+
+    await smart_concat([], dest_path)
+
+    assert not dest_path.exists()

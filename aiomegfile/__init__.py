@@ -5,6 +5,7 @@ from aiomegfile.filesystem import (
 )
 from aiomegfile.smart import (
     smart_abspath,
+    smart_concat,
     smart_copy,
     smart_exists,
     smart_glob,
@@ -44,6 +45,7 @@ __all__ = [
     "LocalFileSystem",
     "S3FileSystem",
     "smart_abspath",
+    "smart_concat",
     "smart_copy",
     "smart_exists",
     "smart_glob",

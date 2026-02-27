@@ -5,7 +5,7 @@ import typing as T
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
-from aiomegfile.utils.path import PathLike, fspath
+from aiomegfile.utils.path import PathLike, copyfileobj, fspath, split_uri
 
 __all__ = [
     "smart_abspath",
@@ -41,6 +41,7 @@ __all__ = [
     "smart_relpath",
     "smart_symlink",
     "smart_readlink",
+    "smart_concat",
 ]
 
 
@@ -640,3 +641,40 @@ async def smart_sync(
             "overwrite": overwrite,
         }
         await _smart_sync_single_file(items)
+
+
+async def _default_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
+    """Default implementation for concatenating files.
+
+    :param src_paths: List of source file paths to concatenate.
+    :param dst_path: Destination path for the concatenated file.
+    """
+    async with smart_open(dst_path, "wb") as dst_file:
+        for src_path in src_paths:
+            async with smart_open(src_path, "rb") as src_file:
+                await copyfileobj(src_file, dst_file)
+
+
+async def smart_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
+    """Concatenate files in src_paths into a single file at dst_path.
+
+    :param src_paths: List of source file paths to concatenate.
+    :param dst_path: Destination path for the concatenated file.
+    """
+    if not src_paths:
+        return
+
+    smart_path = SmartPath(dst_path)
+
+    dst_protocol = smart_path.filesystem.protocol
+    for src_path in src_paths:
+        src_protocol, _, _ = split_uri(src_path)
+        if src_protocol != dst_protocol:
+            concat_func = _default_concat
+            break
+    else:
+        if hasattr(smart_path.filesystem, "concat"):
+            concat_func = smart_path.filesystem.concat
+        else:
+            concat_func = _default_concat
+    await concat_func(src_paths, dst_path)

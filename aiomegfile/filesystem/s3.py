@@ -1,4 +1,5 @@
 import asyncio
+import io
 import logging
 import os
 import re
@@ -10,7 +11,7 @@ import botocore
 from aiobotocore.config import AioConfig
 from botocore.utils import calculate_md5 as botocore_calculate_md5
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS
+from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
 from aiomegfile.errors import (
     S3BucketNotFoundError,
     S3ConfigError,
@@ -26,6 +27,7 @@ from aiomegfile.errors import (
     translate_s3_error,
 )
 from aiomegfile.interfaces import (
+    AioClosable,
     AioScannableManager,
     BaseFileSystem,
     FileEntry,
@@ -1049,6 +1051,89 @@ class S3FileSystem(BaseFileSystem):
         except (S3NotALinkError, S3FileNotFoundError, S3IsADirectoryError):
             return False
 
+    async def _group_src_paths_by_block(
+        self, src_paths: T.List[PathLike], block_size: int = READER_BLOCK_SIZE
+    ) -> T.List[T.List[T.Tuple[PathLike, T.Optional[str]]]]:
+        groups = []
+        current_group, current_group_size = [], 0
+        for src_path in src_paths:
+            current_file_size = (await self.stat(src_path)).st_size
+            if current_file_size == 0:
+                continue
+
+            if current_file_size >= block_size:
+                if len(groups) == 0:
+                    if current_group_size + current_file_size > 2 * block_size:
+                        group_lack_size = block_size - current_group_size
+                        current_group.append(
+                            (src_path, f"bytes=0-{group_lack_size - 1}")
+                        )
+                        groups.extend(
+                            [
+                                current_group,
+                                [
+                                    (
+                                        src_path,
+                                        f"bytes={group_lack_size}-"
+                                        f"{current_file_size - 1}",
+                                    )
+                                ],
+                            ]
+                        )
+                    else:
+                        current_group.append((src_path, None))
+                        groups.append(current_group)
+                else:
+                    groups[-1].extend(current_group)
+                    groups.append([(src_path, None)])
+                current_group, current_group_size = [], 0
+            else:
+                current_group.append((src_path, None))
+                current_group_size += current_file_size
+                if current_group_size >= block_size:
+                    groups.append(current_group)
+                    current_group, current_group_size = [], 0
+        if current_group:
+            groups.append(current_group)
+        return groups
+
+    async def concat(
+        self,
+        src_paths: T.List[PathLike],
+        dst_path: PathLike,
+        block_size: int = READER_BLOCK_SIZE,
+    ) -> None:
+        """Concatenate s3 files to one file.
+
+        :param src_paths: Given source paths
+        :param dst_path: Given destination path
+        """
+        client = await self._get_client()
+        with raise_s3_error(dst_path):
+            if block_size == 0:
+                groups = [[(src_path, None)] for src_path in src_paths]
+            else:
+                groups = await self._group_src_paths_by_block(
+                    src_paths, block_size=block_size
+                )
+
+            tasks = []
+            async with MultiPartWriter(client, dst_path) as writer:
+                for index, group in enumerate(groups, start=1):
+                    if len(group) == 1:
+                        tasks.append(
+                            asyncio.create_task(
+                                writer.upload_part_copy(index, group[0][0], group[0][1])
+                            )
+                        )
+                    else:
+                        tasks.append(
+                            asyncio.create_task(
+                                writer.upload_part_by_paths(index, group)
+                            )
+                        )
+                await asyncio.gather(*tasks, return_exceptions=True)
+
     def same_endpoint(self, other_filesystem: "BaseFileSystem") -> bool:
         """
         Return whether this filesystem points to the same endpoint.
@@ -1094,3 +1179,92 @@ class S3FileSystem(BaseFileSystem):
         """
         _, _, profile_name = split_uri(uri)
         return cls(profile_name=profile_name)
+
+
+class MultiPartWriter(AioClosable):
+    def __init__(self, client: "S3Client", path: str) -> None:
+        self._client = client
+        self._multipart_upload_info = []
+
+        bucket, key = parse_s3_path(path)
+        self._bucket = bucket
+        self._key = key
+        self._upload_id = None
+
+    async def upload_part(self, part_num: int, file_obj: io.BytesIO) -> None:
+        response = await self._client.upload_part(
+            Body=file_obj,
+            UploadId=self._upload_id,
+            PartNumber=part_num,
+            Bucket=self._bucket,
+            Key=self._key,
+        )
+        self._multipart_upload_info.append(
+            {"PartNumber": part_num, "ETag": response["ETag"]}
+        )
+
+    async def upload_part_by_paths(
+        self, part_num: int, paths: T.List[T.Tuple[PathLike, str]]
+    ) -> None:
+        file_obj = io.BytesIO()
+
+        async def get_object(
+            client, bucket, key, range_str: T.Optional[str] = None
+        ) -> bytes:
+            if range_str:
+                response = await client.get_object(
+                    Bucket=bucket, Key=key, Range=range_str
+                )
+            else:
+                response = await client.get_object(Bucket=bucket, Key=key)
+            data = await response["Body"].read()
+            return data
+
+        for path, bytes_range in paths:
+            bucket, key = parse_s3_path(path)
+            if bytes_range:
+                file_obj.write(await get_object(self._client, bucket, key, bytes_range))
+            else:
+                file_obj.write(await get_object(self._client, bucket, key))
+        file_obj.seek(0, os.SEEK_SET)
+        await self.upload_part(part_num, file_obj)
+
+    async def upload_part_copy(
+        self, part_num: int, path: PathLike, copy_source_range: T.Optional[str] = None
+    ) -> None:
+        bucket, key = parse_s3_path(path)
+        params = dict(
+            UploadId=self._upload_id,
+            PartNumber=part_num,
+            CopySource={"Bucket": bucket, "Key": key},
+            Bucket=self._bucket,
+            Key=self._key,
+        )
+        if copy_source_range:
+            params["CopySourceRange"] = copy_source_range
+        response = await self._client.upload_part_copy(**params)
+        self._multipart_upload_info.append(
+            {"PartNumber": part_num, "ETag": response["CopyPartResult"]["ETag"]}
+        )
+
+    async def close(self):
+        if self._upload_id is None:
+            return
+        self._multipart_upload_info.sort(key=lambda t: t["PartNumber"])
+        await self._client.complete_multipart_upload(
+            UploadId=self._upload_id,
+            Bucket=self._bucket,
+            Key=self._key,
+            MultipartUpload={"Parts": self._multipart_upload_info},
+        )
+
+    async def __aenter__(self):
+        self._upload_id = (
+            await self._client.create_multipart_upload(
+                Bucket=self._bucket, Key=self._key
+            )
+        )["UploadId"]
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
