@@ -72,7 +72,8 @@ def is_s3(path: PathLike) -> bool:
     return False
 
 
-def parse_s3_path(s3_path: str) -> tuple[str, str]:
+def parse_s3_path(s3_path: PathLike) -> tuple[str, str]:
+    s3_path = fspath(s3_path)
     bucket_pattern = re.match("(.*?)/", s3_path)
     if bucket_pattern is None:
         bucket = s3_path
@@ -1057,7 +1058,7 @@ class S3FileSystem(BaseFileSystem):
         groups = []
         current_group, current_group_size = [], 0
         for src_path in src_paths:
-            current_file_size = (await self.stat(src_path)).st_size
+            current_file_size = (await self.stat(fspath(src_path))).st_size
             if current_file_size == 0:
                 continue
 
@@ -1182,7 +1183,7 @@ class S3FileSystem(BaseFileSystem):
 
 
 class MultiPartWriter(AioClosable):
-    def __init__(self, client: "S3Client", path: str) -> None:
+    def __init__(self, client: "S3Client", path: PathLike) -> None:
         self._client = client
         self._multipart_upload_info = []
 

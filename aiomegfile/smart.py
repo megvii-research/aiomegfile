@@ -666,15 +666,13 @@ async def smart_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
 
     smart_path = SmartPath(dst_path)
 
+    concat_func = _default_concat
     dst_protocol = smart_path.filesystem.protocol
     for src_path in src_paths:
         src_protocol, _, _ = split_uri(src_path)
         if src_protocol != dst_protocol:
-            concat_func = _default_concat
             break
     else:
         if hasattr(smart_path.filesystem, "concat"):
             concat_func = smart_path.filesystem.concat
-        else:
-            concat_func = _default_concat
     await concat_func(src_paths, dst_path)
