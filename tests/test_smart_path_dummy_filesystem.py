@@ -227,14 +227,14 @@ async def test_copy_cross_protocol_fallback_streaming(
     p_src = SmartPath(str(src))
     p_dst = SmartPath(f"dummy://{dst}")
 
-    await p_src._copy_file(target=p_dst)
+    await p_src.copy_file(target=p_dst)
     assert dst.read_text() == "hello"
 
     # reverse direction hits the download branch before falling back
     dst2 = tmp_path / "dst2.txt"
     p_src_dummy = SmartPath(f"dummy://{src}")
     p_dst_file = SmartPath(str(dst2))
-    await p_src_dummy._copy_file(target=p_dst_file)
+    await p_src_dummy.copy_file(target=p_dst_file)
     assert dst2.read_text() == "hello"
 
 

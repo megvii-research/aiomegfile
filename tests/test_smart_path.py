@@ -2,10 +2,45 @@ import asyncio
 import os
 
 import pytest
+from moto.server import ThreadedMotoServer
 
+from aiomegfile.filesystem.s3 import S3FileSystem
 from aiomegfile.interfaces import StatResult
 from aiomegfile.smart_path import SmartPath, URIPathParents
 from aiomegfile.utils.path import fspath, split_uri
+
+_aws_access_key_id = "testing"
+_aws_secret_access_key = "testing"
+
+
+@pytest.fixture(scope="module")
+def moto_server():
+    """Start a moto server for S3 SmartPath tests.
+
+    :return: Endpoint URL for the moto server.
+    :rtype: str
+    """
+    server = ThreadedMotoServer()
+    try:
+        server.start()
+        host, port = server.get_host_and_port()
+        if host == "0.0.0.0":
+            host = "localhost"
+        yield f"http://{host}:{port}"
+    finally:
+        server.stop()
+
+
+@pytest.fixture
+def mock_s3(moto_server, monkeypatch):
+    """Mock AWS credentials and endpoint URL to environment variables.
+
+    :param moto_server: Moto server endpoint URL.
+    :param monkeypatch: Pytest monkeypatch fixture.
+    """
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", _aws_access_key_id)
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", _aws_secret_access_key)
+    monkeypatch.setenv("AWS_ENDPOINT_URL", moto_server)
 
 
 class TestFspath:
@@ -202,6 +237,70 @@ class TestSmartPathParts:
     def test_anchor(self):
         p = SmartPath("file:///bucket/dir/file.txt")
         assert p.anchor == "file://"
+
+
+class TestSmartPathIglobS3:
+    """Tests for SmartPath iglob on s3 paths."""
+
+    async def test_iglob_s3_non_recursive(self, mock_s3):
+        """Test iglob returns non-recursive matches for s3 paths.
+
+        :param mock_s3: Fixture configuring moto-backed S3.
+        """
+        filesystem = S3FileSystem()
+        client = await filesystem._get_client()
+        bucket = "smartpath-iglob-bucket"
+        prefix = "non-recursive"
+        try:
+            await client.create_bucket(Bucket=bucket)
+        except Exception:
+            pass
+        await client.put_object(Bucket=bucket, Key=f"{prefix}/file1.txt", Body=b"1")
+        await client.put_object(Bucket=bucket, Key=f"{prefix}/file2.log", Body=b"2")
+        await client.put_object(
+            Bucket=bucket, Key=f"{prefix}/nested/file3.txt", Body=b"3"
+        )
+
+        base = SmartPath(f"s3://{bucket}/{prefix}")
+        collected = []
+        async for item in base.iglob("*.txt"):
+            collected.append(item)
+
+        collected_paths = {str(item) for item in collected}
+        assert collected_paths == {f"s3://{bucket}/{prefix}/file1.txt"}
+        assert all(isinstance(item, SmartPath) for item in collected)
+
+    async def test_iglob_s3_recursive(self, mock_s3):
+        """Test iglob returns recursive matches for s3 paths.
+
+        :param mock_s3: Fixture configuring moto-backed S3.
+        """
+        filesystem = S3FileSystem()
+        client = await filesystem._get_client()
+        bucket = "smartpath-iglob-bucket-recursive"
+        prefix = "recursive"
+        try:
+            await client.create_bucket(Bucket=bucket)
+        except Exception:
+            pass
+        await client.put_object(Bucket=bucket, Key=f"{prefix}/file1.txt", Body=b"1")
+        await client.put_object(
+            Bucket=bucket, Key=f"{prefix}/nested/file2.txt", Body=b"2"
+        )
+        await client.put_object(
+            Bucket=bucket, Key=f"{prefix}/nested/deeper/file3.txt", Body=b"3"
+        )
+
+        base = SmartPath(f"s3://{bucket}/{prefix}")
+        collected = []
+        async for item in base.iglob("**/*.txt"):
+            collected.append(str(item))
+
+        assert set(collected) == {
+            f"s3://{bucket}/{prefix}/file1.txt",
+            f"s3://{bucket}/{prefix}/nested/file2.txt",
+            f"s3://{bucket}/{prefix}/nested/deeper/file3.txt",
+        }
 
 
 class TestSmartPathParents:

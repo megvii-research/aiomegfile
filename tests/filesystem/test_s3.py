@@ -248,6 +248,26 @@ class TestS3FileSystem:
 
         assert len(entries) == 0
 
+    async def test_scandir_root_lists_buckets(self, filesystem):
+        """Test scandir on root lists buckets.
+
+        :return: None
+        :rtype: None
+        """
+        await self._create_bucket(filesystem)
+
+        entries = []
+        async with filesystem.scandir("") as scanner:
+            async for entry in scanner:
+                entries.append(entry)
+
+        names = [entry.name for entry in entries]
+        assert _bucket_name in names
+
+        bucket_entry = next(entry for entry in entries if entry.name == _bucket_name)
+        assert bucket_entry.is_dir() is True
+        assert bucket_entry.stat.st_ctime > 0
+
     async def test_scanfile(self, filesystem):
         """Test scanfile returns only files recursively."""
         await self._create_bucket(filesystem)
@@ -294,6 +314,336 @@ class TestS3FileSystem:
         assert entry.name == filename
         assert entry.path == f"{_bucket_name}/{filename}"
         assert entry.stat.isdir is False
+
+    async def test_glob_stat_non_recursive(self, filesystem):
+        """Test glob_stat matches non-recursive patterns."""
+        await self._create_bucket(filesystem)
+
+        prefix = "glob_stat_non_recursive"
+        await self._put_object(filesystem, f"{prefix}/file1.txt", b"1")
+        await self._put_object(filesystem, f"{prefix}/file2.log", b"2")
+        await self._put_object(filesystem, f"{prefix}/subdir/file3.txt", b"3")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/*.txt"):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == [f"{_bucket_name}/{prefix}/file1.txt"]
+
+    async def test_glob_stat_recursive(self, filesystem):
+        """Test glob_stat matches recursive patterns."""
+        await self._create_bucket(filesystem)
+
+        prefix = "glob_stat_recursive"
+        await self._put_object(filesystem, f"{prefix}/file1.txt", b"1")
+        await self._put_object(filesystem, f"{prefix}/subdir/file2.txt", b"2")
+        await self._put_object(
+            filesystem,
+            f"{prefix}/subdir/nested/file3.txt",
+            b"3",
+        )
+        await self._put_object(filesystem, f"{prefix}/file4.log", b"4")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/**/*.txt"):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == sorted(
+            [
+                f"{_bucket_name}/{prefix}/file1.txt",
+                f"{_bucket_name}/{prefix}/subdir/file2.txt",
+                f"{_bucket_name}/{prefix}/subdir/nested/file3.txt",
+            ]
+        )
+
+    async def test_glob_stat_directory_pattern(self, filesystem):
+        """Test glob_stat matches directory patterns ending with slash."""
+        await self._create_bucket(filesystem)
+
+        prefix = "glob_stat_dir_pattern"
+        await self._put_object(filesystem, f"{prefix}/subdir/file.txt", b"1")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/*/"):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == [f"{_bucket_name}/{prefix}/subdir/"]
+        for entry in entries:
+            assert entry.stat.isdir is True
+
+    async def test_glob_stat_missing_ok_false(self, filesystem):
+        """Test glob_stat raises when missing_ok is False and no matches."""
+        await self._create_bucket(filesystem)
+
+        with pytest.raises(S3FileNotFoundError):
+            async for _ in filesystem.glob_stat(
+                f"{_bucket_name}/glob_stat_missing/*.txt",
+                missing_ok=False,
+            ):
+                pass
+
+    async def test_glob_stat_bucket_wildcard(self, filesystem):
+        """Test glob_stat expands bucket wildcard patterns."""
+        client = await filesystem._get_client()
+        bucket_one = "globstat-bucket-1"
+        bucket_two = "globstat-bucket-2"
+        await client.create_bucket(Bucket=bucket_one)
+        await client.create_bucket(Bucket=bucket_two)
+        await client.put_object(Bucket=bucket_one, Key="data.txt", Body=b"1")
+        await client.put_object(Bucket=bucket_two, Key="data.txt", Body=b"2")
+
+        entries = []
+        async for entry in filesystem.glob_stat("globstat-bucket-*/data.txt"):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == sorted([f"{bucket_one}/data.txt", f"{bucket_two}/data.txt"])
+
+    async def test_glob_stat_file_and_dir_same_name(self, filesystem):
+        """Test glob_stat returns both file and directory for same name.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        name = "same_name"
+        await self._put_object(filesystem, name, b"file")
+        await self._put_object(filesystem, f"{name}/", b"")
+        await self._put_object(filesystem, f"{name}/child.txt", b"child")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{name}"):
+            entries.append(entry)
+
+        pairs = sorted((entry.path, entry.stat.isdir) for entry in entries)
+        assert pairs == sorted(
+            [
+                (f"{_bucket_name}/{name}", False),
+                (f"{_bucket_name}/{name}", True),
+            ]
+        )
+
+    async def test_glob_stat_dir_marker_trailing_slash(self, filesystem):
+        """Test glob_stat matches directory marker with trailing slash.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        name = "marker_only"
+        await self._put_object(filesystem, f"{name}/", b"")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{name}/"):
+            entries.append(entry)
+
+        pairs = sorted((entry.path, entry.stat.isdir) for entry in entries)
+        assert pairs == [(f"{_bucket_name}/{name}/", True)]
+
+    async def test_glob_stat_wildcard_with_file_and_dir(self, filesystem):
+        """Test glob_stat wildcard includes file and directory of same prefix.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        await self._put_object(filesystem, "alpha", b"file")
+        await self._put_object(filesystem, "alpha/", b"")
+        await self._put_object(filesystem, "alpha/child.txt", b"child")
+        await self._put_object(filesystem, "alpha_beta", b"file")
+        await self._put_object(filesystem, "alpha-beta/", b"")
+        await self._put_object(filesystem, "alpha-beta/nested/file.txt", b"nested")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/alpha*"):
+            entries.append(entry)
+
+        pairs = sorted((entry.path, entry.stat.isdir) for entry in entries)
+        expected = sorted(
+            [
+                (f"{_bucket_name}/alpha", False),
+                (f"{_bucket_name}/alpha", True),
+                (f"{_bucket_name}/alpha_beta", False),
+                (f"{_bucket_name}/alpha-beta", True),
+            ]
+        )
+        assert pairs == expected
+
+    async def test_glob_stat_deep_leaf_txt(self, filesystem):
+        """Test glob_stat finds leaf txt files in deep directory trees.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        prefix = "deep_tree"
+        keys = [
+            f"{prefix}/l1/l2/l3/l4/leaf.txt",
+            f"{prefix}/l1/l2/l3/l4/leaf2.txt",
+            f"{prefix}/l1/l2/l3/other.md",
+            f"{prefix}/l1/other.txt",
+            f"{prefix}/l1/l2/l3/l4/leaf.log",
+        ]
+        for key in keys:
+            await self._put_object(filesystem, key, b"data")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/**/*.txt"):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == sorted(
+            [
+                f"{_bucket_name}/{prefix}/l1/l2/l3/l4/leaf.txt",
+                f"{_bucket_name}/{prefix}/l1/l2/l3/l4/leaf2.txt",
+                f"{_bucket_name}/{prefix}/l1/other.txt",
+            ]
+        )
+        assert all(entry.stat.isdir is False for entry in entries)
+
+    async def test__glob_stat_single_path_non_magic_file_and_dir(self, filesystem):
+        """Test _glob_stat_single_path returns both file and directory entries.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        name = "single_path_same"
+        await self._put_object(filesystem, name, b"file")
+        await self._put_object(filesystem, f"{name}/child.txt", b"child")
+
+        entries = []
+        async for entry in filesystem._glob_stat_single_path(f"{_bucket_name}/{name}"):
+            entries.append(entry)
+
+        pairs = sorted((entry.path, entry.stat.isdir) for entry in entries)
+        assert pairs == sorted(
+            [
+                (f"{_bucket_name}/{name}", False),
+                (f"{_bucket_name}/{name}", True),
+            ]
+        )
+
+    async def test__glob_stat_single_path_non_recursive_double_star(self, filesystem):
+        """Test _glob_stat_single_path treats ** as * when recursive is False.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        prefix = "single_path_non_recursive"
+        await self._put_object(filesystem, f"{prefix}/a/file.txt", b"1")
+        await self._put_object(filesystem, f"{prefix}/a/b/file.txt", b"2")
+
+        entries = []
+        async for entry in filesystem._glob_stat_single_path(
+            f"{_bucket_name}/{prefix}/**/file.txt",
+            recursive=False,
+        ):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == [f"{_bucket_name}/{prefix}/a/file.txt"]
+
+    async def test__glob_stat_single_path_directory_pattern(self, filesystem):
+        """Test _glob_stat_single_path matches directories with trailing slash.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        prefix = "single_path_dir_pattern"
+        await self._put_object(filesystem, f"{prefix}/one/file.txt", b"1")
+        await self._put_object(filesystem, f"{prefix}/two/nested/file.txt", b"2")
+
+        entries = []
+        async for entry in filesystem._glob_stat_single_path(
+            f"{_bucket_name}/{prefix}/*/"
+        ):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == sorted(
+            [
+                f"{_bucket_name}/{prefix}/one/",
+                f"{_bucket_name}/{prefix}/two/",
+            ]
+        )
+        assert all(entry.stat.isdir is True for entry in entries)
+
+    async def test__glob_stat_single_path_deep_leaf_txt(self, filesystem):
+        """Test _glob_stat_single_path finds leaf txt files in deep trees.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        prefix = "single_path_deep_tree"
+        keys = [
+            f"{prefix}/a/b/c/d/leaf.txt",
+            f"{prefix}/a/b/c/d/leaf2.txt",
+            f"{prefix}/a/b/c/d/leaf.log",
+            f"{prefix}/a/b/other.txt",
+        ]
+        for key in keys:
+            await self._put_object(filesystem, key, b"data")
+
+        entries = []
+        async for entry in filesystem._glob_stat_single_path(
+            f"{_bucket_name}/{prefix}/**/*.txt"
+        ):
+            entries.append(entry)
+
+        paths = sorted(entry.path for entry in entries)
+        assert paths == sorted(
+            [
+                f"{_bucket_name}/{prefix}/a/b/c/d/leaf.txt",
+                f"{_bucket_name}/{prefix}/a/b/c/d/leaf2.txt",
+                f"{_bucket_name}/{prefix}/a/b/other.txt",
+            ]
+        )
+        assert all(entry.stat.isdir is False for entry in entries)
+
+    async def test__glob_stat_single_path_double_star_slash_star(self, filesystem):
+        """Test _glob_stat_single_path with "**/*" matches dirs and files.
+
+        :param filesystem: S3FileSystem instance.
+        """
+        await self._create_bucket(filesystem)
+
+        prefix = "single_path_starstar"
+        keys = [
+            f"{prefix}/dir1/file1.txt",
+            f"{prefix}/dir1/subdir/file2.txt",
+            f"{prefix}/dir2/file3.log",
+            f"{prefix}/root.txt",
+            f"{prefix}/dir2/",
+        ]
+        for key in keys:
+            await self._put_object(filesystem, key, b"data")
+
+        entries = []
+        async for entry in filesystem._glob_stat_single_path(
+            f"{_bucket_name}/{prefix}/**/*"
+        ):
+            entries.append(entry)
+
+        pairs = sorted((entry.path, entry.stat.isdir) for entry in entries)
+        expected = sorted(
+            [
+                (f"{_bucket_name}/{prefix}/dir1", True),
+                (f"{_bucket_name}/{prefix}/dir1/subdir", True),
+                (f"{_bucket_name}/{prefix}/dir2", True),
+                (f"{_bucket_name}/{prefix}/dir1/file1.txt", False),
+                (f"{_bucket_name}/{prefix}/dir1/subdir/file2.txt", False),
+                (f"{_bucket_name}/{prefix}/dir2/file3.log", False),
+                (f"{_bucket_name}/{prefix}/root.txt", False),
+            ]
+        )
+        assert pairs == expected
 
     async def test_mkdir(self, filesystem):
         """Test mkdir creates directory marker."""
