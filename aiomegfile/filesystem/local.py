@@ -211,6 +211,70 @@ class LocalFileSystem(BaseFileSystem):
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
 
+        def _normalize_sort(name: str) -> str:
+            """Normalize path separators for consistent sorting.
+
+            :param name: Path or entry name to normalize.
+            :return: Normalized name used for sorting.
+            """
+            return name.replace(os.path.sep, "/")
+
+        async def _iter_dir(dir_path: str) -> T.AsyncIterator[FileEntry]:
+            """Yield FileEntry objects in sorted order under dir_path.
+
+            :param dir_path: Directory path to traverse.
+            :return: Async iterator yielding FileEntry objects.
+            """
+            try:
+                entries = await asyncio.to_thread(list, os.scandir(dir_path))
+            except OSError:
+                return
+
+            names: T.List[str] = []
+            entry_map: T.Dict[str, T.Tuple[os.DirEntry, bool]] = {}
+            for entry in entries:
+                name = entry.name
+                is_dir = entry.is_dir(follow_symlinks=False)
+                is_symlink_dir = False
+                if not is_dir and entry.is_symlink():
+                    try:
+                        is_symlink_dir = entry.is_dir(follow_symlinks=True)
+                    except OSError:
+                        is_symlink_dir = False
+                if is_dir or is_symlink_dir:
+                    names.append(name + os.path.sep)
+                else:
+                    names.append(name)
+                entry_map[name] = (entry, is_symlink_dir)
+
+            names.sort(key=_normalize_sort)
+            for name in names:
+                is_dir_entry = name.endswith(os.path.sep)
+                raw_name = name[:-1] if is_dir_entry else name
+                entry, is_symlink_dir = entry_map[raw_name]
+                file_path = os.path.join(dir_path, raw_name)
+                if is_dir_entry:
+                    if is_symlink_dir:
+                        continue
+                    async for child in _iter_dir(file_path):
+                        yield child
+                else:
+                    try:
+                        stat_result = await aiofiles.os.stat(file_path)
+                    except OSError:
+                        continue
+                    yield FileEntry(
+                        name=entry.name,
+                        path=file_path,
+                        stat=StatResult(
+                            st_size=stat_result.st_size,
+                            st_ctime=stat_result.st_ctime,
+                            st_mtime=stat_result.st_mtime,
+                            isdir=stat.S_ISDIR(stat_result.st_mode),
+                            islnk=stat.S_ISLNK(stat_result.st_mode),
+                        ),
+                    )
+
         async def aiterator():
             if await aiofiles.ospath.isfile(path):
                 stat_result = await aiofiles.os.stat(path)
@@ -227,21 +291,8 @@ class LocalFileSystem(BaseFileSystem):
                     ),
                 )
                 return
-            for dirpath, _, filenames in await asyncio.to_thread(os.walk, path):
-                for filename in filenames:
-                    file_path = os.path.join(dirpath, filename)
-                    stat_result = await aiofiles.os.stat(file_path)
-                    yield FileEntry(
-                        name=filename,
-                        path=file_path,
-                        stat=StatResult(
-                            st_size=stat_result.st_size,
-                            st_ctime=stat_result.st_ctime,
-                            st_mtime=stat_result.st_mtime,
-                            isdir=stat.S_ISDIR(stat_result.st_mode),
-                            islnk=stat.S_ISLNK(stat_result.st_mode),
-                        ),
-                    )
+            async for file_entry in _iter_dir(path):
+                yield file_entry
 
         return AioScannableManager(aiterator())
 

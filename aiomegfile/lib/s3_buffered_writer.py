@@ -12,6 +12,7 @@ from aiomegfile.config import (
 )
 from aiomegfile.errors import translate_s3_error
 from aiomegfile.interfaces import AioWritable
+from aiomegfile.utils.endpoint import is_cloudflare_r2
 
 _logger = get_logger(__name__)
 
@@ -124,6 +125,10 @@ class AioS3BufferedWriter(AioWritable):
 
     async def __aenter__(self):
         self._client = await self._filesystem._get_client()
+        if is_cloudflare_r2(self._client._endpoint.host):
+            # Cloudflare R2 requires all non-trailing parts to have the same size,
+            # so we disable block autoscaling to ensure consistent part sizes.
+            self._block_autoscale = False
         return await super().__aenter__()
 
     @property
