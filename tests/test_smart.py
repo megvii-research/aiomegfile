@@ -336,6 +336,36 @@ async def test_smart_sync_fs_to_s3(tmp_path, s3_filesystem):
     assert await smart_load_content(f"{dst_prefix}/sub/bravo.txt") == b"bravo"
 
 
+async def test_smart_sync_fs_to_s3_mtime_overwrite_force(tmp_path, s3_filesystem):
+    """Test fs->s3 sync with mtime, overwrite, and force behavior."""
+    await _create_bucket(s3_filesystem)
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    src_file = src_dir / "data.txt"
+    src_file.write_text("alpha")
+
+    dst_prefix = f"s3://{_bucket_name}/sync-overwrite"
+    dst_file = f"{dst_prefix}/data.txt"
+
+    await smart_sync(src_dir, dst_prefix)
+    assert await smart_load_content(dst_file) == b"alpha"
+
+    src_file.write_text("bravo")
+    s3_stat = await smart_stat(dst_file)
+    older_time = s3_stat.st_mtime - 3600
+    os.utime(src_file, (older_time, older_time))
+
+    await smart_sync(src_dir, dst_prefix)
+    assert await smart_load_content(dst_file) == b"alpha"
+
+    src_file.write_text("candy")
+    await smart_sync(src_dir, dst_prefix, overwrite=False)
+    assert await smart_load_content(dst_file) == b"alpha"
+
+    await smart_sync(src_dir, dst_prefix, force=True, overwrite=False)
+    assert await smart_load_content(dst_file) == b"candy"
+
+
 async def test_smart_sync_s3_to_fs(tmp_path, s3_filesystem):
     """Test syncing from S3 to local filesystem."""
     await _create_bucket(s3_filesystem)
@@ -350,6 +380,34 @@ async def test_smart_sync_s3_to_fs(tmp_path, s3_filesystem):
     assert (dst_dir / "one.txt").read_text() == "one"
     assert (dst_dir / "two.txt").read_text() == "two"
     assert (dst_dir / "nested" / "three.txt").read_text() == "three"
+
+
+async def test_smart_sync_s3_to_fs_mtime(tmp_path, s3_filesystem):
+    """Test s3->fs sync honors mtime comparisons."""
+    await _create_bucket(s3_filesystem)
+    await _put_object(s3_filesystem, "sync-mtime/file.txt", b"alpha")
+
+    src_prefix = f"s3://{_bucket_name}/sync-mtime"
+    dst_dir = tmp_path / "dst"
+    dst_file = dst_dir / "file.txt"
+
+    await smart_sync(src_prefix, dst_dir)
+    assert dst_file.read_text() == "alpha"
+
+    src_stat = await smart_stat(f"{src_prefix}/file.txt")
+    dst_file.write_text("bravo")
+    older_time = src_stat.st_mtime - 3600
+    os.utime(dst_file, (older_time, older_time))
+
+    await smart_sync(src_prefix, dst_dir)
+    assert dst_file.read_text() == "bravo"
+
+    dst_file.write_text("candy")
+    newer_time = src_stat.st_mtime + 3600
+    os.utime(dst_file, (newer_time, newer_time))
+
+    await smart_sync(src_prefix, dst_dir)
+    assert dst_file.read_text() == "alpha"
 
 
 async def test_smart_sync_partial_overlap(tmp_path):
