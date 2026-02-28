@@ -283,7 +283,7 @@ class LocalFileSystem(BaseFileSystem):
                     path=path,
                     stat=StatResult(
                         st_size=stat_result.st_size,
-                        st_ctime=stat_result.st_ctime,  # pyre-ignore[16]
+                        st_ctime=stat_result.st_ctime,
                         st_mtime=stat_result.st_mtime,
                         isdir=stat.S_ISDIR(stat_result.st_mode),
                         islnk=stat.S_ISLNK(stat_result.st_mode),
