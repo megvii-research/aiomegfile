@@ -315,6 +315,70 @@
 <span class="sd">        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_sort</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Normalize path separators for consistent sorting.</span>
+
+<span class="sd">            :param name: Path or entry name to normalize.</span>
+<span class="sd">            :return: Normalized name used for sorting.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_iter_dir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Yield FileEntry objects in sorted order under dir_path.</span>
+
+<span class="sd">            :param dir_path: Directory path to traverse.</span>
+<span class="sd">            :return: Async iterator yielding FileEntry objects.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="n">names</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">entry_map</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">DirEntry</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span>
+                <span class="n">is_dir</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_dir</span><span class="p">(</span><span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">is_symlink_dir</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_dir</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_symlink</span><span class="p">():</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">is_symlink_dir</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_dir</span><span class="p">(</span><span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                        <span class="n">is_symlink_dir</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="n">is_dir</span> <span class="ow">or</span> <span class="n">is_symlink_dir</span><span class="p">:</span>
+                    <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">entry_map</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">is_symlink_dir</span><span class="p">)</span>
+
+            <span class="n">names</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">_normalize_sort</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+                <span class="n">is_dir_entry</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span>
+                <span class="n">raw_name</span> <span class="o">=</span> <span class="n">name</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">is_dir_entry</span> <span class="k">else</span> <span class="n">name</span>
+                <span class="n">entry</span><span class="p">,</span> <span class="n">is_symlink_dir</span> <span class="o">=</span> <span class="n">entry_map</span><span class="p">[</span><span class="n">raw_name</span><span class="p">]</span>
+                <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">raw_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">is_dir_entry</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">is_symlink_dir</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">async</span> <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">_iter_dir</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+                        <span class="k">yield</span> <span class="n">child</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                        <span class="n">path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span>
+                        <span class="n">stat</span><span class="o">=</span><span class="n">StatResult</span><span class="p">(</span>
+                            <span class="n">st_size</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
+                            <span class="n">st_ctime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_ctime</span><span class="p">,</span>  <span class="c1"># pyre-ignore[16]</span>
+                            <span class="n">st_mtime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span>
+                            <span class="n">isdir</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                            <span class="n">islnk</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISLNK</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
+                        <span class="p">),</span>
+                    <span class="p">)</span>
+
         <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">aiterator</span><span class="p">():</span>
             <span class="k">if</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">ospath</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
                 <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -331,21 +395,8 @@
                     <span class="p">),</span>
                 <span class="p">)</span>
                 <span class="k">return</span>
-            <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
-                    <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
-                    <span class="n">stat_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">aiofiles</span><span class="o">.</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
-                    <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
-                        <span class="n">name</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
-                        <span class="n">path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span>
-                        <span class="n">stat</span><span class="o">=</span><span class="n">StatResult</span><span class="p">(</span>
-                            <span class="n">st_size</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_size</span><span class="p">,</span>
-                            <span class="n">st_ctime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_ctime</span><span class="p">,</span>
-                            <span class="n">st_mtime</span><span class="o">=</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mtime</span><span class="p">,</span>
-                            <span class="n">isdir</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISDIR</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
-                            <span class="n">islnk</span><span class="o">=</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISLNK</span><span class="p">(</span><span class="n">stat_result</span><span class="o">.</span><span class="n">st_mode</span><span class="p">),</span>
-                        <span class="p">),</span>
-                    <span class="p">)</span>
+            <span class="k">async</span> <span class="k">for</span> <span class="n">file_entry</span> <span class="ow">in</span> <span class="n">_iter_dir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">file_entry</span>
 
         <span class="k">return</span> <span class="n">AioScannableManager</span><span class="p">(</span><span class="n">aiterator</span><span class="p">())</span></div>
 

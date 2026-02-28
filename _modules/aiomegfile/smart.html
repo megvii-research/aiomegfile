@@ -460,6 +460,27 @@
 
 
 
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_copy_file</span><span class="p">(</span>
+    <span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Copy a file and return the destination path string.</span>
+
+<span class="sd">    :param src_path: Source path to copy.</span>
+<span class="sd">    :param dst_path: Destination path.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: Destination path string.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">followlinks</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">src_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">readlink</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">copy_file</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="smart_move">
 <a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_move">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_move</span><span class="p">(</span><span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -700,60 +721,28 @@
             <span class="p">)</span>
 
 
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_smart_sync_single_file</span><span class="p">(</span><span class="n">items</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sync a single file entry according to the provided items.</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_iter_sync_entries</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate file entries with comparison keys for sync.</span>
 
-<span class="sd">    :param items: Mapping of sync parameters.</span>
-<span class="sd">    :return: True if the file was copied, otherwise False.</span>
-<span class="sd">    :rtype: bool</span>
+<span class="sd">    :param path: Root path to scan.</span>
+<span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :return: Async iterator yielding ``(key, FileEntry)`` tuples.</span>
+<span class="sd">    :rtype: T.AsyncIterator[T.Tuple[str, FileEntry]]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">src_root_path</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;src_root_path&quot;</span><span class="p">]</span>
-    <span class="n">dst_root_path</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;dst_root_path&quot;</span><span class="p">]</span>
-    <span class="n">src_file_entry</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;src_file_entry&quot;</span><span class="p">]</span>
-    <span class="n">callback</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;callback&quot;</span><span class="p">]</span>
-    <span class="n">followlinks</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;followlinks&quot;</span><span class="p">]</span>
-    <span class="n">force</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;force&quot;</span><span class="p">]</span>
-    <span class="n">overwrite</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="s2">&quot;overwrite&quot;</span><span class="p">]</span>
 
-    <span class="n">src_file_path</span> <span class="o">=</span> <span class="n">src_file_entry</span><span class="o">.</span><span class="n">path</span>
-    <span class="n">src_file_stat</span> <span class="o">=</span> <span class="n">src_file_entry</span><span class="o">.</span><span class="n">stat</span>
-
-    <span class="n">content_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_relpath</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">src_root_path</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">content_path</span> <span class="ow">and</span> <span class="n">content_path</span> <span class="o">!=</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
-        <span class="n">content_path</span> <span class="o">=</span> <span class="n">content_path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-        <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path_join</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">,</span> <span class="n">content_path</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="n">dst_root_path</span>
-
-    <span class="n">src_protocol</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
-    <span class="n">dst_protocol</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_abs_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
-    <span class="n">sync_type</span> <span class="o">=</span> <span class="n">get_sync_type</span><span class="p">(</span><span class="n">src_protocol</span><span class="p">,</span> <span class="n">dst_protocol</span><span class="p">)</span>
-
-    <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
-            <span class="n">dst_file_stat</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_stat</span><span class="p">(</span>
-                <span class="n">dst_abs_file_path</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="n">followlinks</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
-                <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="k">elif</span> <span class="n">is_same_file</span><span class="p">(</span><span class="n">src_file_stat</span><span class="p">,</span> <span class="n">dst_file_stat</span><span class="p">,</span> <span class="n">sync_type</span><span class="p">):</span>
-                <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span> <span class="ne">FileNotFoundError</span><span class="p">):</span>
-        <span class="k">pass</span>
-
-    <span class="k">if</span> <span class="n">should_sync</span><span class="p">:</span>
-        <span class="k">await</span> <span class="n">smart_copy</span><span class="p">(</span>
-            <span class="n">src_file_path</span><span class="p">,</span>
-            <span class="n">dst_abs_file_path</span><span class="p">,</span>
-            <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
-            <span class="n">callback</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="n">src_file_stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">callback</span><span class="p">:</span>
-        <span class="n">callback</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="n">src_file_stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">should_sync</span>
+    <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">_iter_file_stats</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">content_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_relpath</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">content_path</span> <span class="ow">and</span> <span class="n">content_path</span> <span class="o">!=</span> <span class="s2">&quot;.&quot;</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">content_path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">yield</span> <span class="n">key</span><span class="p">,</span> <span class="n">entry</span>
 
 
 <div class="viewcode-block" id="smart_sync">
@@ -791,30 +780,101 @@
     <span class="n">src_root_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">))</span>
     <span class="n">dst_root_path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_path</span><span class="p">))</span>
 
-    <span class="n">src_file_stats</span> <span class="o">=</span> <span class="n">_iter_file_stats</span><span class="p">(</span>
-        <span class="n">src_root_path</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span>
-    <span class="p">)</span>
+    <span class="n">src_protocol</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_root_path</span><span class="p">)</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
+    <span class="n">dst_protocol</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">)</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">protocol</span>
+    <span class="n">sync_type</span> <span class="o">=</span> <span class="n">get_sync_type</span><span class="p">(</span><span class="n">src_protocol</span><span class="p">,</span> <span class="n">dst_protocol</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="k">await</span> <span class="n">smart_exists</span><span class="p">(</span><span class="n">dst_path</span><span class="p">):</span>
+    <span class="n">dst_missing</span> <span class="o">=</span> <span class="ow">not</span> <span class="k">await</span> <span class="n">smart_exists</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dst_missing</span><span class="p">:</span>
         <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">dst_iter</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dst_iter</span> <span class="o">=</span> <span class="n">_iter_sync_entries</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span>
 
-    <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">src_file_stats</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+    <span class="n">src_iter</span> <span class="o">=</span> <span class="n">_iter_sync_entries</span><span class="p">(</span><span class="n">src_root_path</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span>
+    <span class="n">src_done</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">dst_done</span> <span class="o">=</span> <span class="n">dst_missing</span>
+    <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">src_item</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FileEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">dst_item</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FileEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">src_take</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">src_done</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">src_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="n">src_iter</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">StopAsyncIteration</span><span class="p">:</span>
+                <span class="n">src_done</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">src_item</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">dst_take</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dst_done</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dst_iter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">dst_item</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">dst_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="n">dst_iter</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">StopAsyncIteration</span><span class="p">:</span>
+                    <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">dst_item</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">src_done</span> <span class="ow">or</span> <span class="n">src_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">break</span>
+
+        <span class="n">src_key</span><span class="p">,</span> <span class="n">src_entry</span> <span class="o">=</span> <span class="n">src_item</span>
+        <span class="k">if</span> <span class="n">src_key</span><span class="p">:</span>
+            <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path_join</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">,</span> <span class="n">src_key</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="n">dst_root_path</span>
+
+        <span class="k">if</span> <span class="n">dst_done</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
+                <span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                <span class="n">dst_abs_file_path</span><span class="p">,</span>
+                <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">continue</span>
-        <span class="n">items</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;src_root_path&quot;</span><span class="p">:</span> <span class="n">src_root_path</span><span class="p">,</span>
-            <span class="s2">&quot;dst_root_path&quot;</span><span class="p">:</span> <span class="n">dst_root_path</span><span class="p">,</span>
-            <span class="s2">&quot;src_file_entry&quot;</span><span class="p">:</span> <span class="n">FileEntry</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                <span class="n">path</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                <span class="n">stat</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span>
-            <span class="p">),</span>
-            <span class="s2">&quot;callback&quot;</span><span class="p">:</span> <span class="n">callback</span><span class="p">,</span>
-            <span class="s2">&quot;followlinks&quot;</span><span class="p">:</span> <span class="n">followlinks</span><span class="p">,</span>
-            <span class="s2">&quot;force&quot;</span><span class="p">:</span> <span class="n">force</span><span class="p">,</span>
-            <span class="s2">&quot;overwrite&quot;</span><span class="p">:</span> <span class="n">overwrite</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="k">await</span> <span class="n">_smart_sync_single_file</span><span class="p">(</span><span class="n">items</span><span class="p">)</span></div>
+
+        <span class="k">if</span> <span class="n">dst_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">continue</span>
+
+        <span class="n">dst_key</span><span class="p">,</span> <span class="n">dst_entry</span> <span class="o">=</span> <span class="n">dst_item</span>
+        <span class="k">if</span> <span class="n">src_key</span> <span class="o">==</span> <span class="n">dst_key</span><span class="p">:</span>
+            <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+                    <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">is_same_file</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span> <span class="n">dst_entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span> <span class="n">sync_type</span><span class="p">):</span>
+                    <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">should_sync</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
+                    <span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                    <span class="n">dst_abs_file_path</span><span class="p">,</span>
+                    <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">src_key</span> <span class="o">&lt;</span> <span class="n">dst_key</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
+                <span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+                <span class="n">dst_abs_file_path</span><span class="p">,</span>
+                <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 
 

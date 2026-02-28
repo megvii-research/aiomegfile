@@ -48,8 +48,11 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#aiomegfile-asyncio-implementation-of-megfile">aiomegfile - Asyncio implementation of megfile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#support-protocols">Support Protocols</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#functional-interface-example">Functional Interface Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#smartpath-interface">SmartPath Interface</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#how-to-contribute">How to Contribute</a></li>
@@ -89,22 +92,61 @@
 <section id="aiomegfile-asyncio-implementation-of-megfile">
 <h2>aiomegfile - Asyncio implementation of megfile<a class="headerlink" href="#aiomegfile-asyncio-implementation-of-megfile" title="Link to this heading"></a></h2>
 <a class="reference external image-reference" href="https://github.com/megvii-research/aiomegfile/actions/workflows/run-tests.yml"><img alt="Build" src="https://github.com/megvii-research/aiomegfile/actions/workflows/run-tests.yml/badge.svg?branch=main" /></a>
-<p><span class="raw-html-m2r"><!-- [![Documents](https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml/badge.svg)](https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml) --></span></p>
+<a class="reference external image-reference" href="https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml"><img alt="Documents" src="https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml/badge.svg" /></a>
 <a class="reference external image-reference" href="https://app.codecov.io/gh/megvii-research/aiomegfile/"><img alt="Codecov" src="https://img.shields.io/codecov/c/gh/megvii-research/aiomegfile" /></a>
 <a class="reference external image-reference" href="https://pypi.org/project/aiomegfile/"><img alt="Latest version" src="https://img.shields.io/pypi/v/aiomegfile.svg" /></a>
 <a class="reference external image-reference" href="https://pypi.org/project/aiomegfile/"><img alt="Support python versions" src="https://img.shields.io/pypi/pyversions/aiomegfile.svg" /></a>
 <a class="reference external image-reference" href="https://github.com/megvii-research/aiomegfile/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/pypi/l/aiomegfile.svg" /></a>
-<!-- * Docs: http://megvii-research.github.io/aiomegfile --><p><code class="docutils literal notranslate"><span class="pre">aiomegfile</span></code> is asyncio implementation of <code class="docutils literal notranslate"><span class="pre">megfile</span></code>.</p>
+<ul class="simple">
+<li><p>Docs: <a class="reference external" href="http://megvii-research.github.io/aiomegfile">http://megvii-research.github.io/aiomegfile</a></p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">aiomegfile</span></code> is asyncio implementation of <code class="docutils literal notranslate"><span class="pre">megfile</span></code>.</p>
+</section>
+<section id="support-protocols">
+<h2>Support Protocols<a class="headerlink" href="#support-protocols" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>fs(local filesystem)</p></li>
+<li><p>s3</p></li>
+</ul>
+<p>Support more in the future.</p>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip3<span class="w"> </span>install<span class="w"> </span>aiomegfile
+</pre></div>
+</div>
 </section>
 <section id="quick-start">
 <h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
-<p>This project is <strong>not production-ready</strong>.</p>
-<section id="installation">
-<h3>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/megvii-research/aiomegfile.git
-<span class="nb">cd</span><span class="w"> </span>aiomegfile
+<p>Smart methods and <code class="docutils literal notranslate"><span class="pre">SmartPath</span></code> are the same as <code class="docutils literal notranslate"><span class="pre">megfile</span></code>, but all methods are async. You can use <code class="docutils literal notranslate"><span class="pre">aiomegfile</span></code> to do file operations in an async way.</p>
+<section id="functional-interface-example">
+<h3>Functional Interface Example<a class="headerlink" href="#functional-interface-example" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">smart_open</span>
 
-pip3<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="s1">&#39;s3://bucket/key&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+<section id="smartpath-interface">
+<h3>SmartPath Interface<a class="headerlink" href="#smartpath-interface" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">SmartPath</span></code> has a similar interface with <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code>, but async.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartPath</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="s1">&#39;s3://bucket/key&#39;</span><span class="p">)</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">path</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
 </pre></div>
 </div>
 </section>
