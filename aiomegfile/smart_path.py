@@ -581,8 +581,11 @@ class SmartPath(os.PathLike):
             return
 
         root = self._path
-        if await self.is_symlink() and follow_symlinks:
-            root = (await self.readlink())._path  # pytype: disable=attribute-error
+        if follow_symlinks:
+            try:
+                root = (await self.readlink())._path  # pytype: disable=attribute-error
+            except OSError:
+                pass
 
         pending = [(root, False)]
         while pending:
@@ -626,6 +629,15 @@ class SmartPath(os.PathLike):
         :param recursive: If False, `**` will not search directory recursively.
         :return: Async iterator of matching SmartPath objects.
         """
+
+        if hasattr(self.filesystem, "glob_stat"):
+            iterator = self.filesystem.glob_stat(
+                os.path.join(self._path, pattern),
+                recursive=recursive,
+            )
+            async for file_entry in iterator:
+                yield self.from_uri(self.filesystem.build_uri(file_entry.path))
+            return
         fs_func = FSFunc(
             exists=self.filesystem.exists,
             isdir=self.filesystem.is_dir,
@@ -663,7 +675,7 @@ class SmartPath(os.PathLike):
         pattern = "**/" + pattern.lstrip("/")
         return await self.glob(pattern=pattern, recursive=recursive)
 
-    async def _copy_file(self, target: PathLike) -> "SmartPath":
+    async def copy_file(self, target: PathLike) -> "SmartPath":
         """
         copy file only
 
@@ -716,7 +728,7 @@ class SmartPath(os.PathLike):
         follow_symlinks: bool = False,
     ) -> "SmartPath":
         """
-        copy file, if self is directory, copy directory
+        copy file
 
         :param target: Given destination path
         :param follow_symlinks: whether or not follow symbolic link
@@ -739,10 +751,10 @@ class SmartPath(os.PathLike):
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
                     await current_target_path.parent.mkdir(parents=True, exist_ok=True)
-                    await current_src_path._copy_file(target=current_target_path)
+                    await current_src_path.copy_file(target=current_target_path)
             return target_path
 
-        await self._copy_file(target=target_path)
+        await self.copy_file(target=target_path)
         return target_path
 
     async def copy_into(

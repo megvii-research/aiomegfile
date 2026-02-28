@@ -34,6 +34,8 @@ from aiomegfile.interfaces import (
     StatResult,
 )
 from aiomegfile.lib.cacher import AioCacher
+from aiomegfile.lib.fnmatch import translate
+from aiomegfile.lib.glob import has_magic, has_magic_ignore_brace, ungloblize
 from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
 from aiomegfile.lib.s3_prefetch_reader import AioS3PrefetchReader
 from aiomegfile.lib.s3_retry import register_retry_handler
@@ -88,6 +90,112 @@ def _become_prefix(prefix: str) -> str:
     if prefix != "" and not prefix.endswith("/"):
         prefix += "/"
     return prefix
+
+
+def _s3_entry_name(path: str) -> str:
+    """Return the basename for a S3 path.
+
+    :param path: S3 path without protocol.
+    :return: Basename of the path, with trailing slashes ignored.
+    """
+    stripped = path.rstrip("/")
+    if not stripped:
+        return ""
+    return os.path.basename(stripped)
+
+
+def _parse_s3_path_ignore_brace(s3_pathname: PathLike) -> tuple[str, str]:
+    """Parse bucket and key from a path, ignoring braces when splitting.
+
+    :param s3_pathname: S3 path without protocol.
+    :return: Tuple of (bucket, key).
+    """
+    s3_pathname = fspath(s3_pathname)
+    left_brace = False
+    for current_index, current_character in enumerate(s3_pathname):
+        if current_character == "/" and left_brace is False:
+            return s3_pathname[:current_index], s3_pathname[current_index + 1 :]
+        if current_character == "{":
+            left_brace = True
+        elif current_character == "}":
+            left_brace = False
+    return s3_pathname, ""
+
+
+def _s3_split_magic_ignore_brace(s3_pathname: str) -> tuple[str, str]:
+    """Split a path into non-magic and magic parts while ignoring braces.
+
+    :param s3_pathname: S3 path without protocol.
+    :return: Tuple of (top_dir, magic_part).
+    """
+    left_brace, left_index = False, 0
+    normal_parts: T.List[str] = []
+    magic_parts: T.List[str] = []
+    s3_pathname_with_suffix = s3_pathname
+    s3_pathname = s3_pathname.rstrip("/")
+    suffix = (len(s3_pathname_with_suffix) - len(s3_pathname)) * "/"
+    for current_index, current_character in enumerate(s3_pathname):
+        if current_character == "/" and left_brace is False:
+            segment = s3_pathname[left_index:current_index]
+            if has_magic_ignore_brace(segment):
+                magic_parts.append(segment)
+                if s3_pathname[current_index + 1 :]:
+                    magic_parts.append(s3_pathname[current_index + 1 :])
+                    left_index = len(s3_pathname)
+                break
+            normal_parts.append(segment)
+            left_index = current_index + 1
+        elif current_character == "{":
+            left_brace = True
+        elif current_character == "}":
+            left_brace = False
+    if s3_pathname[left_index:]:
+        segment = s3_pathname[left_index:]
+        if has_magic_ignore_brace(segment):
+            magic_parts.append(segment)
+        else:
+            normal_parts.append(segment)
+    top_dir = "/".join(normal_parts)
+    magic_part = "/".join(magic_parts)
+    if suffix:
+        if magic_part:
+            magic_part += suffix
+        else:
+            top_dir += suffix
+    return top_dir, magic_part
+
+
+def _s3_split_magic(s3_pathname: str) -> tuple[str, str]:
+    """Split a path into the longest non-magic prefix and the remaining part.
+
+    :param s3_pathname: S3 path without protocol.
+    :return: Tuple of (prefix_without_magic, wildcard_part).
+    """
+    for index in range(len(s3_pathname) - 1, 0, -1):
+        if not has_magic(s3_pathname[:index]):
+            return s3_pathname[:index], s3_pathname[index:]
+    return s3_pathname, ""
+
+
+def _group_s3path_by_prefix(s3_pathname: str) -> T.List[str]:
+    """Expand brace patterns in the prefix part of a S3 path.
+
+    :param s3_pathname: S3 path without protocol.
+    :return: List of expanded S3 paths with prefixes resolved.
+    """
+    _, key = parse_s3_path(s3_pathname)
+    if not key:
+        return ungloblize(s3_pathname)
+
+    top_dir, magic_part = _s3_split_magic_ignore_brace(s3_pathname)
+    if not top_dir:
+        return [magic_part]
+    grouped_path = []
+    for pathname in ungloblize(top_dir):
+        if magic_part:
+            pathname = "/".join([pathname, magic_part])
+        grouped_path.append(pathname)
+    return grouped_path
 
 
 def get_endpoint_url(
@@ -583,6 +691,22 @@ class S3FileSystem(BaseFileSystem):
         async def aiterator() -> T.AsyncIterator[FileEntry]:
             bucket, key = parse_s3_path(path)
             if not bucket:
+                if key:
+                    raise S3BucketNotFoundError(
+                        "Empty bucket name: %r" % self.build_uri(path)
+                    )
+                client = await self._get_client()
+                response = await client.list_buckets()
+                for content in response["Buckets"]:
+                    yield FileEntry(
+                        content["Name"],
+                        content["Name"],
+                        StatResult(
+                            ctime=content["CreationDate"].timestamp(),
+                            isdir=True,
+                            extra=content,
+                        ),
+                    )
                 return
 
             prefix = _become_prefix(key)
@@ -675,6 +799,181 @@ class S3FileSystem(BaseFileSystem):
                     )
 
         return AioScannableManager(aiterator())
+
+    async def _list_all_buckets(self) -> T.List[str]:
+        """Return a list of accessible bucket names.
+
+        :return: List of bucket names.
+        """
+        client = await self._get_client()
+        with raise_s3_error(self.build_uri("")):
+            response = await client.list_buckets()
+        return [content["Name"] for content in response.get("Buckets", [])]
+
+    async def _group_s3path_by_bucket(self, s3_pathname: str) -> T.List[str]:
+        """Expand bucket glob patterns into concrete paths.
+
+        :param s3_pathname: S3 path without protocol.
+        :return: List of grouped S3 paths.
+        :raises S3BucketNotFoundError: If bucket name is empty.
+        """
+        bucket, key = _parse_s3_path_ignore_brace(s3_pathname)
+        if not bucket:
+            raise S3BucketNotFoundError(
+                f"Empty bucket name: {self.build_uri(s3_pathname)!r}"
+            )
+
+        grouped_path: T.List[str] = []
+
+        def generate_s3_path(bucket_name: str, key_name: str) -> str:
+            if key_name:
+                return f"{bucket_name}/{key_name}"
+            suffix = "/" if s3_pathname.endswith("/") else ""
+            return f"{bucket_name}{suffix}"
+
+        all_buckets: T.Optional[T.List[str]] = None
+        for bucket_name in ungloblize(bucket):
+            if has_magic(bucket_name):
+                if all_buckets is None:
+                    all_buckets = await self._list_all_buckets()
+                split_bucket_name = bucket_name.split("/", 1)
+                path_part: T.Optional[str] = None
+                if len(split_bucket_name) == 2:
+                    bucket_name, path_part = split_bucket_name
+                pattern = re.compile(translate(re.sub(r"\*{2,}", "*", bucket_name)))
+                for current_bucket in all_buckets:
+                    if pattern.fullmatch(current_bucket) is not None:
+                        if path_part is not None:
+                            current_bucket = f"{current_bucket}/{path_part}"
+                        grouped_path.append(generate_s3_path(current_bucket, key))
+            else:
+                grouped_path.append(generate_s3_path(bucket_name, key))
+        return grouped_path
+
+    async def _glob_stat_single_path(
+        self,
+        s3_pathname: str,
+        recursive: bool = True,
+        followlinks: bool = False,
+    ) -> T.AsyncIterator[FileEntry]:
+        """Yield FileEntry objects matching a single glob pattern.
+
+        :param s3_pathname: S3 path without protocol.
+        :param recursive: If False, ``**`` will not search directory recursively.
+        :param followlinks: Whether to follow symbolic links.
+        :return: Async iterator of FileEntry objects.
+        """
+        s3_pathname = fspath(s3_pathname)
+        if not recursive:
+            s3_pathname = re.sub(r"\*{2,}", "*", s3_pathname)
+        top_prefix, wildcard_part = _s3_split_magic(s3_pathname)
+        top_dir = os.path.dirname(top_prefix) if wildcard_part else top_prefix
+        search_dir = wildcard_part.endswith("/")
+
+        def should_recursive(wildcard: str) -> bool:
+            if "**" in wildcard:
+                return True
+            for expanded_path in ungloblize(wildcard):
+                parts_length = len(expanded_path.split("/"))
+                if parts_length + search_dir >= 2:
+                    return True
+            return False
+
+        if not has_magic(s3_pathname):
+            if await self.is_file(s3_pathname, followlinks=followlinks):
+                stat_result = await self.stat(s3_pathname, followlinks=followlinks)
+                yield FileEntry(
+                    _s3_entry_name(s3_pathname),
+                    s3_pathname,
+                    stat_result,
+                )
+            if await self.is_dir(s3_pathname, followlinks=followlinks):
+                yield FileEntry(
+                    _s3_entry_name(s3_pathname),
+                    s3_pathname,
+                    StatResult(isdir=True),
+                )
+            return
+
+        delimiter = "" if should_recursive(wildcard_part) else "/"
+
+        dirnames: set[str] = set()
+        pattern = re.compile(translate(s3_pathname))
+        bucket, prefix = parse_s3_path(top_prefix)
+
+        async for resp in self._list_objects_recursive(bucket, prefix, delimiter):
+            for content in resp.get("Contents", []):
+                obj_key = content["Key"]
+                path = f"{bucket}/{obj_key}"
+                if not search_dir and pattern.match(path):
+                    if path.endswith("/"):
+                        continue
+                    stat_result = StatResult(
+                        st_size=content["Size"],
+                        st_mtime=content["LastModified"].timestamp(),
+                        isdir=False,
+                        islnk=bool(content.get("islnk", False)),
+                        extra=content,
+                    )
+                    yield FileEntry(
+                        _s3_entry_name(path),
+                        path,
+                        stat_result,
+                    )
+                dirname = os.path.dirname(path)
+                while dirname not in dirnames and dirname != top_dir:
+                    # XXX: optimize memory usage and file path order
+                    dirnames.add(dirname)
+                    match_path = dirname + "/" if search_dir else dirname
+                    if pattern.match(match_path):
+                        yield FileEntry(
+                            _s3_entry_name(match_path),
+                            match_path,
+                            StatResult(isdir=True),
+                        )
+                    dirname = os.path.dirname(dirname)
+            for common_prefix in resp.get("CommonPrefixes", []):
+                path = f"{bucket}/{common_prefix['Prefix']}"
+                dirname = os.path.dirname(path)
+                if dirname not in dirnames and dirname != top_dir:
+                    dirnames.add(dirname)
+                    match_path = dirname + "/" if search_dir else dirname
+                    if pattern.match(match_path):
+                        yield FileEntry(
+                            _s3_entry_name(match_path),
+                            match_path,
+                            StatResult(isdir=True),
+                        )
+
+    async def glob_stat(
+        self,
+        path: str,
+        recursive: bool = True,
+        missing_ok: bool = True,
+    ) -> T.AsyncIterator[FileEntry]:
+        """Return entries whose paths match the glob pattern.
+
+        :param path: S3 glob pattern without protocol.
+        :param recursive: If False, ``**`` will not search directory recursively.
+        :param missing_ok: If False and no matches exist, raise FileNotFoundError.
+        :return: Async iterator of FileEntry objects.
+        :raises S3FileNotFoundError: If no matches and missing_ok is False.
+        """
+        s3_pathname = fspath(path)
+        matched = False
+        for group_path_bucket in await self._group_s3path_by_bucket(s3_pathname):
+            for group_path_prefix in _group_s3path_by_prefix(group_path_bucket):
+                async for file_entry in self._glob_stat_single_path(
+                    group_path_prefix,
+                    recursive=recursive,
+                ):
+                    matched = True
+                    yield file_entry
+
+        if not matched and not missing_ok:
+            raise S3FileNotFoundError(
+                f"No match any file: {self.build_uri(s3_pathname)!r}"
+            )
 
     async def mkdir(
         self,

@@ -295,6 +295,91 @@ class TestS3FileSystem:
         assert entry.path == f"{_bucket_name}/{filename}"
         assert entry.stat.isdir is False
 
+    async def test_glob_stat_non_recursive(self, filesystem):
+        """Test glob_stat matches non-recursive patterns."""
+        await self._create_bucket(filesystem)
+
+        prefix = "glob_stat_non_recursive"
+        await self._put_object(filesystem, f"{prefix}/file1.txt", b"1")
+        await self._put_object(filesystem, f"{prefix}/file2.log", b"2")
+        await self._put_object(filesystem, f"{prefix}/subdir/file3.txt", b"3")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/*.txt"):
+            entries.append(entry)
+
+        paths = {entry.path for entry in entries}
+        assert paths == {f"{_bucket_name}/{prefix}/file1.txt"}
+
+    async def test_glob_stat_recursive(self, filesystem):
+        """Test glob_stat matches recursive patterns."""
+        await self._create_bucket(filesystem)
+
+        prefix = "glob_stat_recursive"
+        await self._put_object(filesystem, f"{prefix}/file1.txt", b"1")
+        await self._put_object(filesystem, f"{prefix}/subdir/file2.txt", b"2")
+        await self._put_object(
+            filesystem,
+            f"{prefix}/subdir/nested/file3.txt",
+            b"3",
+        )
+        await self._put_object(filesystem, f"{prefix}/file4.log", b"4")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/**/*.txt"):
+            entries.append(entry)
+
+        paths = {entry.path for entry in entries}
+        assert paths == {
+            f"{_bucket_name}/{prefix}/file1.txt",
+            f"{_bucket_name}/{prefix}/subdir/file2.txt",
+            f"{_bucket_name}/{prefix}/subdir/nested/file3.txt",
+        }
+
+    async def test_glob_stat_directory_pattern(self, filesystem):
+        """Test glob_stat matches directory patterns ending with slash."""
+        await self._create_bucket(filesystem)
+
+        prefix = "glob_stat_dir_pattern"
+        await self._put_object(filesystem, f"{prefix}/subdir/file.txt", b"1")
+
+        entries = []
+        async for entry in filesystem.glob_stat(f"{_bucket_name}/{prefix}/*/"):
+            entries.append(entry)
+
+        paths = {entry.path for entry in entries}
+        assert paths == {f"{_bucket_name}/{prefix}/subdir/"}
+        for entry in entries:
+            assert entry.stat.isdir is True
+
+    async def test_glob_stat_missing_ok_false(self, filesystem):
+        """Test glob_stat raises when missing_ok is False and no matches."""
+        await self._create_bucket(filesystem)
+
+        with pytest.raises(S3FileNotFoundError):
+            async for _ in filesystem.glob_stat(
+                f"{_bucket_name}/glob_stat_missing/*.txt",
+                missing_ok=False,
+            ):
+                pass
+
+    async def test_glob_stat_bucket_wildcard(self, filesystem):
+        """Test glob_stat expands bucket wildcard patterns."""
+        client = await filesystem._get_client()
+        bucket_one = "globstat-bucket-1"
+        bucket_two = "globstat-bucket-2"
+        await client.create_bucket(Bucket=bucket_one)
+        await client.create_bucket(Bucket=bucket_two)
+        await client.put_object(Bucket=bucket_one, Key="data.txt", Body=b"1")
+        await client.put_object(Bucket=bucket_two, Key="data.txt", Body=b"2")
+
+        entries = []
+        async for entry in filesystem.glob_stat("globstat-bucket-*/data.txt"):
+            entries.append(entry)
+
+        paths = {entry.path for entry in entries}
+        assert paths == {f"{bucket_one}/data.txt", f"{bucket_two}/data.txt"}
+
     async def test_mkdir(self, filesystem):
         """Test mkdir creates directory marker."""
         await self._create_bucket(filesystem)

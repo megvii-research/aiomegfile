@@ -327,6 +327,27 @@ async def smart_copy(
     return str(result)
 
 
+async def smart_copy_file(
+    src_path: PathLike, dst_path: PathLike, *, followlinks: bool = False
+) -> str:
+    """Copy a file and return the destination path string.
+
+    :param src_path: Source path to copy.
+    :param dst_path: Destination path.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Destination path string.
+    :rtype: str
+    """
+    if followlinks:
+        try:
+            src_path = await SmartPath(src_path).readlink()
+        except OSError:
+            pass
+
+    result = await SmartPath(src_path).copy_file(dst_path)
+    return str(result)
+
+
 async def smart_move(src_path: PathLike, dst_path: PathLike) -> str:
     """Move a file or directory and return the destination path string.
 
@@ -571,7 +592,7 @@ async def _smart_sync_single_file(items: dict) -> bool:
         pass
 
     if should_sync:
-        await smart_copy(
+        await smart_copy_file(
             src_file_path,
             dst_abs_file_path,
             followlinks=followlinks,
