@@ -7,6 +7,7 @@ import typing as T
 import weakref
 
 import aiobotocore.session  # type: ignore
+import aiofiles
 import botocore
 from aiobotocore.config import AioConfig
 from botocore.utils import calculate_md5 as botocore_calculate_md5
@@ -519,6 +520,19 @@ class S3FileSystem(BaseFileSystem):
             return not key
 
         return await self.is_file(path) or await self.is_dir(path)
+
+    async def absolute(self, path: str) -> str:
+        """
+        Make the path absolute, without normalization or resolving symlinks.
+        Returns a new path object.
+
+        :param path: The path to make absolute.
+        :return: Absolute path string.
+        """
+        path_str = fspath(path)
+        if "://" in path_str:
+            _, path_str, _ = split_uri(path_str)
+        return path_str.lstrip("/")
 
     async def stat(self, path: str, followlinks: bool = False) -> StatResult:
         """Get the status of the path.
@@ -1099,8 +1113,13 @@ class S3FileSystem(BaseFileSystem):
             raise IsADirectoryError(f"Is a directory: {self.build_uri(src_path)!r}")
 
         client = await self._get_client()
-        with raise_s3_error(self.build_uri(dst_path)):
-            await client.upload_file(src_path, bucket, key)
+        if hasattr(client, "upload_file"):
+            with raise_s3_error(self.build_uri(dst_path)):
+                await client.upload_file(src_path, bucket, key)
+            return
+
+        async with aiofiles.open(src_path, "rb") as fileobj:
+            await self._upload_fileobj(fileobj, dst_path)
 
     async def download(self, src_path: str, dst_path: str) -> None:
         """
@@ -1117,16 +1136,25 @@ class S3FileSystem(BaseFileSystem):
         if not bucket or not key or key.endswith("/"):
             raise S3IsADirectoryError(f"Is a directory: {self.build_uri(src_path)!r}")
 
+        dir_path = os.path.dirname(dst_path)
+        if dir_path and dir_path != ".":
+            await asyncio.to_thread(os.makedirs, dir_path, exist_ok=True)
+
         client = await self._get_client()
-        try:
-            await client.download_file(bucket, key, dst_path)
-        except Exception as e:
-            error = translate_s3_error(e, self.build_uri(src_path))
-            if await self.is_dir(src_path):
-                raise S3IsADirectoryError(
-                    "Is a directory: %r" % self.build_uri(src_path)
-                )
-            raise error from e
+        if hasattr(client, "download_file"):
+            try:
+                await client.download_file(bucket, key, dst_path)
+            except Exception as e:
+                error = translate_s3_error(e, self.build_uri(src_path))
+                if await self.is_dir(src_path):
+                    raise S3IsADirectoryError(
+                        "Is a directory: %r" % self.build_uri(src_path)
+                    )
+                raise error from e
+            return
+
+        async with aiofiles.open(dst_path, "wb") as fileobj:
+            await self._download_fileobj(src_path, fileobj)
 
     async def _download_fileobj(self, src_path: str, fileobj) -> None:
         """Download S3 object to a file-like object.

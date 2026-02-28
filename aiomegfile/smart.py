@@ -549,60 +549,28 @@ async def _iter_file_stats(
             )
 
 
-async def _smart_sync_single_file(items: dict) -> bool:
-    """Sync a single file entry according to the provided items.
+async def _iter_sync_entries(
+    path: PathLike,
+    *,
+    followlinks: bool = False,
+) -> T.AsyncIterator[T.Tuple[str, FileEntry]]:
+    """Iterate file entries with comparison keys for sync.
 
-    :param items: Mapping of sync parameters.
-    :return: True if the file was copied, otherwise False.
-    :rtype: bool
+    :param path: Root path to scan.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator yielding ``(key, FileEntry)`` tuples.
+    :rtype: T.AsyncIterator[T.Tuple[str, FileEntry]]
     """
-    src_root_path = items["src_root_path"]
-    dst_root_path = items["dst_root_path"]
-    src_file_entry = items["src_file_entry"]
-    callback = items["callback"]
-    followlinks = items["followlinks"]
-    force = items["force"]
-    overwrite = items["overwrite"]
 
-    src_file_path = src_file_entry.path
-    src_file_stat = src_file_entry.stat
-
-    content_path = await smart_relpath(src_file_path, start=src_root_path)
-    if content_path and content_path != ".":
-        content_path = content_path.lstrip("/")
-        dst_abs_file_path = await smart_path_join(dst_root_path, content_path)
-    else:
-        dst_abs_file_path = dst_root_path
-
-    src_protocol = SmartPath(src_file_path).filesystem.protocol
-    dst_protocol = SmartPath(dst_abs_file_path).filesystem.protocol
-    sync_type = get_sync_type(src_protocol, dst_protocol)
-
-    should_sync = True
-    try:
-        if not force:
-            dst_file_stat = await smart_stat(
-                dst_abs_file_path, follow_symlinks=followlinks
-            )
-            if not overwrite:
-                should_sync = False
-            elif is_same_file(src_file_stat, dst_file_stat, sync_type):
-                should_sync = False
-    except (NotImplementedError, FileNotFoundError):
-        pass
-
-    if should_sync:
-        await smart_copy_file(
-            src_file_path,
-            dst_abs_file_path,
-            followlinks=followlinks,
-        )
-        if callback:
-            callback(src_file_path, src_file_stat.st_size)
-    elif callback:
-        callback(src_file_path, src_file_stat.st_size)
-
-    return should_sync
+    async for entry in _iter_file_stats(path, missing_ok=True, followlinks=followlinks):
+        if not entry.name:
+            continue
+        content_path = await smart_relpath(entry.path, start=path)
+        if content_path and content_path != ".":
+            key = content_path.lstrip("/")
+        else:
+            key = ""
+        yield key, entry
 
 
 async def smart_sync(
@@ -638,30 +606,101 @@ async def smart_sync(
     src_root_path = str(SmartPath(src_path))
     dst_root_path = str(SmartPath(dst_path))
 
-    src_file_stats = _iter_file_stats(
-        src_root_path, missing_ok=True, followlinks=followlinks
-    )
+    src_protocol = SmartPath(src_root_path).filesystem.protocol
+    dst_protocol = SmartPath(dst_root_path).filesystem.protocol
+    sync_type = get_sync_type(src_protocol, dst_protocol)
 
-    if not await smart_exists(dst_path):
+    dst_missing = not await smart_exists(dst_path)
+    if dst_missing:
         force = True
+        dst_iter = None
+    else:
+        dst_iter = _iter_sync_entries(dst_root_path, followlinks=followlinks)
 
-    async for entry in src_file_stats:
-        if not entry.name:
+    src_iter = _iter_sync_entries(src_root_path, followlinks=followlinks)
+    src_done = False
+    dst_done = dst_missing
+    src_take = True
+    dst_take = True
+    src_item: T.Optional[T.Tuple[str, FileEntry]] = None
+    dst_item: T.Optional[T.Tuple[str, FileEntry]] = None
+
+    while True:
+        if src_take and not src_done:
+            try:
+                src_item = await anext(src_iter)
+            except StopAsyncIteration:
+                src_done = True
+                src_item = None
+        if dst_take and not dst_done:
+            if dst_iter is None:
+                dst_done = True
+                dst_item = None
+            else:
+                try:
+                    dst_item = await anext(dst_iter)
+                except StopAsyncIteration:
+                    dst_done = True
+                    dst_item = None
+
+        if src_done or src_item is None:
+            break
+
+        src_key, src_entry = src_item
+        if src_key:
+            dst_abs_file_path = await smart_path_join(dst_root_path, src_key)
+        else:
+            dst_abs_file_path = dst_root_path
+
+        if dst_done:
+            await smart_copy_file(
+                src_entry.path,
+                dst_abs_file_path,
+                followlinks=followlinks,
+            )
+            if callback:
+                callback(src_entry.path, src_entry.stat.st_size)
+            src_take = True
+            dst_take = False
             continue
-        items = {
-            "src_root_path": src_root_path,
-            "dst_root_path": dst_root_path,
-            "src_file_entry": FileEntry(
-                name=entry.name,
-                path=entry.path,
-                stat=entry.stat,
-            ),
-            "callback": callback,
-            "followlinks": followlinks,
-            "force": force,
-            "overwrite": overwrite,
-        }
-        await _smart_sync_single_file(items)
+
+        if dst_item is None:
+            dst_done = True
+            src_take = False
+            dst_take = True
+            continue
+
+        dst_key, dst_entry = dst_item
+        if src_key == dst_key:
+            should_sync = True
+            if not force:
+                if not overwrite:
+                    should_sync = False
+                elif is_same_file(src_entry.stat, dst_entry.stat, sync_type):
+                    should_sync = False
+            if should_sync:
+                await smart_copy_file(
+                    src_entry.path,
+                    dst_abs_file_path,
+                    followlinks=followlinks,
+                )
+            if callback:
+                callback(src_entry.path, src_entry.stat.st_size)
+            src_take = True
+            dst_take = True
+        elif src_key < dst_key:
+            await smart_copy_file(
+                src_entry.path,
+                dst_abs_file_path,
+                followlinks=followlinks,
+            )
+            if callback:
+                callback(src_entry.path, src_entry.stat.st_size)
+            src_take = True
+            dst_take = False
+        else:
+            src_take = False
+            dst_take = True
 
 
 async def _default_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:

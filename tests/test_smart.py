@@ -2,7 +2,9 @@ import io
 import os
 
 import pytest
+from moto.server import ThreadedMotoServer
 
+from aiomegfile.filesystem.s3 import S3FileSystem
 from aiomegfile.smart import (
     smart_abspath,
     smart_concat,
@@ -39,6 +41,71 @@ from aiomegfile.smart import (
     smart_unlink,
     smart_walk,
 )
+
+_aws_access_key_id = "testing"
+_aws_secret_access_key = "testing"
+_bucket_name = "test-bucket"
+
+
+@pytest.fixture(scope="module")
+def moto_server():
+    """Start a moto server for S3 sync tests.
+
+    :return: Endpoint URL for the moto server.
+    :rtype: str
+    """
+    server = ThreadedMotoServer()
+    try:
+        server.start()
+        host, port = server.get_host_and_port()
+        if host == "0.0.0.0":
+            host = "localhost"
+        yield f"http://{host}:{port}"
+    finally:
+        server.stop()
+
+
+@pytest.fixture
+def mock_s3(moto_server, monkeypatch):
+    """Mock AWS credentials and endpoint URL to environment variables.
+
+    :param moto_server: Moto server endpoint URL.
+    :param monkeypatch: Pytest monkeypatch fixture.
+    """
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", _aws_access_key_id)
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", _aws_secret_access_key)
+    monkeypatch.setenv("AWS_ENDPOINT_URL", moto_server)
+
+
+@pytest.fixture
+def s3_filesystem(mock_s3):
+    """Create S3FileSystem configured via environment variables.
+
+    :param mock_s3: Fixture configuring moto-backed S3.
+    :return: S3FileSystem instance.
+    :rtype: S3FileSystem
+    """
+    return S3FileSystem()
+
+
+async def _create_bucket(filesystem: S3FileSystem) -> None:
+    """Create the test bucket.
+
+    :param filesystem: S3FileSystem instance.
+    """
+    client = await filesystem._get_client()
+    await client.create_bucket(Bucket=_bucket_name)
+
+
+async def _put_object(filesystem: S3FileSystem, key: str, body: bytes) -> None:
+    """Put an object into the test bucket.
+
+    :param filesystem: S3FileSystem instance.
+    :param key: Object key to create.
+    :param body: Object bytes to store.
+    """
+    client = await filesystem._get_client()
+    await client.put_object(Bucket=_bucket_name, Key=key, Body=body)
 
 
 async def test_smart_exists_isfile_isdir(tmp_path):
@@ -250,6 +317,155 @@ async def test_smart_sync_skip_when_dest_newer(tmp_path):
     await smart_sync(src_file, dst_file)
 
     assert os.path.getmtime(dst_file) == before_mtime
+
+
+async def test_smart_sync_fs_to_s3(tmp_path, s3_filesystem):
+    """Test syncing from local filesystem to S3."""
+    await _create_bucket(s3_filesystem)
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    (src_dir / "alpha.txt").write_text("alpha")
+    subdir = src_dir / "sub"
+    subdir.mkdir()
+    (subdir / "bravo.txt").write_text("bravo")
+
+    dst_prefix = f"s3://{_bucket_name}/sync-dst"
+    await smart_sync(src_dir, dst_prefix)
+
+    assert await smart_load_content(f"{dst_prefix}/alpha.txt") == b"alpha"
+    assert await smart_load_content(f"{dst_prefix}/sub/bravo.txt") == b"bravo"
+
+
+async def test_smart_sync_fs_to_s3_mtime_overwrite_force(tmp_path, s3_filesystem):
+    """Test fs->s3 sync with mtime, overwrite, and force behavior."""
+    await _create_bucket(s3_filesystem)
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    src_file = src_dir / "data.txt"
+    src_file.write_text("alpha")
+
+    dst_prefix = f"s3://{_bucket_name}/sync-overwrite"
+    dst_file = f"{dst_prefix}/data.txt"
+
+    await smart_sync(src_dir, dst_prefix)
+    assert await smart_load_content(dst_file) == b"alpha"
+
+    src_file.write_text("bravo")
+    s3_stat = await smart_stat(dst_file)
+    older_time = s3_stat.st_mtime - 3600
+    os.utime(src_file, (older_time, older_time))
+
+    await smart_sync(src_dir, dst_prefix)
+    assert await smart_load_content(dst_file) == b"alpha"
+
+    src_file.write_text("candy")
+    await smart_sync(src_dir, dst_prefix, overwrite=False)
+    assert await smart_load_content(dst_file) == b"alpha"
+
+    await smart_sync(src_dir, dst_prefix, force=True, overwrite=False)
+    assert await smart_load_content(dst_file) == b"candy"
+
+
+async def test_smart_sync_s3_to_fs(tmp_path, s3_filesystem):
+    """Test syncing from S3 to local filesystem."""
+    await _create_bucket(s3_filesystem)
+    await _put_object(s3_filesystem, "sync-src/one.txt", b"one")
+    await _put_object(s3_filesystem, "sync-src/two.txt", b"two")
+    await _put_object(s3_filesystem, "sync-src/nested/three.txt", b"three")
+
+    src_prefix = f"s3://{_bucket_name}/sync-src"
+    dst_dir = tmp_path / "dst"
+    await smart_sync(src_prefix, dst_dir)
+
+    assert (dst_dir / "one.txt").read_text() == "one"
+    assert (dst_dir / "two.txt").read_text() == "two"
+    assert (dst_dir / "nested" / "three.txt").read_text() == "three"
+
+
+async def test_smart_sync_s3_to_fs_mtime(tmp_path, s3_filesystem):
+    """Test s3->fs sync honors mtime comparisons."""
+    await _create_bucket(s3_filesystem)
+    await _put_object(s3_filesystem, "sync-mtime/file.txt", b"alpha")
+
+    src_prefix = f"s3://{_bucket_name}/sync-mtime"
+    dst_dir = tmp_path / "dst"
+    dst_file = dst_dir / "file.txt"
+
+    await smart_sync(src_prefix, dst_dir)
+    assert dst_file.read_text() == "alpha"
+
+    src_stat = await smart_stat(f"{src_prefix}/file.txt")
+    dst_file.write_text("bravo")
+    older_time = src_stat.st_mtime - 3600
+    os.utime(dst_file, (older_time, older_time))
+
+    await smart_sync(src_prefix, dst_dir)
+    assert dst_file.read_text() == "bravo"
+
+    dst_file.write_text("candy")
+    newer_time = src_stat.st_mtime + 3600
+    os.utime(dst_file, (newer_time, newer_time))
+
+    await smart_sync(src_prefix, dst_dir)
+    assert dst_file.read_text() == "alpha"
+
+
+async def test_smart_sync_partial_overlap(tmp_path):
+    """Test sync with partially overlapping source and destination files."""
+    src_dir = tmp_path / "src"
+    dst_dir = tmp_path / "dst"
+    src_dir.mkdir()
+    dst_dir.mkdir()
+
+    (src_dir / "common.txt").write_text("same")
+    (src_dir / "only_src.txt").write_text("new")
+
+    common_dst = dst_dir / "common.txt"
+    common_dst.write_text("same")
+    (dst_dir / "only_dst.txt").write_text("keep")
+
+    future_time = os.path.getmtime(common_dst) + 3600
+    os.utime(common_dst, (future_time, future_time))
+
+    await smart_sync(src_dir, dst_dir)
+
+    assert (dst_dir / "only_src.txt").read_text() == "new"
+    assert (dst_dir / "only_dst.txt").read_text() == "keep"
+    assert os.path.getmtime(common_dst) == future_time
+
+
+async def test_smart_sync_same_name_different_dirs(tmp_path):
+    """Test sync handles same file names under different subdirectories."""
+    src_dir = tmp_path / "src"
+    dst_dir = tmp_path / "dst"
+    src_dir.mkdir()
+    dst_dir.mkdir()
+
+    src_a = src_dir / "a"
+    src_b = src_dir / "b"
+    dst_a = dst_dir / "a"
+    dst_b = dst_dir / "b"
+    src_a.mkdir()
+    src_b.mkdir()
+    dst_a.mkdir()
+    dst_b.mkdir()
+
+    (src_a / "file.txt").write_text("alpha")
+    (src_b / "file.txt").write_text("bravo-new")
+
+    a_dst_file = dst_a / "file.txt"
+    a_dst_file.write_text("alpha")
+    b_dst_file = dst_b / "file.txt"
+    b_dst_file.write_text("old")
+
+    future_time = os.path.getmtime(a_dst_file) + 3600
+    os.utime(a_dst_file, (future_time, future_time))
+
+    await smart_sync(src_dir, dst_dir)
+
+    assert (dst_dir / "a" / "file.txt").read_text() == "alpha"
+    assert os.path.getmtime(a_dst_file) == future_time
+    assert (dst_dir / "b" / "file.txt").read_text() == "bravo-new"
 
 
 async def test_smart_scandir_and_listdir(tmp_path):
