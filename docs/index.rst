@@ -11,6 +11,7 @@ Welcome to aiomegfile's documentation!
    :caption: Contents:
 
    readme
+   cli
    aiomegfile
    changelog
    Github <https://github.com/megvii-research/aiomegfile>

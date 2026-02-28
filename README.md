@@ -60,6 +60,26 @@ if __name__ == '__main__':
     asyncio.run(main())
 ```
 
+## CLI
+
+Install the CLI extras:
+
+```bash
+pip3 install "aiomegfile[cli]"
+```
+
+Example usage:
+
+```bash
+aiomegfile ls ./data
+aiomegfile ls s3://bucket/prefix -l
+aiomegfile cp -r ./data s3://bucket/backup
+aiomegfile sync ./data s3://bucket/backup --progress-bar
+```
+
+For a wider protocol matrix and advanced configuration, see the `megfile` docs:
+http://megvii-research.github.io/megfile
+
 ## How to Contribute
 * We welcome everyone to contribute code to the `aiomegfile` project, but the contributed code needs to meet the following conditions as much as possible:
     *You can submit code even if the code doesn't meet conditions. The project members will evaluate and assist you in making code changes*
