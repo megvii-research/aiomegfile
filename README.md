@@ -2,27 +2,62 @@ aiomegfile - Asyncio implementation of megfile
 ---
 
 [![Build](https://github.com/megvii-research/aiomegfile/actions/workflows/run-tests.yml/badge.svg?branch=main)](https://github.com/megvii-research/aiomegfile/actions/workflows/run-tests.yml)
-<!-- [![Documents](https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml/badge.svg)](https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml) -->
+[![Documents](https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml/badge.svg)](https://github.com/megvii-research/aiomegfile/actions/workflows/publish-docs.yml)
 [![Codecov](https://img.shields.io/codecov/c/gh/megvii-research/aiomegfile)](https://app.codecov.io/gh/megvii-research/aiomegfile/)
 [![Latest version](https://img.shields.io/pypi/v/aiomegfile.svg)](https://pypi.org/project/aiomegfile/)
 [![Support python versions](https://img.shields.io/pypi/pyversions/aiomegfile.svg)](https://pypi.org/project/aiomegfile/)
 [![License](https://img.shields.io/pypi/l/aiomegfile.svg)](https://github.com/megvii-research/aiomegfile/blob/main/LICENSE)
 
-<!-- * Docs: http://megvii-research.github.io/aiomegfile -->
+* Docs: http://megvii-research.github.io/aiomegfile
 
 `aiomegfile` is asyncio implementation of `megfile`.
 
-## Quick Start
+## Support Protocols
+- fs(local filesystem)
+- s3
 
-This project is **not production-ready**.
+Support more in the future.
 
-### Installation
+## Installation
 
 ```bash
-git clone https://github.com/megvii-research/aiomegfile.git
-cd aiomegfile
+pip3 install aiomegfile
+```
 
-pip3 install -e .
+## Quick Start
+
+Smart methods and `SmartPath` are the same as `megfile`, but all methods are async. You can use `aiomegfile` to do file operations in an async way.
+
+### Functional Interface Example
+
+```python
+import asyncio
+from aiomegfile import smart_open
+
+async def main():
+    async with smart_open('s3://bucket/key', 'r') as f:
+        content = await f.read()
+        print(content)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+### SmartPath Interface
+
+`SmartPath` has a similar interface with `pathlib.Path`, but async.
+
+```python
+import asyncio
+from aiomegfile import SmartPath
+
+async def main():
+    path = SmartPath('s3://bucket/key')
+    content = await path.read_text()
+    print(content)
+
+if __name__ == '__main__':
+    asyncio.run(main())
 ```
 
 ## How to Contribute
