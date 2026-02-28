@@ -226,7 +226,7 @@ class LocalFileSystem(BaseFileSystem):
             :return: Async iterator yielding FileEntry objects.
             """
             try:
-                entries = await asyncio.to_thread(list, os.scandir(dir_path))
+                entries = list(os.scandir(dir_path))
             except OSError:
                 return
 
@@ -268,7 +268,7 @@ class LocalFileSystem(BaseFileSystem):
                         path=file_path,
                         stat=StatResult(
                             st_size=stat_result.st_size,
-                            st_ctime=stat_result.st_ctime,
+                            st_ctime=stat_result.st_ctime,  # pyre-ignore[16]
                             st_mtime=stat_result.st_mtime,
                             isdir=stat.S_ISDIR(stat_result.st_mode),
                             islnk=stat.S_ISLNK(stat_result.st_mode),
@@ -283,7 +283,7 @@ class LocalFileSystem(BaseFileSystem):
                     path=path,
                     stat=StatResult(
                         st_size=stat_result.st_size,
-                        st_ctime=stat_result.st_ctime,
+                        st_ctime=getattr(stat_result, "st_ctime", 0.0),
                         st_mtime=stat_result.st_mtime,
                         isdir=stat.S_ISDIR(stat_result.st_mode),
                         islnk=stat.S_ISLNK(stat_result.st_mode),
