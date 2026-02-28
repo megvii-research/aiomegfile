@@ -702,7 +702,7 @@ class S3FileSystem(BaseFileSystem):
                         content["Name"],
                         content["Name"],
                         StatResult(
-                            ctime=content["CreationDate"].timestamp(),
+                            st_ctime=content["CreationDate"].timestamp(),
                             isdir=True,
                             extra=content,
                         ),

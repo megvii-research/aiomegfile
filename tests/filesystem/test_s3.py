@@ -248,6 +248,26 @@ class TestS3FileSystem:
 
         assert len(entries) == 0
 
+    async def test_scandir_root_lists_buckets(self, filesystem):
+        """Test scandir on root lists buckets.
+
+        :return: None
+        :rtype: None
+        """
+        await self._create_bucket(filesystem)
+
+        entries = []
+        async with filesystem.scandir("") as scanner:
+            async for entry in scanner:
+                entries.append(entry)
+
+        names = [entry.name for entry in entries]
+        assert _bucket_name in names
+
+        bucket_entry = next(entry for entry in entries if entry.name == _bucket_name)
+        assert bucket_entry.is_dir() is True
+        assert bucket_entry.stat.st_ctime > 0
+
     async def test_scanfile(self, filesystem):
         """Test scanfile returns only files recursively."""
         await self._create_bucket(filesystem)
