@@ -60,6 +60,42 @@ if __name__ == '__main__':
     asyncio.run(main())
 ```
 
+## Quick Start
+
+Smart methods and `SmartPath` are the same as `megfile`, but all methods are async. You can use `aiomegfile` to do file operations in an async way.
+
+### Functional Interface Example
+
+```python
+import asyncio
+from aiomegfile import smart_open
+
+async def main():
+    async with smart_open('s3://bucket/key', 'r') as f:
+        content = await f.read()
+        print(content)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+### SmartPath Interface
+
+`SmartPath` has a similar interface with `pathlib.Path`, but async.
+
+```python
+import asyncio
+from aiomegfile import SmartPath
+
+async def main():
+    path = SmartPath('s3://bucket/key')
+    content = await path.read_text()
+    print(content)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
 ## CLI
 
 Install the CLI extras:
