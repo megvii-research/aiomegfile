@@ -897,9 +897,50 @@ class S3FileSystem(BaseFileSystem):
 
         delimiter = "" if should_recursive(wildcard_part) else "/"
 
-        dirnames: set[str] = set()
         pattern = re.compile(translate(s3_pathname))
         bucket, prefix = parse_s3_path(top_prefix)
+
+        active_dirs: T.List[str] = []
+
+        def collect_dir_chain(path: str) -> T.List[str]:
+            """Collect directory chain from top_dir to leaf.
+
+            :param path: Path to collect directories for.
+            :return: Directory chain from root to leaf, excluding top_dir.
+            """
+            chain: T.List[str] = []
+            dirname = os.path.dirname(path)
+            while dirname and dirname != top_dir:
+                chain.append(dirname)
+                parent = os.path.dirname(dirname)
+                if parent == dirname:
+                    break
+                dirname = parent
+            chain.reverse()
+            return chain
+
+        def iter_new_dir_entries(path: str) -> T.Iterator[FileEntry]:
+            """Yield new directory entries based on current path.
+
+            :param path: Path used to determine new directories.
+            :return: Iterator of FileEntry for newly discovered directories.
+            """
+            nonlocal active_dirs
+            current_dirs = collect_dir_chain(path)
+            common_length = 0
+            for left_dir, right_dir in zip(active_dirs, current_dirs):
+                if left_dir != right_dir:
+                    break
+                common_length += 1
+            for dirname in reversed(current_dirs[common_length:]):
+                match_path = dirname + "/" if search_dir else dirname
+                if pattern.match(match_path):
+                    yield FileEntry(
+                        _s3_entry_name(match_path),
+                        match_path,
+                        StatResult(isdir=True),
+                    )
+            active_dirs = current_dirs
 
         async for resp in self._list_objects_recursive(bucket, prefix, delimiter):
             for content in resp.get("Contents", []):
@@ -920,30 +961,12 @@ class S3FileSystem(BaseFileSystem):
                         path,
                         stat_result,
                     )
-                dirname = os.path.dirname(path)
-                while dirname not in dirnames and dirname != top_dir:
-                    # XXX: optimize memory usage and file path order
-                    dirnames.add(dirname)
-                    match_path = dirname + "/" if search_dir else dirname
-                    if pattern.match(match_path):
-                        yield FileEntry(
-                            _s3_entry_name(match_path),
-                            match_path,
-                            StatResult(isdir=True),
-                        )
-                    dirname = os.path.dirname(dirname)
+                for file_entry in iter_new_dir_entries(path):
+                    yield file_entry
             for common_prefix in resp.get("CommonPrefixes", []):
                 path = f"{bucket}/{common_prefix['Prefix']}"
-                dirname = os.path.dirname(path)
-                if dirname not in dirnames and dirname != top_dir:
-                    dirnames.add(dirname)
-                    match_path = dirname + "/" if search_dir else dirname
-                    if pattern.match(match_path):
-                        yield FileEntry(
-                            _s3_entry_name(match_path),
-                            match_path,
-                            StatResult(isdir=True),
-                        )
+                for file_entry in iter_new_dir_entries(path):
+                    yield file_entry
 
     async def glob_stat(
         self,
