@@ -86,6 +86,19 @@ class TestLocalFileSystem:
             content = await f.read()
         assert content == "Hello, World!"
 
+    async def test_open_read_does_not_create_parent(self, temp_dir):
+        """Ensure read mode does not create parent directories.
+
+        :param temp_dir: Temporary directory fixture.
+        """
+        protocol = self._create_protocol()
+        missing_dir = os.path.join(temp_dir, "missing_dir")
+        missing_file = os.path.join(missing_dir, "missing.txt")
+        with pytest.raises(FileNotFoundError):
+            async with protocol.open(missing_file, "r"):
+                pass
+        assert not os.path.exists(missing_dir)
+
     async def test_open_write(self, temp_dir):
         """Test open method for writing."""
         file_path = os.path.join(temp_dir, "new_file.txt")
@@ -93,6 +106,21 @@ class TestLocalFileSystem:
         async with protocol.open(file_path, "w") as f:
             await f.write("New content")
 
+        with open(file_path) as f:
+            assert f.read() == "New content"
+
+    async def test_open_write_creates_parent(self, temp_dir):
+        """Ensure write mode creates parent directories.
+
+        :param temp_dir: Temporary directory fixture.
+        """
+        protocol = self._create_protocol()
+        nested_dir = os.path.join(temp_dir, "nested", "dir")
+        file_path = os.path.join(nested_dir, "file.txt")
+        async with protocol.open(file_path, "w") as f:
+            await f.write("New content")
+
+        assert os.path.isdir(nested_dir)
         with open(file_path) as f:
             assert f.read() == "New content"
 
