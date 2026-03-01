@@ -72,7 +72,7 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [project.scripts]
-aiomegfile = "aiomegfile.cli:safe_cli"
+amf = "aiomegfile.cli:safe_cli"
 
 [project.urls]
 Homepage = "https://github.com/megvii-research/aiomegfile"

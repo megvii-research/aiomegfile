@@ -107,10 +107,10 @@ pip3 install "aiomegfile[cli]"
 Example usage:
 
 ```bash
-aiomegfile ls ./data
-aiomegfile ls s3://bucket/prefix -l
-aiomegfile cp -r ./data s3://bucket/backup
-aiomegfile sync ./data s3://bucket/backup --progress-bar
+amf ls ./data
+amf ls s3://bucket/prefix -l
+amf cp -r ./data s3://bucket/backup
+amf sync ./data s3://bucket/backup --progress-bar
 ```
 
 For a wider protocol matrix and advanced configuration, see the `megfile` docs:
@@ -128,7 +128,7 @@ http://megvii-research.github.io/megfile
     * Write code.
     * Improve [documentation](https://github.com/megvii-research/aiomegfile/blob/main/docs).
     * Report or investigate [bugs and issues](https://github.com/megvii-research/aiomegfile/issues).
-    * If you find any problem or have any improving suggestion, [submit a new issuse](https://github.com/megvii-research/aiomegfile/issues) as well. We will reply as soon as possible and evaluate whether to adopt.
+    * If you find any problem or have any improving suggestion, [submit a new issue](https://github.com/megvii-research/aiomegfile/issues) as well. We will reply as soon as possible and evaluate whether to adopt.
     * Review [pull requests](https://github.com/megvii-research/aiomegfile/pulls).
     * Star `aiomegfile` repo.
     * Recommend `aiomegfile` to your friends.
