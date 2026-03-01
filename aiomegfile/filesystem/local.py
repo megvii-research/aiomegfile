@@ -157,9 +157,10 @@ class LocalFileSystem(BaseFileSystem):
         :param newline: Newline handling in text mode.
         :return: Async file context manager.
         """
-        dir_path = os.path.dirname(path)
-        if dir_path and dir_path != ".":
-            os.makedirs(os.path.dirname(path), exist_ok=True)
+        if any(flag in mode for flag in ("w", "a", "x", "+")):
+            dir_path = os.path.dirname(path)
+            if dir_path and dir_path != ".":
+                os.makedirs(dir_path, exist_ok=True)
 
         return aiofiles.open(  # pytype: disable=wrong-arg-types
             path,
@@ -260,7 +261,7 @@ class LocalFileSystem(BaseFileSystem):
                         yield child
                 else:
                     try:
-                        stat_result = await aiofiles.os.stat(file_path)
+                        stat_result = entry.stat(follow_symlinks=False)
                     except OSError:
                         continue
                     yield FileEntry(
@@ -312,7 +313,7 @@ class LocalFileSystem(BaseFileSystem):
         if dir_path and dir_path != ".":
             await self.mkdir(dir_path, parents=True, exist_ok=True)
 
-        shutil.move(src_path, dst_path)
+        await asyncio.to_thread(shutil.move, src_path, dst_path)
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:

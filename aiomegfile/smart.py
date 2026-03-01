@@ -1,7 +1,10 @@
+import asyncio
 import io
 import os
 import typing as T
+from collections import deque
 
+from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
@@ -539,19 +542,59 @@ async def _iter_file_stats(
             raise
 
     async with smart_path.filesystem.scanfile(smart_path._path) as iterator:
-        async for entry in iterator:
-            stat = entry.stat
-            path = entry.path
-            name = entry.name
+        max_workers = max(GLOBAL_MAX_WORKERS, 1)
+        semaphore = asyncio.Semaphore(max_workers)
+        max_in_flight = max_workers * 2
+        pending: deque[asyncio.Task[FileEntry]] = deque()
+
+        async def _resolve_entry(entry: FileEntry) -> FileEntry:
+            """Resolve entry details, following symlinks if requested.
+
+            :param entry: File entry to resolve.
+            :return: Resolved FileEntry with updated path and stat.
+            """
             if followlinks and entry.is_symlink():
-                path = await smart_path.filesystem.readlink(entry.path)
-                name = os.path.basename(path)
-                stat = await smart_path.filesystem.stat(path, followlinks=followlinks)
-            yield FileEntry(
-                name=name,
-                path=smart_path.filesystem.build_uri(path),
-                stat=stat,
+                async with semaphore:
+                    resolved_path = await smart_path.filesystem.readlink(entry.path)
+                    resolved_name = os.path.basename(resolved_path)
+                    resolved_stat = await smart_path.filesystem.stat(
+                        resolved_path, followlinks=followlinks
+                    )
+                return FileEntry(
+                    name=resolved_name,
+                    path=smart_path.filesystem.build_uri(resolved_path),
+                    stat=resolved_stat,
+                )
+            return FileEntry(
+                name=entry.name,
+                path=smart_path.filesystem.build_uri(entry.path),
+                stat=entry.stat,
             )
+
+        async def _await_next(
+            tasks: deque[asyncio.Task[FileEntry]],
+        ) -> FileEntry:
+            """Await the next pending task and cancel on failure.
+
+            :param tasks: Queue of pending tasks.
+            :return: Resolved FileEntry.
+            """
+            task = tasks.popleft()
+            try:
+                return await task
+            except Exception:
+                for pending_task in tasks:
+                    pending_task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
+
+        async for entry in iterator:
+            pending.append(asyncio.create_task(_resolve_entry(entry)))
+            if len(pending) >= max_in_flight:
+                yield await _await_next(pending)
+
+        while pending:
+            yield await _await_next(pending)
 
 
 async def _iter_sync_entries(
@@ -631,88 +674,141 @@ async def smart_sync(
     dst_take = True
     src_item: T.Optional[T.Tuple[str, FileEntry]] = None
     dst_item: T.Optional[T.Tuple[str, FileEntry]] = None
+    max_workers = max(GLOBAL_MAX_WORKERS, 1)
+    semaphore = asyncio.Semaphore(max_workers)
+    max_in_flight = max_workers * 2
+    copy_tasks: set[asyncio.Task[None]] = set()
 
-    while True:
-        if src_take and not src_done:
+    async def _copy_and_callback(src_file: str, dst_file: str) -> None:
+        """Copy a file and invoke post-copy callback when provided.
+
+        :param src_file: Source file path.
+        :param dst_file: Destination file path.
+        """
+        async with semaphore:
+            await smart_copy_file(
+                src_file,
+                dst_file,
+                followlinks=followlinks,
+                callback=callback,
+            )
+            if callback_after_copy_file:
+                callback_after_copy_file(src_file, dst_file)
+
+    async def _drain_copy_tasks(
+        tasks: set[asyncio.Task[None]],
+    ) -> set[asyncio.Task[None]]:
+        """Wait for at least one copy task and propagate errors.
+
+        :param tasks: Active copy tasks.
+        :return: Remaining pending tasks.
+        """
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for completed_task in done:
             try:
-                src_item = await anext(src_iter)
-            except StopAsyncIteration:
-                src_done = True
-                src_item = None
-        if dst_take and not dst_done:
-            if dst_iter is None:
-                dst_done = True
-                dst_item = None
-            else:
+                await completed_task
+            except Exception:
+                for pending_task in pending:
+                    pending_task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                raise
+        return set(pending)
+
+    error: T.Optional[Exception] = None
+    try:
+        while True:
+            if src_take and not src_done:
                 try:
-                    dst_item = await anext(dst_iter)
+                    src_item = await anext(src_iter)
                 except StopAsyncIteration:
+                    src_done = True
+                    src_item = None
+            if dst_take and not dst_done:
+                if dst_iter is None:
                     dst_done = True
                     dst_item = None
+                else:
+                    try:
+                        dst_item = await anext(dst_iter)
+                    except StopAsyncIteration:
+                        dst_done = True
+                        dst_item = None
 
-        if src_done or src_item is None:
-            break
+            if src_done or src_item is None:
+                break
 
-        src_key, src_entry = src_item
-        if src_key:
-            dst_abs_file_path = await smart_path_join(dst_root_path, src_key)
-        else:
-            dst_abs_file_path = dst_root_path
+            src_key, src_entry = src_item
+            if src_key:
+                dst_abs_file_path = await smart_path_join(dst_root_path, src_key)
+            else:
+                dst_abs_file_path = dst_root_path
 
-        if dst_done:
-            await smart_copy_file(
-                src_entry.path,
-                dst_abs_file_path,
-                followlinks=followlinks,
-                callback=callback,
-            )
-            if callback_after_copy_file:
-                callback_after_copy_file(src_entry.path, dst_abs_file_path)
-            src_take = True
-            dst_take = False
-            continue
-
-        if dst_item is None:
-            dst_done = True
-            src_take = False
-            dst_take = True
-            continue
-
-        dst_key, dst_entry = dst_item
-        if src_key == dst_key:
-            should_sync = True
-            if not force:
-                if not overwrite:
-                    should_sync = False
-                elif is_same_file(src_entry.stat, dst_entry.stat, sync_type):
-                    should_sync = False
-            if should_sync:
-                await smart_copy_file(
-                    src_entry.path,
-                    dst_abs_file_path,
-                    followlinks=followlinks,
-                    callback=callback,
+            if dst_done:
+                copy_tasks.add(
+                    asyncio.create_task(
+                        _copy_and_callback(src_entry.path, dst_abs_file_path)
+                    )
                 )
-                if callback_after_copy_file:
-                    callback_after_copy_file(src_entry.path, dst_abs_file_path)
-            elif callback:
-                callback(src_entry.stat.st_size)
-            src_take = True
-            dst_take = True
-        elif src_key < dst_key:
-            await smart_copy_file(
-                src_entry.path,
-                dst_abs_file_path,
-                followlinks=followlinks,
-                callback=callback,
-            )
-            if callback_after_copy_file:
-                callback_after_copy_file(src_entry.path, dst_abs_file_path)
-            src_take = True
-            dst_take = False
-        else:
-            src_take = False
-            dst_take = True
+                if len(copy_tasks) >= max_in_flight:
+                    copy_tasks = await _drain_copy_tasks(copy_tasks)
+                src_take = True
+                dst_take = False
+                continue
+
+            if dst_item is None:
+                dst_done = True
+                src_take = False
+                dst_take = True
+                continue
+
+            dst_key, dst_entry = dst_item
+            if src_key == dst_key:
+                should_sync = True
+                if not force:
+                    if not overwrite:
+                        should_sync = False
+                    elif is_same_file(src_entry.stat, dst_entry.stat, sync_type):
+                        should_sync = False
+                if should_sync:
+                    copy_tasks.add(
+                        asyncio.create_task(
+                            _copy_and_callback(src_entry.path, dst_abs_file_path)
+                        )
+                    )
+                    if len(copy_tasks) >= max_in_flight:
+                        copy_tasks = await _drain_copy_tasks(copy_tasks)
+                elif callback:
+                    callback(src_entry.stat.st_size)
+                src_take = True
+                dst_take = True
+            elif src_key < dst_key:
+                copy_tasks.add(
+                    asyncio.create_task(
+                        _copy_and_callback(src_entry.path, dst_abs_file_path)
+                    )
+                )
+                if len(copy_tasks) >= max_in_flight:
+                    copy_tasks = await _drain_copy_tasks(copy_tasks)
+                src_take = True
+                dst_take = False
+            else:
+                src_take = False
+                dst_take = True
+    except Exception as exc:
+        error = exc
+        raise
+    finally:
+        if copy_tasks:
+            if error is not None:
+                for pending_task in copy_tasks:
+                    pending_task.cancel()
+            results = await asyncio.gather(*copy_tasks, return_exceptions=True)
+            if error is None:
+                for result in results:
+                    if isinstance(result, Exception) and not isinstance(
+                        result, asyncio.CancelledError
+                    ):
+                        raise result
 
 
 async def _default_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
