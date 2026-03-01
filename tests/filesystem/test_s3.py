@@ -16,6 +16,15 @@ from aiomegfile.errors import (
 from aiomegfile.filesystem.s3 import (
     MultiPartWriter,
     S3FileSystem,
+    _become_prefix,
+    _group_s3path_by_prefix,
+    _parse_s3_path_ignore_brace,
+    _s3_entry_name,
+    _s3_split_magic,
+    _s3_split_magic_ignore_brace,
+    get_access_token,
+    get_endpoint_url,
+    get_env_var,
     get_s3_client,
     is_s3,
     parse_s3_path,
@@ -1242,6 +1251,112 @@ class TestHelperFunctions:
         assert parse_s3_path("bucket/prefix/key") == ("bucket", "prefix/key")
         assert parse_s3_path("bucket/") == ("bucket", "")
         assert parse_s3_path("") == ("", "")
+
+    def test_s3_helper_prefix_and_entry(self):
+        """Test prefix normalization and entry name helpers.
+
+        :return: None
+        :rtype: None
+        """
+        assert _become_prefix("prefix") == "prefix/"
+        assert _become_prefix("prefix/") == "prefix/"
+        assert _become_prefix("") == ""
+
+        assert _s3_entry_name("dir/file.txt") == "file.txt"
+        assert _s3_entry_name("dir/file.txt/") == "file.txt"
+        assert _s3_entry_name("") == ""
+
+    def test_parse_s3_path_ignore_brace(self):
+        """Test parsing bucket/key while ignoring braces.
+
+        :return: None
+        :rtype: None
+        """
+        bucket, key = _parse_s3_path_ignore_brace("{buck/et}/path/to/file")
+        assert bucket == "{buck/et}"
+        assert key == "path/to/file"
+
+        bucket, key = _parse_s3_path_ignore_brace("bucket")
+        assert bucket == "bucket"
+        assert key == ""
+
+    def test_s3_split_magic_helpers(self):
+        """Test splitting magic parts of S3 paths.
+
+        :return: None
+        :rtype: None
+        """
+        top_dir, magic = _s3_split_magic_ignore_brace("dir/{a,b}/file?.txt")
+        assert top_dir == "dir/{a,b}"
+        assert magic == "file?.txt"
+
+        prefix, magic_part = _s3_split_magic("abc*def")
+        assert prefix == "abc"
+        assert magic_part == "*def"
+
+    def test_group_s3path_by_prefix(self):
+        """Test grouping paths by expanded prefix.
+
+        :return: None
+        :rtype: None
+        """
+        grouped = _group_s3path_by_prefix("bucket/{a,b}/file.txt")
+        assert sorted(grouped) == [
+            "bucket/a/file.txt",
+            "bucket/b/file.txt",
+        ]
+
+        assert _group_s3path_by_prefix("bucket") == ["bucket"]
+
+    def test_get_env_var_with_profile(self, monkeypatch):
+        """Test fetching environment variables with profiles.
+
+        :param monkeypatch: Pytest monkeypatch fixture.
+        :return: None
+        :rtype: None
+        """
+        monkeypatch.setenv("DEMO__AWS_ACCESS_KEY_ID", "profile-key")
+        assert get_env_var("AWS_ACCESS_KEY_ID", profile_name="demo") == "profile-key"
+
+    def test_get_endpoint_url_from_env(self, monkeypatch):
+        """Test endpoint URL selection from environment.
+
+        :param monkeypatch: Pytest monkeypatch fixture.
+        :return: None
+        :rtype: None
+        """
+        monkeypatch.setenv("AWS_ENDPOINT_URL", "http://endpoint")
+        assert get_endpoint_url() == "http://endpoint"
+
+        monkeypatch.setenv("PROFILE__AWS_ENDPOINT_URL", "http://profile-endpoint")
+        assert get_endpoint_url(profile_name="profile") == "http://profile-endpoint"
+
+    def test_get_access_token_prefers_env_and_config(self, monkeypatch):
+        """Test access token resolution from env and config.
+
+        :param monkeypatch: Pytest monkeypatch fixture.
+        :return: None
+        :rtype: None
+        """
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "env-key")
+        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "env-secret")
+
+        access_key, secret_key, session_token = get_access_token()
+        assert access_key == "env-key"
+        assert secret_key == "env-secret"
+        assert session_token is None
+
+        monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+        monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+        config = {
+            "aws_access_key_id": "config-key",
+            "aws_secret_access_key": "config-secret",
+            "aws_session_token": "token",
+        }
+        access_key, secret_key, session_token = get_access_token(config=config)
+        assert access_key == "config-key"
+        assert secret_key == "config-secret"
+        assert session_token == "token"
 
     def test_get_s3_client_cache_per_loop(self, mock_s3, moto_server):  # noqa: ARG002
         """Test get_s3_client cache is scoped per event loop."""

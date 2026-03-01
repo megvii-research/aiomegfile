@@ -5,6 +5,7 @@ import pytest
 from moto.server import ThreadedMotoServer
 
 from aiomegfile.filesystem.s3 import S3FileSystem
+from aiomegfile.interfaces import FILE_SYSTEMS, BaseFileSystem
 from aiomegfile.smart import (
     smart_abspath,
     smart_concat,
@@ -42,6 +43,7 @@ from aiomegfile.smart import (
     smart_unlink,
     smart_walk,
 )
+from aiomegfile.utils.path import split_uri
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"
@@ -87,6 +89,19 @@ def s3_filesystem(mock_s3):
     :rtype: S3FileSystem
     """
     return S3FileSystem()
+
+
+@pytest.fixture
+def filesystem_registry_snapshot():
+    """Snapshot FILE_SYSTEMS registry for tests that mutate it.
+
+    :return: FILE_SYSTEMS snapshot dict.
+    :rtype: dict
+    """
+    snapshot = dict(FILE_SYSTEMS)
+    yield snapshot
+    FILE_SYSTEMS.clear()
+    FILE_SYSTEMS.update(snapshot)
 
 
 async def _create_bucket(filesystem: S3FileSystem) -> None:
@@ -611,3 +626,123 @@ async def test_smart_concat_empty_source_noop(tmp_path):
     await smart_concat([], dest_path)
 
     assert not dest_path.exists()
+
+
+async def test_smart_load_content_invalid_range(tmp_path):
+    """smart_load_content should reject invalid ranges.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :return: None
+    :rtype: None
+    """
+    file_path = tmp_path / "range.bin"
+    file_path.write_bytes(b"abcdef")
+
+    with pytest.raises(ValueError):
+        await smart_load_content(file_path, start=4, stop=2)
+
+
+async def test_smart_copy_file_followlinks(tmp_path):
+    """smart_copy_file should follow symlinks when requested.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :return: None
+    :rtype: None
+    """
+    src_path = tmp_path / "source.txt"
+    src_path.write_text("linked", encoding="utf-8")
+    link_path = tmp_path / "link.txt"
+    os.symlink(src_path, link_path)
+    dst_path = tmp_path / "dest.txt"
+
+    await smart_copy_file(link_path, dst_path, followlinks=True)
+
+    assert dst_path.read_text(encoding="utf-8") == "linked"
+
+
+async def test_smart_relpath_raises_for_unrelated_paths(tmp_path):
+    """smart_relpath should raise when paths are unrelated.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :return: None
+    :rtype: None
+    """
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("data", encoding="utf-8")
+    other_root = tmp_path / "other"
+    other_root.mkdir()
+
+    with pytest.raises(ValueError):
+        await smart_relpath(file_path, other_root)
+
+
+async def test_smart_concat_uses_filesystem_concat(filesystem_registry_snapshot):
+    """smart_concat should prefer filesystem concat when available.
+
+    :param filesystem_registry_snapshot: Registry snapshot fixture.
+    :return: None
+    :rtype: None
+    """
+    calls: dict[str, object] = {}
+
+    class DummyFS(BaseFileSystem):
+        """Dummy filesystem with concat implementation."""
+
+        protocol = "dummy"
+
+        def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
+            """Return True for all comparisons.
+
+            :param other_filesystem: Filesystem to compare.
+            :return: True always.
+            :rtype: bool
+            """
+            return True
+
+        def parse_uri(self, uri: str) -> str:
+            """Parse URI to path part.
+
+            :param uri: URI string.
+            :return: Parsed path.
+            :rtype: str
+            """
+            _, path, _ = split_uri(uri)
+            return path
+
+        def build_uri(self, path: str) -> str:
+            """Build URI from path.
+
+            :param path: Path without protocol.
+            :return: URI string.
+            :rtype: str
+            """
+            return f"{self.protocol}://{path}"
+
+        @classmethod
+        def from_uri(cls, uri: str) -> "DummyFS":
+            """Create filesystem from URI.
+
+            :param uri: URI string.
+            :return: DummyFS instance.
+            :rtype: DummyFS
+            """
+            return cls()
+
+        async def concat(self, src_paths: list[str], dst_path: str) -> None:
+            """Record concat arguments.
+
+            :param src_paths: Source paths list.
+            :param dst_path: Destination path.
+            :return: None
+            :rtype: None
+            """
+            calls["src_paths"] = list(src_paths)
+            calls["dst_path"] = dst_path
+
+    await smart_concat(
+        ["dummy://bucket/a.txt", "dummy://bucket/b.txt"],
+        "dummy://bucket/out.txt",
+    )
+
+    assert calls["src_paths"] == ["dummy://bucket/a.txt", "dummy://bucket/b.txt"]
+    assert calls["dst_path"] == "dummy://bucket/out.txt"
