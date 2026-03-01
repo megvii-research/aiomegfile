@@ -14,7 +14,7 @@ from aiomegfile.interfaces import (
     FileEntry,
     StatResult,
 )
-from aiomegfile.utils.path import split_uri
+from aiomegfile.utils.path import copyfileobj, split_uri
 
 
 class LocalFileSystem(BaseFileSystem):
@@ -362,18 +362,30 @@ class LocalFileSystem(BaseFileSystem):
         except FileNotFoundError:
             return False
 
-    async def copy(self, src_path, dst_path):
+    async def copy(
+        self,
+        src_path: str,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> str:
         """
         copy single file, not directory
 
         :param src_path: Given source path
         :param dst_path: Given destination path
+        :param callback: Called periodically during copy with bytes written.
         :return: Destination path after copy.
         """
         dir_name = os.path.dirname(dst_path)
         if dir_name and dir_name != "":
             await self.mkdir(dir_name, parents=True, exist_ok=True)
-        return await asyncio.to_thread(shutil.copyfile, src_path, dst_path)
+        if callback is None:
+            return await asyncio.to_thread(shutil.copyfile, src_path, dst_path)
+
+        async with aiofiles.open(src_path, "rb") as src_file:
+            async with aiofiles.open(dst_path, "wb") as dst_file:
+                await copyfileobj(src_file, dst_file, callback=callback)
+        return dst_path
 
     def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
         """

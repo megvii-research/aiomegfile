@@ -710,19 +710,36 @@ def sync(
             verbose_enabled = False
 
         if progress_enabled:
-            pbar = tqdm(
-                total=None,
-                unit="B",
+            tbar = tqdm(
+                total=0,
                 ascii=True,
+                desc="Files (scanning)",
+            )
+            sbar = tqdm(
+                total=0,
+                ascii=True,
+                unit="B",
                 unit_scale=True,
                 unit_divisor=1024,
+                desc="File size (scanning)",
             )
 
+            def scan_callback(entry: FileEntry) -> None:
+                """Update totals while scanning source entries."""
+                tbar.total += 1
+                sbar.total += entry.stat.st_size
+                tbar.refresh()
+                sbar.refresh()
+
             def callback(src_file_path: str, length: int) -> None:
-                """Update progress for copied bytes."""
+                """Update file count after each file copy."""
                 if verbose_enabled:
                     tqdm.write(f"copy {src_file_path} done")
-                pbar.update(length)
+                tbar.update(1)
+
+            def copy_callback(length: int) -> None:
+                """Update size progress after each data chunk."""
+                sbar.update(length)
 
             try:
                 await smart_sync(
@@ -732,9 +749,16 @@ def sync(
                     force=force,
                     overwrite=not skip,
                     callback=callback,
+                    copy_callback=copy_callback,
+                    scan_callback=scan_callback,
                 )
             finally:
-                pbar.close()
+                tbar.set_description_str("Files")
+                sbar.set_description_str("File size")
+                tbar.refresh()
+                sbar.refresh()
+                tbar.close()
+                sbar.close()
         else:
 
             def callback(src_file_path: str, length: int) -> None:

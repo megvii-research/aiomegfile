@@ -351,32 +351,50 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "scanfile" not implemented: %r' % self)
 
-    async def upload(self, src_path: str, dst_path: str) -> None:
+    async def upload(
+        self,
+        src_path: str,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
         """
         upload file
 
         :param src_path: Given source path
         :param dst_path: Given destination path
+        :param callback: Called periodically during upload with bytes written.
         :return: ``None``.
         """
         raise NotImplementedError(f"'upload' is unsupported on '{type(self)}'")
 
-    async def download(self, src_path: str, dst_path: str) -> None:
+    async def download(
+        self,
+        src_path: str,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
         """
         download file
 
         :param src_path: Given source path
         :param dst_path: Given destination path
+        :param callback: Called periodically during download with bytes written.
         :return: ``None``.
         """
         raise NotImplementedError(f"'download' is unsupported on '{type(self)}'")
 
-    async def copy(self, src_path: str, dst_path: str) -> str:
+    async def copy(
+        self,
+        src_path: str,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> str:
         """
         copy single file, not directory
 
         :param src_path: Given source path
         :param dst_path: Given destination path
+        :param callback: Called periodically during copy with bytes written.
         :return: Destination path after copy.
         """
         raise NotImplementedError(f"'copy' is unsupported on '{type(self)}'")

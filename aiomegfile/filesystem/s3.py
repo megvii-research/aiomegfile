@@ -1096,12 +1096,18 @@ class S3FileSystem(BaseFileSystem):
             )
         return fileobj
 
-    async def upload(self, src_path: str, dst_path: str) -> None:
+    async def upload(
+        self,
+        src_path: str,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
         """
         Upload a local file to S3.
 
         :param src_path: Local source file path.
         :param dst_path: S3 destination path.
+        :param callback: Called periodically during upload with bytes written.
         :return: ``None``.
         """
         bucket, key = parse_s3_path(dst_path)
@@ -1112,21 +1118,21 @@ class S3FileSystem(BaseFileSystem):
         if os.path.isdir(src_path):
             raise IsADirectoryError(f"Is a directory: {self.build_uri(src_path)!r}")
 
-        client = await self._get_client()
-        if hasattr(client, "upload_file"):
-            with raise_s3_error(self.build_uri(dst_path)):
-                await client.upload_file(src_path, bucket, key)
-            return
-
         async with aiofiles.open(src_path, "rb") as fileobj:
-            await self._upload_fileobj(fileobj, dst_path)
+            await self._upload_fileobj(fileobj, dst_path, callback=callback)
 
-    async def download(self, src_path: str, dst_path: str) -> None:
+    async def download(
+        self,
+        src_path: str,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
         """
         download file
 
         :param src_path: Given source path
         :param dst_path: Given destination path
+        :param callback: Called periodically during download with bytes written.
         :return: ``None``.
         """
         if not await self.exists(src_path):
@@ -1140,27 +1146,20 @@ class S3FileSystem(BaseFileSystem):
         if dir_path and dir_path != ".":
             await asyncio.to_thread(os.makedirs, dir_path, exist_ok=True)
 
-        client = await self._get_client()
-        if hasattr(client, "download_file"):
-            try:
-                await client.download_file(bucket, key, dst_path)
-            except Exception as e:
-                error = translate_s3_error(e, self.build_uri(src_path))
-                if await self.is_dir(src_path):
-                    raise S3IsADirectoryError(
-                        "Is a directory: %r" % self.build_uri(src_path)
-                    )
-                raise error from e
-            return
-
         async with aiofiles.open(dst_path, "wb") as fileobj:
-            await self._download_fileobj(src_path, fileobj)
+            await self._download_fileobj(src_path, fileobj, callback=callback)
 
-    async def _download_fileobj(self, src_path: str, fileobj) -> None:
+    async def _download_fileobj(
+        self,
+        src_path: str,
+        fileobj,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
         """Download S3 object to a file-like object.
 
         :param src_path: S3 source path (without protocol).
         :param fileobj: File-like object to write to.
+        :param callback: Called periodically during download with bytes written.
         :return: ``None``.
         """
         bucket, key = parse_s3_path(src_path)
@@ -1180,12 +1179,20 @@ class S3FileSystem(BaseFileSystem):
                     if not chunk:
                         break
                     await fileobj.write(chunk)
+                    if callback:
+                        callback(len(chunk))
 
-    async def _upload_fileobj(self, fileobj, dst_path: str) -> None:
+    async def _upload_fileobj(
+        self,
+        fileobj,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
         """Upload from a file-like object to S3.
 
         :param fileobj: File-like object to read from.
         :param dst_path: S3 destination path (without protocol).
+        :param callback: Called periodically during upload with bytes written.
         :return: ``None``.
         """
         bucket, key = parse_s3_path(dst_path)
@@ -1205,6 +1212,8 @@ class S3FileSystem(BaseFileSystem):
                     if not chunk:
                         break
                     await s3_file.write(chunk)
+                    if callback:
+                        callback(len(chunk))
 
     async def copy(
         self,
