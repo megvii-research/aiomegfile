@@ -623,20 +623,31 @@ class S3FileSystem(BaseFileSystem):
                 Bucket=bucket, Prefix=prefix, Delimiter=delimiter, MaxKeys=MAX_KEYS
             )
 
-        while True:
-            yield resp
+        next_resp = None
+        try:
+            while True:
+                if resp["IsTruncated"]:
+                    next_resp = asyncio.create_task(
+                        client.list_objects_v2(
+                            Bucket=bucket,
+                            Prefix=prefix,
+                            Delimiter=delimiter,
+                            ContinuationToken=resp["NextContinuationToken"],
+                            MaxKeys=MAX_KEYS,
+                        )
+                    )
 
-            if not resp["IsTruncated"]:
-                break
+                yield resp
 
-            with raise_s3_error(self.build_uri(f"{bucket}/{prefix}")):
-                resp = await client.list_objects_v2(
-                    Bucket=bucket,
-                    Prefix=prefix,
-                    Delimiter=delimiter,
-                    ContinuationToken=resp["NextContinuationToken"],
-                    MaxKeys=MAX_KEYS,
-                )
+                if not next_resp:
+                    break
+
+                with raise_s3_error(self.build_uri(f"{bucket}/{prefix}")):
+                    resp = await next_resp
+                next_resp = None
+        finally:
+            if next_resp is not None:
+                next_resp.cancel()
 
     async def remove(self, path: str, missing_ok: bool = False) -> None:
         """Remove (delete) the file or directory.
