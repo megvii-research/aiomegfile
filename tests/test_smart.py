@@ -9,6 +9,7 @@ from aiomegfile.smart import (
     smart_abspath,
     smart_concat,
     smart_copy,
+    smart_copy_file,
     smart_exists,
     smart_glob,
     smart_iglob,
@@ -210,6 +211,58 @@ async def test_smart_scan_and_isabs_abspath(tmp_path):
     assert await smart_isabs(abs_path) is True
     assert await smart_isabs("relative/path") is False
     assert await smart_isabs("s3://bucket/key") is True
+
+
+async def test_smart_copy_file_callback(tmp_path):
+    """Test smart_copy_file invokes callback with copied bytes."""
+    src_path = tmp_path / "source.txt"
+    src_path.write_text("callback")
+    dst_path = tmp_path / "dest.txt"
+
+    total = 0
+
+    def callback(size: int) -> None:
+        """Accumulate copied bytes."""
+        nonlocal total
+        total += size
+
+    await smart_copy_file(src_path, dst_path, callback=callback)
+
+    assert dst_path.read_text() == "callback"
+    assert total == src_path.stat().st_size
+
+
+async def test_smart_sync_callbacks(tmp_path):
+    """Test smart_sync callbacks are invoked."""
+    src_dir = tmp_path / "src"
+    dst_dir = tmp_path / "dst"
+    src_dir.mkdir()
+    dst_dir.mkdir()
+
+    file_a = src_dir / "a.txt"
+    file_b = src_dir / "b.txt"
+    file_a.write_text("alpha")
+    file_b.write_text("bravo")
+
+    copied = {"bytes": 0, "count": 0}
+
+    def callback(size: int) -> None:
+        """Accumulate copied bytes."""
+        copied["bytes"] += size
+
+    def callback_after_copy_file(src_path: str, dst_path: str) -> None:
+        """Count copied files."""
+        copied["count"] += 1
+
+    await smart_sync(
+        src_dir,
+        dst_dir,
+        callback=callback,
+        callback_after_copy_file=callback_after_copy_file,
+    )
+
+    assert copied["count"] == 2
+    assert copied["bytes"] == file_a.stat().st_size + file_b.stat().st_size
 
 
 async def test_smart_load_from(tmp_path):

@@ -60,6 +60,62 @@ if __name__ == '__main__':
     asyncio.run(main())
 ```
 
+## Quick Start
+
+Smart methods and `SmartPath` are the same as `megfile`, but all methods are async. You can use `aiomegfile` to do file operations in an async way.
+
+### Functional Interface Example
+
+```python
+import asyncio
+from aiomegfile import smart_open
+
+async def main():
+    async with smart_open('s3://bucket/key', 'r') as f:
+        content = await f.read()
+        print(content)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+### SmartPath Interface
+
+`SmartPath` has a similar interface with `pathlib.Path`, but async.
+
+```python
+import asyncio
+from aiomegfile import SmartPath
+
+async def main():
+    path = SmartPath('s3://bucket/key')
+    content = await path.read_text()
+    print(content)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+## CLI
+
+Install the CLI extras:
+
+```bash
+pip3 install "aiomegfile[cli]"
+```
+
+Example usage:
+
+```bash
+amf ls ./data
+amf ls s3://bucket/prefix -l
+amf cp -r ./data s3://bucket/backup
+amf sync ./data s3://bucket/backup --progress-bar
+```
+
+For a wider protocol matrix and advanced configuration, see the `megfile` docs:
+http://megvii-research.github.io/megfile
+
 ## How to Contribute
 * We welcome everyone to contribute code to the `aiomegfile` project, but the contributed code needs to meet the following conditions as much as possible:
     *You can submit code even if the code doesn't meet conditions. The project members will evaluate and assist you in making code changes*
@@ -72,7 +128,7 @@ if __name__ == '__main__':
     * Write code.
     * Improve [documentation](https://github.com/megvii-research/aiomegfile/blob/main/docs).
     * Report or investigate [bugs and issues](https://github.com/megvii-research/aiomegfile/issues).
-    * If you find any problem or have any improving suggestion, [submit a new issuse](https://github.com/megvii-research/aiomegfile/issues) as well. We will reply as soon as possible and evaluate whether to adopt.
+    * If you find any problem or have any improving suggestion, [submit a new issue](https://github.com/megvii-research/aiomegfile/issues) as well. We will reply as soon as possible and evaluate whether to adopt.
     * Review [pull requests](https://github.com/megvii-research/aiomegfile/pulls).
     * Star `aiomegfile` repo.
     * Recommend `aiomegfile` to your friends.

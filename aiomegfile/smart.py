@@ -328,13 +328,18 @@ async def smart_copy(
 
 
 async def smart_copy_file(
-    src_path: PathLike, dst_path: PathLike, *, followlinks: bool = False
+    src_path: PathLike,
+    dst_path: PathLike,
+    *,
+    followlinks: bool = False,
+    callback: T.Optional[T.Callable[[int], None]] = None,
 ) -> str:
     """Copy a file and return the destination path string.
 
     :param src_path: Source path to copy.
     :param dst_path: Destination path.
     :param followlinks: Whether to follow symbolic links.
+    :param callback: Called periodically during copy with bytes written.
     :return: Destination path string.
     :rtype: str
     """
@@ -344,7 +349,7 @@ async def smart_copy_file(
         except OSError:
             pass
 
-    result = await SmartPath(src_path).copy_file(dst_path)
+    result = await SmartPath(src_path).copy_file(dst_path, callback=callback)
     return str(result)
 
 
@@ -576,7 +581,8 @@ async def _iter_sync_entries(
 async def smart_sync(
     src_path: PathLike,
     dst_path: PathLike,
-    callback: T.Optional[T.Callable[[str, int], None]] = None,
+    callback: T.Optional[T.Callable[[int], None]] = None,
+    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     followlinks: bool = False,
     force: bool = False,
     overwrite: bool = True,
@@ -592,8 +598,9 @@ async def smart_sync(
 
     :param src_path: Given source path.
     :param dst_path: Given destination path.
-    :param callback: Called after each file copy attempt. The callback receives
-        ``(src_path, num_bytes)`` where ``num_bytes`` is the file size.
+    :param callback: Called periodically during copy with bytes written.
+    :param callback_after_copy_file: Called after copy success, and the input parameter
+        is src file path and dst file path.
     :param followlinks: False if regard symlink as file, else True.
     :param force: Sync file forcible, do not ignore same files, priority is higher than
         ``overwrite``.
@@ -657,9 +664,10 @@ async def smart_sync(
                 src_entry.path,
                 dst_abs_file_path,
                 followlinks=followlinks,
+                callback=callback,
             )
-            if callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+            if callback_after_copy_file:
+                callback_after_copy_file(src_entry.path, dst_abs_file_path)
             src_take = True
             dst_take = False
             continue
@@ -683,9 +691,12 @@ async def smart_sync(
                     src_entry.path,
                     dst_abs_file_path,
                     followlinks=followlinks,
+                    callback=callback,
                 )
-            if callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+                if callback_after_copy_file:
+                    callback_after_copy_file(src_entry.path, dst_abs_file_path)
+            elif callback:
+                callback(src_entry.stat.st_size)
             src_take = True
             dst_take = True
         elif src_key < dst_key:
@@ -693,9 +704,10 @@ async def smart_sync(
                 src_entry.path,
                 dst_abs_file_path,
                 followlinks=followlinks,
+                callback=callback,
             )
-            if callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+            if callback_after_copy_file:
+                callback_after_copy_file(src_entry.path, dst_abs_file_path)
             src_take = True
             dst_take = False
         else:

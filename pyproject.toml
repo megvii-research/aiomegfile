@@ -29,6 +29,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cli = [
+    "click>=8.1.7",
+    "tqdm",
+]
 doc = [
     "Sphinx>=7.3.7; python_version >= '3.10'",
     "Sphinx; python_version < '3.10'",
@@ -38,6 +42,7 @@ doc = [
     "sphinx-click",
 ]
 test = [
+    "click>=8.1.7",
     "pytest",
     "pytest-cov",
     "pytest-mock>3.6.0",
@@ -59,12 +64,15 @@ typecheck = [
     "bandit-sarif-formatter",
 ]
 dev = [
-    "aiomegfile[doc,test,lint,typecheck]",
+    "aiomegfile[cli,doc,test,lint,typecheck]",
 ]
 
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
+
+[project.scripts]
+amf = "aiomegfile.cli:safe_cli"
 
 [project.urls]
 Homepage = "https://github.com/megvii-research/aiomegfile"

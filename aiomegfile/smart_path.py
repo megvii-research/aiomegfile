@@ -675,11 +675,16 @@ class SmartPath(os.PathLike):
         pattern = "**/" + pattern.lstrip("/")
         return await self.glob(pattern=pattern, recursive=recursive)
 
-    async def copy_file(self, target: PathLike) -> "SmartPath":
+    async def copy_file(
+        self,
+        target: PathLike,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> "SmartPath":
         """
         copy file only
 
         :param target: Given destination path
+        :param callback: Called periodically during copy with bytes written.
         :return: Target SmartPath.
         """
         target_path = self.from_uri(target)
@@ -688,6 +693,7 @@ class SmartPath(os.PathLike):
             await self.filesystem.copy(
                 src_path=self._path,
                 dst_path=target_path._path,
+                callback=callback,
             )
             return target_path
 
@@ -696,6 +702,7 @@ class SmartPath(os.PathLike):
                 await target_path.filesystem.upload(
                     src_path=self._path,
                     dst_path=target_path._path,
+                    callback=callback,
                 )
                 return target_path
             except NotImplementedError:
@@ -706,6 +713,7 @@ class SmartPath(os.PathLike):
                 await self.filesystem.download(
                     src_path=self._path,
                     dst_path=target_path._path,
+                    callback=callback,
                 )
                 return target_path
             except NotImplementedError:
@@ -718,6 +726,8 @@ class SmartPath(os.PathLike):
                     if not chunk:
                         break
                     await dst_file.write(chunk)
+                    if callback:
+                        callback(len(chunk))
 
         return target_path
 
