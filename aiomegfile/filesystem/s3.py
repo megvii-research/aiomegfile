@@ -519,7 +519,12 @@ class S3FileSystem(BaseFileSystem):
         if not bucket:  # s3:// => True, s3:///key => False
             return not key
 
-        return await self.is_file(path) or await self.is_dir(path)
+        file_task = asyncio.create_task(self.is_file(path))
+        dir_task = asyncio.create_task(self.is_dir(path))
+        if await file_task:
+            dir_task.cancel()
+            return True
+        return await dir_task
 
     async def absolute(self, path: str) -> str:
         """
@@ -681,6 +686,48 @@ class S3FileSystem(BaseFileSystem):
 
         prefix = _become_prefix(key)
         had_file = False
+        max_workers = max(GLOBAL_MAX_WORKERS, 1)
+        semaphore = asyncio.Semaphore(max_workers)
+        max_in_flight = max_workers * 2
+        delete_tasks: set[asyncio.Task[None]] = set()
+        error_path = self.build_uri(path)
+
+        async def _delete_batch(objects: T.List[T.Dict[str, str]]) -> None:
+            """Delete a batch of S3 objects.
+
+            :param objects: Object dicts with ``Key`` values.
+            """
+            async with semaphore:
+                with raise_s3_error(error_path):
+                    await client.delete_objects(
+                        Bucket=bucket,
+                        Delete={  # pyre-ignore[6]
+                            "Objects": objects,
+                            "Quiet": True,
+                        },
+                    )
+
+        async def _drain_delete_tasks(
+            tasks: set[asyncio.Task[None]],
+        ) -> set[asyncio.Task[None]]:
+            """Wait for at least one delete task and propagate errors.
+
+            :param tasks: Active delete tasks.
+            :return: Remaining pending tasks.
+            """
+            done, pending = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            for completed_task in done:
+                try:
+                    await completed_task
+                except Exception:
+                    for pending_task in pending:
+                        pending_task.cancel()
+                    await asyncio.gather(*pending, return_exceptions=True)
+                    raise
+            return set(pending)
+
         async for resp in self._list_objects_recursive(bucket, prefix):
             contents = resp.get("Contents", [])
             if not contents:
@@ -689,14 +736,19 @@ class S3FileSystem(BaseFileSystem):
 
             objects_to_delete = [{"Key": obj["Key"]} for obj in contents]
 
-            with raise_s3_error(self.build_uri(path)):
-                await client.delete_objects(
-                    Bucket=bucket,
-                    Delete={  # pyre-ignore[6]
-                        "Objects": objects_to_delete,
-                        "Quiet": True,
-                    },
-                )
+            delete_tasks.add(asyncio.create_task(_delete_batch(objects_to_delete)))
+            if len(delete_tasks) >= max_in_flight:
+                delete_tasks = await _drain_delete_tasks(delete_tasks)
+
+        if delete_tasks:
+            try:
+                await asyncio.gather(*delete_tasks)
+            except Exception:
+                for pending_task in delete_tasks:
+                    if not pending_task.done():
+                        pending_task.cancel()
+                await asyncio.gather(*delete_tasks, return_exceptions=True)
+                raise
 
         if not had_file and not missing_ok:
             raise S3FileNotFoundError(
@@ -1008,15 +1060,61 @@ class S3FileSystem(BaseFileSystem):
         :raises S3FileNotFoundError: If no matches and missing_ok is False.
         """
         s3_pathname = fspath(path)
-        matched = False
+        grouped_paths: T.List[str] = []
         for group_path_bucket in await self._group_s3path_by_bucket(s3_pathname):
-            for group_path_prefix in _group_s3path_by_prefix(group_path_bucket):
-                async for file_entry in self._glob_stat_single_path(
-                    group_path_prefix,
-                    recursive=recursive,
-                ):
+            grouped_paths.extend(_group_s3path_by_prefix(group_path_bucket))
+
+        matched = False
+        if grouped_paths:
+            max_workers = max(GLOBAL_MAX_WORKERS, 1)
+            semaphore = asyncio.Semaphore(max_workers)
+            done_sentinel = object()
+            result_queue: asyncio.Queue[object] = asyncio.Queue()
+
+            async def _run_group(group_path_prefix: str) -> None:
+                """Run glob_stat for a grouped prefix and enqueue results.
+
+                :param group_path_prefix: Grouped path prefix to scan.
+                """
+                async with semaphore:
+                    async for file_entry in self._glob_stat_single_path(
+                        group_path_prefix,
+                        recursive=recursive,
+                    ):
+                        await result_queue.put(file_entry)
+
+            tasks = [
+                asyncio.create_task(_run_group(group_path_prefix))
+                for group_path_prefix in grouped_paths
+            ]
+
+            async def _finish_groups() -> T.List[object]:
+                """Wait for group tasks and signal completion.
+
+                :return: List of task results or exceptions.
+                """
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                await result_queue.put(done_sentinel)
+                return results
+
+            finisher = asyncio.create_task(_finish_groups())
+            try:
+                while True:
+                    item = await result_queue.get()
+                    if item is done_sentinel:
+                        break
                     matched = True
-                    yield file_entry
+                    yield T.cast(FileEntry, item)
+            finally:
+                if not finisher.done():
+                    for task in tasks:
+                        task.cancel()
+                task_results = await finisher
+                for result in task_results:
+                    if isinstance(result, Exception) and not isinstance(
+                        result, asyncio.CancelledError
+                    ):
+                        raise result
 
         if not matched and not missing_ok:
             raise S3FileNotFoundError(
@@ -1322,6 +1420,50 @@ class S3FileSystem(BaseFileSystem):
             raise FileNotFoundError(f"Key not found: {self.build_uri(dst_path)!r}")
 
         client = await self._get_client()
+        max_workers = max(GLOBAL_MAX_WORKERS, 1)
+        semaphore = asyncio.Semaphore(max_workers)
+        max_in_flight = max_workers * 2
+        copy_tasks: set[asyncio.Task[None]] = set()
+        error_path = f"'{self.build_uri(src_path)}' or '{self.build_uri(dst_path)}'"
+
+        async def _copy_object(current_src_key: str, current_dst_key: str) -> None:
+            """Copy a single object to the destination path.
+
+            :param current_src_key: Source object key.
+            :param current_dst_key: Destination object key.
+            """
+            async with semaphore:
+                with raise_s3_error(error_path):
+                    await client.copy_object(
+                        CopySource={  # pyre-ignore[6]
+                            "Bucket": src_bucket,
+                            "Key": current_src_key,
+                        },
+                        Bucket=dst_bucket,
+                        Key=current_dst_key,
+                    )
+
+        async def _drain_copy_tasks(
+            tasks: set[asyncio.Task[None]],
+        ) -> set[asyncio.Task[None]]:
+            """Wait for at least one copy task and propagate errors.
+
+            :param tasks: Active copy tasks.
+            :return: Remaining pending tasks.
+            """
+            done, pending = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            for completed_task in done:
+                try:
+                    await completed_task
+                except Exception:
+                    for pending_task in pending:
+                        pending_task.cancel()
+                    await asyncio.gather(*pending, return_exceptions=True)
+                    raise
+            return set(pending)
+
         async for resp in self._list_objects_recursive(src_bucket, src_key):
             contents = resp.get("Contents", [])
             if not contents:
@@ -1331,17 +1473,21 @@ class S3FileSystem(BaseFileSystem):
                 current_src_key = obj["Key"]
                 current_dst_key = current_src_key.replace(src_key, dst_key, 1)
 
-                with raise_s3_error(
-                    f"'{self.build_uri(src_path)}' or '{self.build_uri(dst_path)}'"
-                ):
-                    await client.copy_object(
-                        CopySource={  # pyre-ignore[6]
-                            "Bucket": src_bucket,
-                            "Key": current_src_key,
-                        },
-                        Bucket=dst_bucket,
-                        Key=current_dst_key,
-                    )
+                copy_tasks.add(
+                    asyncio.create_task(_copy_object(current_src_key, current_dst_key))
+                )
+                if len(copy_tasks) >= max_in_flight:
+                    copy_tasks = await _drain_copy_tasks(copy_tasks)
+
+        if copy_tasks:
+            try:
+                await asyncio.gather(*copy_tasks)
+            except Exception:
+                for pending_task in copy_tasks:
+                    if not pending_task.done():
+                        pending_task.cancel()
+                await asyncio.gather(*copy_tasks, return_exceptions=True)
+                raise
 
         await self.remove(src_path, missing_ok=True)
         return dst_path
