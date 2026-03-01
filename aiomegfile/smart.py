@@ -558,13 +558,11 @@ async def _iter_sync_entries(
     path: PathLike,
     *,
     followlinks: bool = False,
-    scan_callback: T.Optional[T.Callable[[FileEntry], None]] = None,
 ) -> T.AsyncIterator[T.Tuple[str, FileEntry]]:
     """Iterate file entries with comparison keys for sync.
 
     :param path: Root path to scan.
     :param followlinks: Whether to follow symbolic links.
-    :param scan_callback: Called for each scanned entry before yielding.
     :return: Async iterator yielding ``(key, FileEntry)`` tuples.
     :rtype: T.AsyncIterator[T.Tuple[str, FileEntry]]
     """
@@ -572,8 +570,6 @@ async def _iter_sync_entries(
     async for entry in _iter_file_stats(path, missing_ok=True, followlinks=followlinks):
         if not entry.name:
             continue
-        if scan_callback:
-            scan_callback(entry)
         content_path = await smart_relpath(entry.path, start=path)
         if content_path and content_path != ".":
             key = content_path.lstrip("/")
@@ -585,9 +581,8 @@ async def _iter_sync_entries(
 async def smart_sync(
     src_path: PathLike,
     dst_path: PathLike,
-    callback: T.Optional[T.Callable[[str, int], None]] = None,
-    copy_callback: T.Optional[T.Callable[[int], None]] = None,
-    scan_callback: T.Optional[T.Callable[[FileEntry], None]] = None,
+    callback: T.Optional[T.Callable[[int], None]] = None,
+    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     followlinks: bool = False,
     force: bool = False,
     overwrite: bool = True,
@@ -603,10 +598,9 @@ async def smart_sync(
 
     :param src_path: Given source path.
     :param dst_path: Given destination path.
-    :param callback: Called after each file copy attempt. The callback receives
-        ``(src_path, num_bytes)`` where ``num_bytes`` is the file size.
-    :param copy_callback: Called periodically during copy with bytes written.
-    :param scan_callback: Called for each scanned source entry.
+    :param callback: Called periodically during copy with bytes written.
+    :param callback_after_copy_file: Called after copy success, and the input parameter
+        is src file path and dst file path.
     :param followlinks: False if regard symlink as file, else True.
     :param force: Sync file forcible, do not ignore same files, priority is higher than
         ``overwrite``.
@@ -630,11 +624,7 @@ async def smart_sync(
     else:
         dst_iter = _iter_sync_entries(dst_root_path, followlinks=followlinks)
 
-    src_iter = _iter_sync_entries(
-        src_root_path,
-        followlinks=followlinks,
-        scan_callback=scan_callback,
-    )
+    src_iter = _iter_sync_entries(src_root_path, followlinks=followlinks)
     src_done = False
     dst_done = dst_missing
     src_take = True
@@ -674,10 +664,10 @@ async def smart_sync(
                 src_entry.path,
                 dst_abs_file_path,
                 followlinks=followlinks,
-                callback=copy_callback,
+                callback=callback,
             )
-            if callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+            if callback_after_copy_file:
+                callback_after_copy_file(src_entry.path, dst_abs_file_path)
             src_take = True
             dst_take = False
             continue
@@ -701,12 +691,12 @@ async def smart_sync(
                     src_entry.path,
                     dst_abs_file_path,
                     followlinks=followlinks,
-                    callback=copy_callback,
+                    callback=callback,
                 )
-            elif copy_callback:
-                copy_callback(src_entry.stat.st_size)
-            if callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+                if callback_after_copy_file:
+                    callback_after_copy_file(src_entry.path, dst_abs_file_path)
+            elif callback:
+                callback(src_entry.stat.st_size)
             src_take = True
             dst_take = True
         elif src_key < dst_key:
@@ -714,10 +704,10 @@ async def smart_sync(
                 src_entry.path,
                 dst_abs_file_path,
                 followlinks=followlinks,
-                callback=copy_callback,
+                callback=callback,
             )
-            if callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+            if callback_after_copy_file:
+                callback_after_copy_file(src_entry.path, dst_abs_file_path)
             src_take = True
             dst_take = False
         else:

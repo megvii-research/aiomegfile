@@ -499,9 +499,9 @@ def cp(
 
         if recursive:
 
-            def callback(src_file_path: str, length: int) -> None:
+            def callback(length: int) -> None:
                 """Update progress for copied bytes."""
-                if progress_bar:
+                if pbar is not None:
                     pbar.update(length)
 
             pbar = None
@@ -605,7 +605,7 @@ def mv(
                         unit_divisor=1024,
                     )
 
-                    def callback(src_file_path: str, length: int) -> None:
+                    def callback(length: int) -> None:
                         """Update progress for copied bytes."""
                         pbar.update(length)
 
@@ -711,33 +711,28 @@ def sync(
 
         if progress_enabled:
             tbar = tqdm(
-                total=0,
+                total=None,
                 ascii=True,
-                desc="Files (scanning)",
+                desc="Files",
             )
             sbar = tqdm(
-                total=0,
+                total=None,
                 ascii=True,
                 unit="B",
                 unit_scale=True,
                 unit_divisor=1024,
-                desc="File size (scanning)",
+                desc="Bytes",
             )
 
-            def scan_callback(entry: FileEntry) -> None:
-                """Update totals while scanning source entries."""
-                tbar.total += 1
-                sbar.total += entry.stat.st_size
-                tbar.refresh()
-                sbar.refresh()
-
-            def callback(src_file_path: str, length: int) -> None:
+            def callback_after_copy_file(
+                src_file_path: str, dst_file_path: str
+            ) -> None:
                 """Update file count after each file copy."""
                 if verbose_enabled:
-                    tqdm.write(f"copy {src_file_path} done")
+                    tqdm.write(f"copy {src_file_path} -> {dst_file_path} done")
                 tbar.update(1)
 
-            def copy_callback(length: int) -> None:
+            def callback(length: int) -> None:
                 """Update size progress after each data chunk."""
                 sbar.update(length)
 
@@ -749,22 +744,23 @@ def sync(
                     force=force,
                     overwrite=not skip,
                     callback=callback,
-                    copy_callback=copy_callback,
-                    scan_callback=scan_callback,
+                    callback_after_copy_file=callback_after_copy_file,
                 )
             finally:
                 tbar.set_description_str("Files")
-                sbar.set_description_str("File size")
+                sbar.set_description_str("Bytes")
                 tbar.refresh()
                 sbar.refresh()
                 tbar.close()
                 sbar.close()
         else:
 
-            def callback(src_file_path: str, length: int) -> None:
+            def callback_after_copy_file(
+                src_file_path: str, dst_file_path: str
+            ) -> None:
                 """Emit verbose logs after each file copy."""
                 if verbose_enabled:
-                    click.echo(f"copy {src_file_path} done")
+                    click.echo(f"copy {src_file_path} -> {dst_file_path} done")
 
             await smart_sync(
                 src_path,
@@ -772,7 +768,9 @@ def sync(
                 followlinks=True,
                 force=force,
                 overwrite=not skip,
-                callback=callback if verbose_enabled else None,
+                callback_after_copy_file=callback_after_copy_file
+                if verbose_enabled
+                else None,
             )
 
     _run_async(_run())
@@ -944,6 +942,7 @@ async def _md5sum(path: str) -> str:
     :param path: File path.
     :return: MD5 hex digest.
     """
+    # TODO: support smart_getmd5
     if await smart_isdir(path):
         raise IsADirectoryError(f"md5sum only supports files: {path}")
     md5 = hashlib.md5()

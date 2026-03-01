@@ -233,7 +233,7 @@ async def test_smart_copy_file_callback(tmp_path):
 
 
 async def test_smart_sync_callbacks(tmp_path):
-    """Test smart_sync scan and copy callbacks are invoked."""
+    """Test smart_sync callbacks are invoked."""
     src_dir = tmp_path / "src"
     dst_dir = tmp_path / "dst"
     src_dir.mkdir()
@@ -244,19 +244,13 @@ async def test_smart_sync_callbacks(tmp_path):
     file_a.write_text("alpha")
     file_b.write_text("bravo")
 
-    scanned = {"count": 0, "size": 0}
     copied = {"bytes": 0, "count": 0}
 
-    def scan_callback(entry) -> None:
-        """Collect scanned entries."""
-        scanned["count"] += 1
-        scanned["size"] += entry.stat.st_size
-
-    def copy_callback(size: int) -> None:
+    def callback(size: int) -> None:
         """Accumulate copied bytes."""
         copied["bytes"] += size
 
-    def callback(path: str, size: int) -> None:
+    def callback_after_copy_file(src_path: str, dst_path: str) -> None:
         """Count copied files."""
         copied["count"] += 1
 
@@ -264,14 +258,11 @@ async def test_smart_sync_callbacks(tmp_path):
         src_dir,
         dst_dir,
         callback=callback,
-        copy_callback=copy_callback,
-        scan_callback=scan_callback,
+        callback_after_copy_file=callback_after_copy_file,
     )
 
-    assert scanned["count"] == 2
-    assert scanned["size"] == file_a.stat().st_size + file_b.stat().st_size
     assert copied["count"] == 2
-    assert copied["bytes"] == scanned["size"]
+    assert copied["bytes"] == file_a.stat().st_size + file_b.stat().st_size
 
 
 async def test_smart_load_from(tmp_path):
