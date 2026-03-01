@@ -380,7 +380,11 @@ class LocalFileSystem(BaseFileSystem):
         if dir_name and dir_name != "":
             await self.mkdir(dir_name, parents=True, exist_ok=True)
         if callback is None:
-            return await asyncio.to_thread(shutil.copyfile, src_path, dst_path)
+            return await asyncio.to_thread(
+                shutil.copyfile,  # pyre-ignore[6]
+                src_path,
+                dst_path
+            )
 
         async with aiofiles.open(src_path, "rb") as src_file:
             async with aiofiles.open(dst_path, "wb") as dst_file:

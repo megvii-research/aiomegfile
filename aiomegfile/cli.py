@@ -8,7 +8,6 @@ import signal
 import sys
 import time
 import typing as T
-from itertools import islice
 
 import click
 from click import ParamType
@@ -51,10 +50,10 @@ def _configure_logging(level: str) -> None:
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
 
 
-def _run_async(task: T.Awaitable[T.Any]) -> T.Any:
-    """Run an awaitable in a new event loop.
+def _run_async(task: T.Coroutine[T.Any, T.Any, T.Any]) -> T.Any:
+    """Run a coroutine in a new event loop.
 
-    :param task: Awaitable to execute.
+    :param task: Coroutine to execute.
     :return: Awaitable result.
     """
     try:
@@ -339,11 +338,13 @@ class PathType(ParamType):
             """Complete remote paths using filesystem globbing."""
             try:
                 entries: list[CompletionItem] = []
-                async for entry in islice(
-                    _glob_stat(incomplete + "*", recursive=False), 128
-                ):
+                count = 0
+                async for entry in _glob_stat(incomplete + "*", recursive=False):
+                    if count >= 128:
+                        break
                     suffix = "/" if entry.is_dir() else ""
                     entries.append(CompletionItem(f"{entry.path}{suffix}"))
+                    count += 1
                 return entries
             except Exception:
                 return []
@@ -1055,32 +1056,34 @@ def s3(
     """Update S3 credentials in the AWS credentials file."""
     path = os.path.expanduser(path)
 
-    config_dict = {
-        "name": profile_name,
-        "aws_access_key_id": aws_access_key_id,
-        "aws_secret_access_key": aws_secret_access_key,
-        "aws_session_token": session_token,
-    }
-    s3_config_dict = {
-        "endpoint_url": endpoint_url,
-        "addressing_style": addressing_style,
-        "signature_version": signature_version,
-    }
+    config_dict: dict[str, str | dict[str, str]] = {"name": profile_name}
+    if aws_access_key_id:
+        config_dict["aws_access_key_id"] = aws_access_key_id
+    if aws_secret_access_key:
+        config_dict["aws_secret_access_key"] = aws_secret_access_key
+    if session_token:
+        config_dict["aws_session_token"] = session_token
 
-    config_dict = {key: value for key, value in config_dict.items() if value}
-    s3_config_dict = {key: value for key, value in s3_config_dict.items() if value}
+    s3_config_dict: dict[str, str] = {}
+    if endpoint_url:
+        s3_config_dict["endpoint_url"] = endpoint_url
+    if addressing_style:
+        s3_config_dict["addressing_style"] = addressing_style
+    if signature_version:
+        s3_config_dict["signature_version"] = signature_version
     if s3_config_dict:
         config_dict["s3"] = s3_config_dict
 
-    def _dumps(config_payload: dict) -> str:
+    def _dumps(config_payload: dict[str, str | dict[str, str]]) -> str:
         """Serialize config payload to ini-like content."""
         content = f"[{config_payload['name']}]\n"
         for key in ("aws_access_key_id", "aws_secret_access_key", "session_token"):
             if key in config_payload:
                 content += f"{key} = {config_payload[key]}\n"
         if "s3" in config_payload:
+            s3_config = T.cast(dict[str, str], config_payload["s3"])
             content += "\ns3 = \n"
-            for key, value in config_payload["s3"].items():
+            for key, value in s3_config.items():
                 content += f"    {key} = {value}\n"
         return content
 
