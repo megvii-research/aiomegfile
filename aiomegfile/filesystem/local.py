@@ -312,7 +312,7 @@ class LocalFileSystem(BaseFileSystem):
         if dir_path and dir_path != ".":
             await self.mkdir(dir_path, parents=True, exist_ok=True)
 
-        shutil.move(src_path, dst_path)
+        await asyncio.to_thread(shutil.move, src_path, dst_path)
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:

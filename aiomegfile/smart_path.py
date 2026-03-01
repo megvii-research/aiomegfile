@@ -620,9 +620,7 @@ class SmartPath(os.PathLike):
                         :return: True if symlink resolves to a directory.
                         """
                         async with semaphore:
-                            return await self.filesystem.is_dir(
-                                path, followlinks=True
-                            )
+                            return await self.filesystem.is_dir(path, followlinks=True)
 
                     tasks = [
                         asyncio.create_task(_fetch_symlink_dir(path))
@@ -803,9 +801,7 @@ class SmartPath(os.PathLike):
                     )
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
-                    await current_target_path.parent.mkdir(
-                        parents=True, exist_ok=True
-                    )
+                    await current_target_path.parent.mkdir(parents=True, exist_ok=True)
                     await current_src_path.copy_file(target=current_target_path)
 
             async def _drain_copy_tasks(

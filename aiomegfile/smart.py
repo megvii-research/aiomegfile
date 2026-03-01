@@ -703,9 +703,7 @@ async def smart_sync(
         :param tasks: Active copy tasks.
         :return: Remaining pending tasks.
         """
-        done, pending = await asyncio.wait(
-            tasks, return_when=asyncio.FIRST_COMPLETED
-        )
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for completed_task in done:
             try:
                 await completed_task

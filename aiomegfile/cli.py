@@ -333,14 +333,48 @@ async def _ls(
 
     total_size = 0
     total_count = 0
+    max_workers = max(GLOBAL_MAX_WORKERS, 1)
+    semaphore = asyncio.Semaphore(max_workers)
+    max_in_flight = max_workers * 2
+    pending: deque[asyncio.Task[str]] = deque()
+
+    async def _render_entry(file_stat: FileEntry) -> str:
+        """Render output for a file entry.
+
+        :param file_stat: FileEntry to render.
+        :return: Rendered output line.
+        """
+        async with semaphore:
+            output = await echo_func(file_stat, base_path, full=full)
+            if long and file_stat.is_symlink():
+                target = await smart_readlink(file_stat.path)
+                output += f" -> {target}"
+            return output
+
+    async def _await_next(tasks: deque[asyncio.Task[str]]) -> str:
+        """Await the next pending render task and cancel on failure.
+
+        :param tasks: Queue of pending tasks.
+        :return: Rendered output line.
+        """
+        task = tasks.popleft()
+        try:
+            return await task
+        except Exception:
+            for pending_task in tasks:
+                pending_task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+
     async for file_stat in scan_func(path):
         total_size += file_stat.stat.st_size
         total_count += 1
-        output = await echo_func(file_stat, base_path, full=full)
-        if long and file_stat.is_symlink():
-            target = await smart_readlink(file_stat.path)
-            output += f" -> {target}"
-        click.echo(output)
+        pending.append(asyncio.create_task(_render_entry(file_stat)))
+        if len(pending) >= max_in_flight:
+            click.echo(await _await_next(pending))
+
+    while pending:
+        click.echo(await _await_next(pending))
     if long:
         click.echo(f"total({total_count}): {_get_human_size(total_size)}")
 

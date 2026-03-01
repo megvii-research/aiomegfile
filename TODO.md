@@ -12,5 +12,5 @@
 - [x] aiomegfile/smart.py `_iter_file_stats`: for `followlinks=True`, resolve symlinks and `stat` concurrently per directory.
 - [x] aiomegfile/smart_path.py `walk`: for symlink entries, resolve `is_dir(followlinks=True)` concurrently per directory level.
 - [x] aiomegfile/cli.py `_glob_stat` fallback: batch `filesystem.stat` calls concurrently.
-- [ ] aiomegfile/cli.py `_ls` (long list with symlinks): resolve `smart_readlink` concurrently.
-- [ ] aiomegfile/filesystem/local.py `open`/`move`/`scandir`/`scanfile`: offload blocking OS calls via `asyncio.to_thread` or batch them to avoid event loop blocking.
+- [x] aiomegfile/cli.py `_ls` (long list with symlinks): resolve `smart_readlink` concurrently.
+- [x] aiomegfile/filesystem/local.py `open`/`move`/`scandir`/`scanfile`: offload blocking OS calls via `asyncio.to_thread` or batch them to avoid event loop blocking.
