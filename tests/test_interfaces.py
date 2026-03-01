@@ -5,6 +5,9 @@ import pytest
 
 from aiomegfile.errors import ProtocolNotFoundError
 from aiomegfile.interfaces import (
+    AioClosable,
+    AioReadable,
+    AioWritable,
     BaseFileSystem,
     FileEntry,
     StatResult,
@@ -143,3 +146,210 @@ async def test_basefilesystem_default_methods_raise(filesystem_registry_snapshot
 def test_get_filesystem_by_uri_protocol_not_found():
     with pytest.raises(ProtocolNotFoundError):
         get_filesystem_by_uri("unknown://bucket/key")
+
+
+class DummyClosable(AioClosable):
+    """Closable test double."""
+
+    def __init__(self) -> None:
+        """Initialize close counter.
+
+        :return: None
+        :rtype: None
+        """
+        self.close_calls = 0
+
+    async def close(self) -> None:
+        """Record close calls.
+
+        :return: None
+        :rtype: None
+        """
+        self.close_calls += 1
+
+
+class DummyReadable(AioReadable[bytes]):
+    """Readable test double."""
+
+    def __init__(self, data: bytes, mode: str) -> None:
+        """Initialize with data and mode.
+
+        :param data: Data to expose.
+        :param mode: File mode string.
+        :return: None
+        :rtype: None
+        """
+        self._data = data
+        self._pos = 0
+        self._mode = mode
+
+    @property
+    def name(self) -> str:
+        """Return file name.
+
+        :return: File name.
+        :rtype: str
+        """
+        return "dummy"
+
+    @property
+    def mode(self) -> str:
+        """Return file mode.
+
+        :return: Mode string.
+        :rtype: str
+        """
+        return self._mode
+
+    async def read(self, size: T.Optional[int] = None) -> bytes:
+        """Read bytes from the buffer.
+
+        :param size: Max size to read.
+        :return: Bytes read.
+        :rtype: bytes
+        """
+        if size is None or size < 0:
+            size = len(self._data) - self._pos
+        chunk = self._data[self._pos : self._pos + size]
+        self._pos += len(chunk)
+        return chunk
+
+    async def readline(self, size: T.Optional[int] = None) -> bytes:
+        """Read one line from the buffer.
+
+        :param size: Max bytes to read.
+        :return: Line bytes.
+        :rtype: bytes
+        """
+        if self._pos >= len(self._data):
+            return b""
+        remaining = self._data[self._pos :]
+        newline_idx = remaining.find(b"\n")
+        if newline_idx == -1:
+            return await self.read(size)
+        line_end = self._pos + newline_idx + 1
+        if size is not None:
+            line_end = min(line_end, self._pos + size)
+        chunk = self._data[self._pos : line_end]
+        self._pos = line_end
+        return chunk
+
+    async def tell(self) -> int:
+        """Return current offset.
+
+        :return: Current offset.
+        :rtype: int
+        """
+        return self._pos
+
+    async def close(self) -> None:
+        """Close the readable.
+
+        :return: None
+        :rtype: None
+        """
+        return None
+
+
+class DummyWritable(AioWritable[str]):
+    """Writable test double."""
+
+    def __init__(self) -> None:
+        """Initialize buffer.
+
+        :return: None
+        :rtype: None
+        """
+        self.items: list[str] = []
+
+    @property
+    def name(self) -> str:
+        """Return file name.
+
+        :return: File name.
+        :rtype: str
+        """
+        return "dummy"
+
+    @property
+    def mode(self) -> str:
+        """Return file mode.
+
+        :return: Mode string.
+        :rtype: str
+        """
+        return "w"
+
+    async def write(self, data: str) -> int:
+        """Write data into buffer.
+
+        :param data: Data to store.
+        :return: Number of characters written.
+        :rtype: int
+        """
+        self.items.append(data)
+        return len(data)
+
+    async def tell(self) -> int:
+        """Return current stream position.
+
+        :return: Current position.
+        :rtype: int
+        """
+        return sum(len(item) for item in self.items)
+
+    async def close(self) -> None:
+        """Close the writable.
+
+        :return: None
+        :rtype: None
+        """
+        return None
+
+
+async def test_aioclosable_close_is_idempotent():
+    """AioClosable should wrap close to be idempotent.
+
+    :return: None
+    :rtype: None
+    """
+    closable = DummyClosable()
+    await closable.close()
+    await closable.close()
+    assert closable.close_calls == 1
+    assert closable.closed is True
+
+
+async def test_aioreadable_readinto_binary():
+    """AioReadable.readinto should fill buffer in binary mode.
+
+    :return: None
+    :rtype: None
+    """
+    reader = DummyReadable(b"abc", "rb")
+    buffer = bytearray(3)
+    size = await reader.readinto(buffer)
+    assert size == 3
+    assert bytes(buffer) == b"abc"
+
+
+async def test_aioreadable_readinto_text_mode_raises():
+    """AioReadable.readinto should reject text mode.
+
+    :return: None
+    :rtype: None
+    """
+    reader = DummyReadable(b"abc", "r")
+    with pytest.raises(OSError):
+        await reader.readinto(bytearray(3))
+
+
+async def test_aiowritable_writelines():
+    """AioWritable.writelines should write all items.
+
+    :return: None
+    :rtype: None
+    """
+    writer = DummyWritable()
+    await writer.writelines(["a", "b", "c"])
+    assert "".join(writer.items) == "abc"
