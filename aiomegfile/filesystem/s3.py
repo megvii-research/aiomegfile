@@ -701,7 +701,7 @@ class S3FileSystem(BaseFileSystem):
                 with raise_s3_error(error_path):
                     await client.delete_objects(
                         Bucket=bucket,
-                        Delete={  # pyre-ignore[6]
+                        Delete={
                             "Objects": objects,
                             "Quiet": True,
                         },
@@ -1123,10 +1123,10 @@ class S3FileSystem(BaseFileSystem):
                 for group_path_prefix in grouped_paths
             ]
 
-            async def _finish_groups() -> T.List[object]:
+            async def _finish_groups() -> T.Tuple[object, ...]:
                 """Wait for group tasks and signal completion.
 
-                :return: List of task results or exceptions.
+                :return: Tuple of task results or exceptions.
                 """
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 await result_queue.put(done_sentinel)
@@ -1470,7 +1470,7 @@ class S3FileSystem(BaseFileSystem):
             async with semaphore:
                 with raise_s3_error(error_path):
                     await client.copy_object(
-                        CopySource={  # pyre-ignore[6]
+                        CopySource={
                             "Bucket": src_bucket,
                             "Key": current_src_key,
                         },
