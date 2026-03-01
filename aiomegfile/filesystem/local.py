@@ -383,7 +383,7 @@ class LocalFileSystem(BaseFileSystem):
             return await asyncio.to_thread(
                 shutil.copyfile,  # pyre-ignore[6]
                 src_path,
-                dst_path
+                dst_path,
             )
 
         async with aiofiles.open(src_path, "rb") as src_file:
