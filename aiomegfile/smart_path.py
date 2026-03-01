@@ -599,15 +599,48 @@ class SmartPath(os.PathLike):
             to_traverse: T.List[T.Tuple[str, bool]] = []
 
             async with self.filesystem.scandir(root) as iterator:
+                entries: T.List[T.List[T.Any]] = []
+                symlink_entries: T.List[T.Tuple[int, str]] = []
                 async for entry in iterator:
                     entry_path = entry.path
                     is_symlink = entry.is_symlink()
                     is_dir = entry.is_dir()
+                    entries.append([entry, entry_path, is_symlink, is_dir])
                     if is_symlink:
-                        is_dir = await self.filesystem.is_dir(
-                            entry_path, followlinks=True
-                        )
+                        symlink_entries.append((len(entries) - 1, entry_path))
 
+                if symlink_entries:
+                    max_workers = max(GLOBAL_MAX_WORKERS, 1)
+                    semaphore = asyncio.Semaphore(max_workers)
+
+                    async def _fetch_symlink_dir(path: str) -> bool:
+                        """Resolve whether a symlink points to a directory.
+
+                        :param path: Symlink path to check.
+                        :return: True if symlink resolves to a directory.
+                        """
+                        async with semaphore:
+                            return await self.filesystem.is_dir(
+                                path, followlinks=True
+                            )
+
+                    tasks = [
+                        asyncio.create_task(_fetch_symlink_dir(path))
+                        for _, path in symlink_entries
+                    ]
+                    try:
+                        results = await asyncio.gather(*tasks)
+                    except Exception:
+                        for task in tasks:
+                            if not task.done():
+                                task.cancel()
+                        await asyncio.gather(*tasks, return_exceptions=True)
+                        raise
+
+                    for (index, _), result in zip(symlink_entries, results):
+                        entries[index][3] = result
+
+                for entry, entry_path, is_symlink, is_dir in entries:
                     if is_dir:
                         dirs.append(entry.name)
                         to_traverse.append((entry_path, is_symlink))

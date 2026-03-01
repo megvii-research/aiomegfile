@@ -8,6 +8,7 @@ import signal
 import sys
 import time
 import typing as T
+from collections import deque
 
 import click
 from click import ParamType
@@ -15,7 +16,7 @@ from click.shell_completion import CompletionItem, ZshComplete
 from tqdm import tqdm
 
 from aiomegfile.__version__ import __version__
-from aiomegfile.config import READER_BLOCK_SIZE
+from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
 from aiomegfile.interfaces import FILE_SYSTEMS, FileEntry
 from aiomegfile.lib.glob import FSFunc, get_non_glob_dir, has_magic, iglob
 from aiomegfile.smart import (
@@ -246,16 +247,52 @@ async def _glob_stat(path: str, recursive: bool = True) -> T.AsyncIterator[FileE
         isdir=filesystem.is_dir,
         scandir=filesystem.scandir,
     )
-    async for matched_path in iglob(path_obj._path, fs=fs_func, recursive=recursive):
-        stat_result = await filesystem.stat(matched_path)
+    max_workers = max(GLOBAL_MAX_WORKERS, 1)
+    semaphore = asyncio.Semaphore(max_workers)
+    max_in_flight = max_workers * 2
+    pending: deque[asyncio.Task[FileEntry]] = deque()
+
+    async def _stat_entry(matched_path: str) -> FileEntry:
+        """Resolve stat for a matched path.
+
+        :param matched_path: Path to stat.
+        :return: FileEntry with stat data.
+        """
+        async with semaphore:
+            stat_result = await filesystem.stat(matched_path)
         name = os.path.basename(matched_path.rstrip("/"))
         if not name:
             name = matched_path
-        yield FileEntry(
+        return FileEntry(
             name=name,
             path=filesystem.build_uri(matched_path),
             stat=stat_result,
         )
+
+    async def _await_next(
+        tasks: deque[asyncio.Task[FileEntry]],
+    ) -> FileEntry:
+        """Await the next pending task and cancel on failure.
+
+        :param tasks: Queue of pending tasks.
+        :return: FileEntry result.
+        """
+        task = tasks.popleft()
+        try:
+            return await task
+        except Exception:
+            for pending_task in tasks:
+                pending_task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+
+    async for matched_path in iglob(path_obj._path, fs=fs_func, recursive=recursive):
+        pending.append(asyncio.create_task(_stat_entry(matched_path)))
+        if len(pending) >= max_in_flight:
+            yield await _await_next(pending)
+
+    while pending:
+        yield await _await_next(pending)
 
 
 async def _ls(

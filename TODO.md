@@ -8,9 +8,9 @@
 - [x] aiomegfile/filesystem/s3.py `_group_src_paths_by_block`: fetch `stat` sizes concurrently before grouping.
 - [x] aiomegfile/filesystem/s3.py `MultiPartWriter.upload_part_by_paths`: fetch multiple source objects/ranges concurrently and assemble in order.
 - [x] aiomegfile/smart_path.py `copy` (directory branch): copy files concurrently with a bounded semaphore.
-- [ ] aiomegfile/smart.py `smart_sync`: schedule `smart_copy_file` operations concurrently (bounded), keep callbacks safe.
-- [ ] aiomegfile/smart.py `_iter_file_stats`: for `followlinks=True`, resolve symlinks and `stat` concurrently per directory.
-- [ ] aiomegfile/smart_path.py `walk`: for symlink entries, resolve `is_dir(followlinks=True)` concurrently per directory level.
-- [ ] aiomegfile/cli.py `_glob_stat` fallback: batch `filesystem.stat` calls concurrently.
+- [x] aiomegfile/smart.py `smart_sync`: schedule `smart_copy_file` operations concurrently (bounded), keep callbacks safe.
+- [x] aiomegfile/smart.py `_iter_file_stats`: for `followlinks=True`, resolve symlinks and `stat` concurrently per directory.
+- [x] aiomegfile/smart_path.py `walk`: for symlink entries, resolve `is_dir(followlinks=True)` concurrently per directory level.
+- [x] aiomegfile/cli.py `_glob_stat` fallback: batch `filesystem.stat` calls concurrently.
 - [ ] aiomegfile/cli.py `_ls` (long list with symlinks): resolve `smart_readlink` concurrently.
 - [ ] aiomegfile/filesystem/local.py `open`/`move`/`scandir`/`scanfile`: offload blocking OS calls via `asyncio.to_thread` or batch them to avoid event loop blocking.
