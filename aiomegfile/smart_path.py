@@ -4,7 +4,8 @@ import typing as T
 from collections.abc import Sequence
 from functools import cached_property
 
-from aiomegfile.interfaces import StatResult, get_filesystem_by_uri
+from aiomegfile.config import GLOBAL_MAX_WORKERS
+from aiomegfile.interfaces import FileEntry, StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
 from aiomegfile.utils.path import PathLike, fspath
@@ -752,16 +753,64 @@ class SmartPath(os.PathLike):
         target_path = self.from_uri(target)
 
         if await self.is_dir():
-            async with self.filesystem.scanfile(self._path) as iterator:
-                async for file_entry in iterator:
-                    current_src = file_entry.path
+            max_workers = max(GLOBAL_MAX_WORKERS, 1)
+            semaphore = asyncio.Semaphore(max_workers)
+            max_in_flight = max_workers * 2
+            copy_tasks: set[asyncio.Task[None]] = set()
+
+            async def _copy_entry(entry: FileEntry) -> None:
+                """Copy a single file entry to the target directory.
+
+                :param entry: File entry to copy.
+                """
+                async with semaphore:
+                    current_src = entry.path
                     current_src_path = self.from_uri(
                         self.filesystem.build_uri(current_src)
                     )
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
-                    await current_target_path.parent.mkdir(parents=True, exist_ok=True)
+                    await current_target_path.parent.mkdir(
+                        parents=True, exist_ok=True
+                    )
                     await current_src_path.copy_file(target=current_target_path)
+
+            async def _drain_copy_tasks(
+                tasks: set[asyncio.Task[None]],
+            ) -> set[asyncio.Task[None]]:
+                """Wait for at least one copy task and propagate errors.
+
+                :param tasks: Active copy tasks.
+                :return: Remaining pending tasks.
+                """
+                done, pending = await asyncio.wait(
+                    tasks, return_when=asyncio.FIRST_COMPLETED
+                )
+                for completed_task in done:
+                    try:
+                        await completed_task
+                    except Exception:
+                        for pending_task in pending:
+                            pending_task.cancel()
+                        await asyncio.gather(*pending, return_exceptions=True)
+                        raise
+                return set(pending)
+
+            async with self.filesystem.scanfile(self._path) as iterator:
+                async for file_entry in iterator:
+                    copy_tasks.add(asyncio.create_task(_copy_entry(file_entry)))
+                    if len(copy_tasks) >= max_in_flight:
+                        copy_tasks = await _drain_copy_tasks(copy_tasks)
+
+            if copy_tasks:
+                try:
+                    await asyncio.gather(*copy_tasks)
+                except Exception:
+                    for pending_task in copy_tasks:
+                        if not pending_task.done():
+                            pending_task.cancel()
+                    await asyncio.gather(*copy_tasks, return_exceptions=True)
+                    raise
             return target_path
 
         await self.copy_file(target=target_path)
