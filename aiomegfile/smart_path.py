@@ -725,6 +725,80 @@ class SmartPath(os.PathLike):
                     continue
                 pending.append((entry_path, is_symlink))
 
+    async def scan(
+        self, missing_ok: bool = True, followlinks: bool = False
+    ) -> T.AsyncIterator[str]:
+        """
+        Iteratively traverse only files in given directory, in alphabetical order.
+        Every iteration on generator yields a path string.
+
+        If path is a file path, yields the file only
+        If path is a non-existent path, return an empty generator
+        If path is a bucket path, return all file paths in the bucket
+
+        :param missing_ok: If False and there's no file in the directory,
+            raise FileNotFoundError.
+        :param followlinks: Whether to follow symbolic links.
+        :raises FileNotFoundError: If no matches and missing_ok is False.
+        :return: Async iterator of file path strings.
+        :rtype: T.AsyncIterator[str]
+        """
+        async for file_entry in self.scan_stat(
+            missing_ok=missing_ok,
+            followlinks=followlinks,
+        ):
+            yield file_entry.path
+
+    async def scan_stat(
+        self, missing_ok: bool = True, followlinks: bool = False
+    ) -> T.AsyncIterator[FileEntry]:
+        """
+        Iteratively traverse only files in given directory, in alphabetical order.
+        Every iteration on generator yields a tuple of path string and file stat.
+
+        :param missing_ok: If False and there's no file in the directory,
+            raise FileNotFoundError.
+        :param followlinks: Whether to follow symbolic links.
+        :raises FileNotFoundError: If no matches and missing_ok is False.
+        :return: Async iterator of FileEntry objects.
+        :rtype: T.AsyncIterator[FileEntry]
+        """
+
+        async def _iter_entries() -> T.AsyncIterator[FileEntry]:
+            async with self.filesystem.scanfile(self._path) as iterator:
+                async for entry in iterator:
+                    if followlinks and entry.is_symlink():
+                        resolved_path = await self.filesystem.readlink(entry.path)
+                        resolved_name = os.path.basename(resolved_path)
+                        resolved_stat = await self.filesystem.stat(
+                            resolved_path, followlinks=followlinks
+                        )
+                        yield FileEntry(
+                            name=resolved_name,
+                            path=self.filesystem.build_uri(resolved_path),
+                            stat=resolved_stat,
+                        )
+                        continue
+                    yield FileEntry(
+                        name=entry.name,
+                        path=self.filesystem.build_uri(entry.path),
+                        stat=entry.stat,
+                    )
+
+        iterator = _iter_entries()
+        if missing_ok:
+            async for entry in iterator:
+                yield entry
+            return
+
+        try:
+            first = await anext(iterator)
+        except StopAsyncIteration as exc:
+            raise FileNotFoundError(f"No match any file in: {fspath(self)}") from exc
+        yield first
+        async for entry in iterator:
+            yield entry
+
     async def iglob(
         self, pattern: str, recursive: bool = True
     ) -> T.AsyncIterator["SmartPath"]:

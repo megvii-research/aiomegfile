@@ -42,6 +42,7 @@ from aiomegfile.smart import (
     smart_save_content,
     smart_save_text,
     smart_scan,
+    smart_scan_stat,
     smart_scandir,
     smart_stat,
     smart_symlink,
@@ -50,6 +51,7 @@ from aiomegfile.smart import (
     smart_unlink,
     smart_walk,
 )
+from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.path import split_uri
 
 _aws_access_key_id = "testing"
@@ -413,6 +415,75 @@ async def test_smart_scan_and_isabs_abspath(tmp_path):
     assert await smart_isabs(abs_path) is True
     assert await smart_isabs("relative/path") is False
     assert await smart_isabs("s3://bucket/key") is True
+
+
+async def test_smart_scan_stat(tmp_path):
+    """Test smart_scan_stat yields entries with stats."""
+    root = tmp_path / "scan_stat_root"
+    root.mkdir()
+    file_a = root / "a.txt"
+    file_b = root / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("a")
+    file_b.write_text("bb")
+
+    entries = []
+    async for entry in smart_scan_stat(root):
+        entries.append(entry)
+
+    names = {entry.name for entry in entries}
+    sizes = {entry.stat.st_size for entry in entries}
+    assert names == {"a.txt", "b.txt"}
+    assert sizes == {1, 2}
+
+
+async def test_smart_scan_stat_missing_ok_false(tmp_path):
+    """smart_scan_stat should raise when missing_ok is False."""
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_scan_stat(empty_dir, missing_ok=False):
+            pass
+
+
+async def test_smartpath_scan_and_scan_stat(tmp_path):
+    """SmartPath.scan and SmartPath.scan_stat should yield files."""
+    root = tmp_path / "sp_scan_root"
+    root.mkdir()
+    file_a = root / "a.txt"
+    file_b = root / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("a")
+    file_b.write_text("bb")
+
+    smart_root = SmartPath(root)
+
+    scanned = []
+    async for path in smart_root.scan():
+        scanned.append(path)
+
+    assert str(file_a) in scanned
+    assert str(file_b) in scanned
+
+    entries = []
+    async for entry in smart_root.scan_stat():
+        entries.append(entry)
+
+    names = {entry.name for entry in entries}
+    sizes = {entry.stat.st_size for entry in entries}
+    assert names == {"a.txt", "b.txt"}
+    assert sizes == {1, 2}
+
+
+async def test_smartpath_scan_missing_ok_false(tmp_path):
+    """SmartPath.scan should raise when missing_ok is False."""
+    empty_dir = tmp_path / "sp_empty"
+    empty_dir.mkdir()
+    smart_root = SmartPath(empty_dir)
+
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_root.scan(missing_ok=False):
+            pass
 
 
 async def test_smart_copy_file_callback(tmp_path):

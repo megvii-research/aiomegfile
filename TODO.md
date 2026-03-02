@@ -10,8 +10,8 @@
 - [x] `smart_combine_open`
 - [x] `smart_getmd5`
 - [x] `smart_glob_stat`
-- [ ] `smart_lstat`
-- [ ] `smart_scan_stat`
+- [x] `smart_lstat`
+- [x] `smart_scan_stat`
 - [ ] `smart_sync_with_progress`
 
 ### 同名函数的参数差异
@@ -70,8 +70,8 @@
 - [ ] `realpath`
 - [ ] `relpath`
 - [ ] `save`
-- [ ] `scan`
-- [ ] `scan_stat`
+- [x] `scan`
+- [x] `scan_stat`
 - [ ] `scandir`
 - [ ] `symlink`
 - [ ] `utime`

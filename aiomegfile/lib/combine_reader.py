@@ -153,7 +153,7 @@ def _endswith_newline(data: T.AnyStr) -> bool:
         return False
     if isinstance(data, bytes):
         return data.endswith(b"\n")
-    return data.endswith("\n")
+    return T.cast(str, data).endswith("\n")
 
 
 def _make_close_action(

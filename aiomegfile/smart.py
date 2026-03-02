@@ -37,6 +37,7 @@ __all__ = [
     "smart_rename",
     "smart_scandir",
     "smart_scan",
+    "smart_scan_stat",
     "smart_save_as",
     "smart_save_content",
     "smart_save_text",
@@ -325,10 +326,32 @@ async def smart_scan(
     :return: Async iterator of file paths.
     :rtype: T.AsyncIterator[str]
     """
-    async for entry in _iter_file_stats(
-        path, missing_ok=missing_ok, followlinks=followlinks
+    async for file_path in SmartPath(path).scan(
+        missing_ok=missing_ok,
+        followlinks=followlinks,
     ):
-        yield entry.path
+        yield file_path
+
+
+async def smart_scan_stat(
+    path: PathLike, *, missing_ok: bool = True, followlinks: bool = False
+) -> T.AsyncIterator[FileEntry]:
+    """Iteratively traverse only files in the given path with stats.
+
+    If the path is a file, yields that file entry only.
+
+    :param path: Given path.
+    :param missing_ok: If False and the path is missing, raise FileNotFoundError.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator of FileEntry objects.
+    :rtype: T.AsyncIterator[FileEntry]
+    :raises FileNotFoundError: If no matches and missing_ok is False.
+    """
+    async for entry in SmartPath(path).scan_stat(
+        missing_ok=missing_ok,
+        followlinks=followlinks,
+    ):
+        yield entry
 
 
 async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
