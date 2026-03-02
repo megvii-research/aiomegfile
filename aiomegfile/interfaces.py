@@ -48,8 +48,8 @@ class StatResult(T.NamedTuple):
     def ctime(self) -> float:
         """Platform dependent:
 
-            the time of most recent metadata change on Unix,
-            the time of creation on Windows, expressed in seconds.
+        the time of most recent metadata change on Unix,
+        the time of creation on Windows, expressed in seconds.
         """
         return self.st_ctime
 

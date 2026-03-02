@@ -28,6 +28,7 @@ from aiomegfile.smart import (
     smart_load_content,
     smart_load_from,
     smart_load_text,
+    smart_lstat,
     smart_makedirs,
     smart_move,
     smart_open,
@@ -744,6 +745,22 @@ async def test_smart_stat(tmp_path):
     file_path.write_text("data")
     result = await smart_stat(file_path)
     assert result.st_size > 0
+
+
+async def test_smart_lstat_symlink(tmp_path):
+    """smart_lstat should not follow symlinks."""
+    target_path = tmp_path / "target.txt"
+    target_path.write_text("data")
+    link_path = tmp_path / "link.txt"
+    os.symlink(target_path, link_path)
+
+    lstat_result = await smart_lstat(link_path)
+    stat_result = await smart_stat(link_path, follow_symlinks=True)
+
+    assert lstat_result.islnk is True
+    assert lstat_result.isdir is False
+    assert stat_result.islnk is False
+    assert stat_result.st_size == target_path.stat().st_size
 
 
 async def test_smart_glob_and_iglob(tmp_path):

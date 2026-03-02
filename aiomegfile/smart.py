@@ -105,6 +105,16 @@ async def smart_stat(path: PathLike, *, follow_symlinks: bool = False) -> StatRe
     return await SmartPath(path).stat(follow_symlinks=follow_symlinks)
 
 
+async def smart_lstat(path: PathLike) -> StatResult:
+    """Get the status of the path, not following symbolic links.
+
+    :param path: Path to stat.
+    :return: StatResult for the path.
+    :rtype: StatResult
+    """
+    return await SmartPath(path).lstat()
+
+
 async def smart_getsize(path: PathLike, *, follow_symlinks: bool = False) -> int:
     """Return the size of the file at the given path.
 
