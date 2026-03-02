@@ -18,6 +18,7 @@ __all__ = [
     "smart_copy",
     "smart_exists",
     "smart_combine_open",
+    "smart_getmd5",
     "smart_glob",
     "smart_iglob",
     "smart_isabs",
@@ -229,6 +230,24 @@ def smart_combine_open(
         mode=mode,
         open_func=open_func,
         glob_func=smart_glob,
+    )
+
+
+async def smart_getmd5(
+    path: PathLike, recalculate: bool = False, followlinks: bool = False
+) -> str:
+    """Get the MD5 value of a file or directory.
+
+    :param path: File path to compute MD5.
+    :param recalculate: Calculate MD5 in real-time or return cached value when
+        supported by the filesystem.
+    :param followlinks: If True, follow symbolic links when calculating MD5.
+    :return: MD5 hex digest.
+    :rtype: str
+    """
+    return await SmartPath(path).md5(
+        recalculate=recalculate,
+        followlinks=followlinks,
     )
 
 

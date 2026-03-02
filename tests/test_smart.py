@@ -1,3 +1,4 @@
+import hashlib
 import io
 import os
 
@@ -15,6 +16,7 @@ from aiomegfile.smart import (
     smart_copy,
     smart_copy_file,
     smart_exists,
+    smart_getmd5,
     smart_glob,
     smart_iglob,
     smart_isabs,
@@ -237,6 +239,31 @@ async def test_smart_combine_open_empty_glob(tmp_path):
     assert data == b""
 
 
+async def test_smart_getmd5_file(tmp_path):
+    """smart_getmd5 should return file MD5."""
+    data = b"md5-content"
+    file_path = tmp_path / "hash.bin"
+    file_path.write_bytes(data)
+
+    expected = hashlib.md5(data).hexdigest()  # nosec
+    assert await smart_getmd5(file_path) == expected
+    assert await smart_getmd5(file_path, recalculate=True) == expected
+
+
+async def test_smart_getmd5_directory(tmp_path):
+    """smart_getmd5 should return directory MD5 based on children."""
+    dir_path = tmp_path / "dir"
+    dir_path.mkdir()
+    (dir_path / "b.txt").write_bytes(b"b")
+    (dir_path / "a.txt").write_bytes(b"a")
+
+    md5_a = hashlib.md5(b"a").hexdigest()  # nosec
+    md5_b = hashlib.md5(b"b").hexdigest()  # nosec
+    expected = hashlib.md5(f"{md5_a}{md5_b}".encode()).hexdigest()  # nosec
+
+    assert await smart_getmd5(dir_path) == expected
+
+
 async def test_smart_access_local(tmp_path):
     """Test smart_access on local filesystem paths."""
     file_path = tmp_path / "access.txt"
@@ -265,6 +292,20 @@ async def test_smart_access_s3(s3_filesystem):
     path = f"s3://{_bucket_name}/{key}"
     assert await smart_access(path, Access.READ) is True
     assert await smart_access(path, Access.WRITE) is True
+
+
+async def test_smart_getmd5_s3_etag(s3_filesystem):
+    """smart_getmd5 should return ETag for S3 objects."""
+    await _create_bucket(s3_filesystem)
+    key = "md5/object.txt"
+    data = b"s3-md5"
+    await _put_object(s3_filesystem, key, data)
+
+    path = f"s3://{_bucket_name}/{key}"
+    expected = hashlib.md5(data).hexdigest()  # nosec
+
+    assert await smart_getmd5(path) == expected
+    assert await smart_getmd5(path, recalculate=True) == expected
 
 
 async def test_smart_save_as_and_load_text(tmp_path):

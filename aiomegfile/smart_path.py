@@ -1,10 +1,12 @@
 import asyncio
+import hashlib
+import inspect
 import os
 import typing as T
 from collections.abc import Sequence
 from functools import cached_property
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS
+from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
 from aiomegfile.interfaces import Access, FileEntry, StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
@@ -498,6 +500,64 @@ class SmartPath(os.PathLike):
         """Return the size of the file in bytes."""
         stat_result = await self.stat(follow_symlinks=follow_symlinks)
         return stat_result.st_size
+
+    async def md5(self, recalculate: bool = False, followlinks: bool = False) -> str:
+        """Return the MD5 checksum for the path.
+
+        If the filesystem provides an optimized ``md5`` implementation, it will be
+        used. Otherwise, this method reads file contents to compute the checksum,
+        matching the behavior of megfile's ``FSPath.md5``.
+
+        :param recalculate: Whether to force recalculation when filesystem supports
+            cached MD5 metadata.
+        :param followlinks: Whether to follow symbolic links when supported.
+        :return: MD5 hex digest.
+        :rtype: str
+        """
+        md5_func = getattr(self.filesystem, "md5", None)
+        if callable(md5_func):
+            result = md5_func(
+                self._path,
+                recalculate=recalculate,
+                followlinks=followlinks,
+            )
+            if inspect.isawaitable(result):
+                return await result
+            return T.cast(str, result)
+        return await self._default_md5(recalculate=recalculate, followlinks=followlinks)
+
+    async def _default_md5(
+        self, recalculate: bool = False, followlinks: bool = False
+    ) -> str:
+        """Compute MD5 checksum by reading file contents.
+
+        :param recalculate: Unused, kept for compatibility.
+        :param followlinks: Unused, kept for compatibility.
+        :return: MD5 hex digest.
+        :rtype: str
+        """
+        if await self.is_dir(followlinks=True):
+            hash_md5 = hashlib.md5()  # nosec
+            names: T.List[str] = []
+            async for entry in self.iterdir():
+                names.append(entry.name)
+            for name in sorted(names):
+                child = await self.joinpath(name)
+                child_md5 = await child.md5(
+                    recalculate=recalculate,
+                    followlinks=followlinks,
+                )
+                hash_md5.update(child_md5.encode())
+            return hash_md5.hexdigest()
+
+        hash_md5 = hashlib.md5()  # nosec
+        async with self.open("rb") as fileobj:
+            while True:
+                chunk = await fileobj.read(READER_BLOCK_SIZE)
+                if not chunk:
+                    break
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
 
     async def match(
         self, pattern: str, *, case_sensitive: T.Optional[bool] = None

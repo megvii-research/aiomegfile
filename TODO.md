@@ -7,8 +7,8 @@
 ### megfile 有而 aiomegfile 缺失
 - [ ] `register_copy_func`
 - [x] `smart_cache`
-- [ ] `smart_combine_open`
-- [ ] `smart_getmd5`
+- [x] `smart_combine_open`
+- [x] `smart_getmd5`
 - [ ] `smart_glob_stat`
 - [ ] `smart_lstat`
 - [ ] `smart_scan_stat`
