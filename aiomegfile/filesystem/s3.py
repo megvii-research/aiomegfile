@@ -35,7 +35,7 @@ from aiomegfile.interfaces import (
     FileEntry,
     StatResult,
 )
-from aiomegfile.lib.cacher import AioCacher
+from aiomegfile.lib.cacher import AioFileCacher
 from aiomegfile.lib.fnmatch import translate
 from aiomegfile.lib.glob import has_magic, has_magic_ignore_brace, ungloblize
 from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
@@ -1212,7 +1212,7 @@ class S3FileSystem(BaseFileSystem):
             raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
 
         if "a" in mode or "+" in mode:
-            return AioCacher(
+            return AioFileCacher(
                 path,
                 mode,
                 download_fileobj=self._download_fileobj,

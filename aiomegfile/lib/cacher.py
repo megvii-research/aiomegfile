@@ -2,16 +2,21 @@ import os
 import typing as T
 
 import aiofiles
+import aiofiles.ospath
 
 from aiomegfile.interfaces import (
+    AioClosable,
     AioReadable,
     AioSeekable,
     AioWritable,
 )
-from aiomegfile.utils.path import generate_cache_path
+from aiomegfile.smart_path import SmartPath
+from aiomegfile.utils.path import fspath, generate_cache_path
 
 
-class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyStr]):
+class AioFileCacher(
+    AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyStr]
+):
     """Async cacher file-like base class."""
 
     def __init__(
@@ -135,11 +140,11 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
             return
         await self._fileobj.flush()
 
-    async def __aenter__(self) -> "AioCacher":
+    async def __aenter__(self) -> "AioFileCacher":
         """Open cache file and initialize handlers.
 
         :return: Current cacher instance.
-        :rtype: AioCacher
+        :rtype: AioFileCacher
         """
         await aiofiles.os.makedirs(self._cache_dir, exist_ok=True)
         cache_path = generate_cache_path(self._path, self._cache_dir)
@@ -212,3 +217,81 @@ class AioCacher(AioReadable[T.AnyStr], AioWritable[T.AnyStr], AioSeekable[T.AnyS
             raise RuntimeError("file not opened")
         if not await self.writable():
             raise IOError("file not open for writing")
+
+
+class SmartCacher(AioClosable):
+    """Async smart cache files in local filesystem."""
+
+    cache_path = None
+
+    def __init__(self, path: str, cache_path: T.Optional[str] = None, mode: str = "r"):
+        """
+        :param path: Path to cache.
+        :type path: str
+        :param cache_path: Path to cache file, defaults to None, will use ``/tmp``.
+        :type cache_path: T.Optional[str], optional
+        :param mode: Mode to open cache file, defaults to "r".
+        :type mode: str, optional
+        :raises ValueError: If mode is not one of "r", "w", "a".
+        """
+        if mode not in ("r", "w", "a"):
+            raise ValueError("unacceptable mode: %r" % mode)
+        self._path = fspath(path)
+        self._mode = mode
+        self.cache_path = cache_path or generate_cache_path(self._path)
+        self._prepared = False
+
+    @property
+    def name(self) -> str:
+        """Return the original path."""
+        return self._path
+
+    @property
+    def mode(self) -> str:
+        """Return the cache mode."""
+        return self._mode
+
+    async def __aenter__(self) -> str:
+        """Prepare the cache and return the local cache path."""
+        if not self._prepared:
+            await self._prepare_cache()
+        return self.cache_path
+
+    async def close(self) -> None:
+        """Upload cached content if needed and remove cache file."""
+        if not self.cache_path:
+            return
+        if await aiofiles.ospath.exists(self.cache_path):
+            if self._mode in ("w", "a"):
+                await SmartPath(self.cache_path).copy_file(self._path)
+            await aiofiles.os.unlink(self.cache_path)
+
+    async def _prepare_cache(self) -> None:
+        """Ensure cache directory exists and download source when needed."""
+        cache_dir = os.path.dirname(self.cache_path)
+        if cache_dir and cache_dir != ".":
+            await aiofiles.os.makedirs(cache_dir, exist_ok=True)
+        if self._mode in ("r", "a"):
+            await SmartPath(self._path).copy_file(self.cache_path)
+        self._prepared = True
+
+
+class NullCacher(AioClosable):
+    """Async no-op cacher for local paths."""
+
+    cache_path = None
+
+    def __init__(self, path: str):
+        """
+        :param path: Local path to return.
+        :type path: str
+        """
+        self.cache_path = fspath(path)
+
+    async def __aenter__(self) -> str:
+        """Return the local path."""
+        return self.cache_path
+
+    async def close(self) -> None:
+        """No-op close for local paths."""
+        return None

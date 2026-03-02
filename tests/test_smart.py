@@ -9,6 +9,7 @@ from aiomegfile.interfaces import FILE_SYSTEMS, Access, BaseFileSystem
 from aiomegfile.smart import (
     smart_abspath,
     smart_access,
+    smart_cache,
     smart_concat,
     smart_copy,
     smart_copy_file,
@@ -233,6 +234,48 @@ async def test_smart_save_content_and_text(tmp_path):
 
     assert bytes_path.read_bytes() == b"abc"
     assert text_path.read_text() == "hello"
+
+
+async def test_smart_cache_local(tmp_path):
+    """Test smart_cache returns local path without copying."""
+    file_path = tmp_path / "local.txt"
+    file_path.write_text("data")
+
+    async with smart_cache(file_path, mode="r") as cache_path:
+        assert cache_path == str(file_path)
+        assert os.path.exists(cache_path)
+        with open(cache_path, "r", encoding="utf-8") as handle:
+            assert handle.read() == "data"
+
+    assert file_path.exists()
+
+
+async def test_smart_cache_s3_read(tmp_path, s3_filesystem):
+    """Test smart_cache downloads remote file and cleans up."""
+    await _create_bucket(s3_filesystem)
+    key = "cache/read.txt"
+    await _put_object(s3_filesystem, key, b"content")
+    s3_path = f"s3://{_bucket_name}/{key}"
+
+    async with smart_cache(s3_path, mode="r") as cache_path:
+        assert os.path.exists(cache_path)
+        with open(cache_path, "rb") as handle:
+            assert handle.read() == b"content"
+
+    assert not os.path.exists(cache_path)
+
+
+async def test_smart_cache_s3_write(tmp_path, s3_filesystem):
+    """Test smart_cache uploads local changes for write mode."""
+    await _create_bucket(s3_filesystem)
+    s3_path = f"s3://{_bucket_name}/cache/write.txt"
+
+    async with smart_cache(s3_path, mode="w") as cache_path:
+        with open(cache_path, "wb") as handle:
+            handle.write(b"new-data")
+
+    assert await smart_load_content(s3_path) == b"new-data"
+    assert not os.path.exists(cache_path)
 
 
 async def test_smart_scan_and_isabs_abspath(tmp_path):

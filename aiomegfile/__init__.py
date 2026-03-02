@@ -4,7 +4,9 @@ from aiomegfile.filesystem import (
     S3FileSystem,
 )
 from aiomegfile.smart import (
+    SmartCacher,
     smart_abspath,
+    smart_cache,
     smart_concat,
     smart_copy,
     smart_copy_file,
@@ -46,6 +48,7 @@ __all__ = [
     "LocalFileSystem",
     "S3FileSystem",
     "smart_abspath",
+    "smart_cache",
     "smart_concat",
     "smart_copy",
     "smart_copy_file",
@@ -79,4 +82,5 @@ __all__ = [
     "smart_relpath",
     "smart_symlink",
     "smart_readlink",
+    "SmartCacher",
 ]

@@ -6,12 +6,14 @@ from collections import deque
 
 from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.interfaces import Access, FileEntry, StatResult
+from aiomegfile.lib.cacher import NullCacher, SmartCacher
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
 from aiomegfile.utils.path import PathLike, copyfileobj, fspath, split_uri
 
 __all__ = [
     "smart_abspath",
+    "smart_cache",
     "smart_copy",
     "smart_exists",
     "smart_glob",
@@ -45,6 +47,7 @@ __all__ = [
     "smart_symlink",
     "smart_readlink",
     "smart_concat",
+    "SmartCacher",
 ]
 
 
@@ -478,6 +481,36 @@ async def smart_save_text(path: PathLike, text: str) -> None:
     """
     async with smart_open(path, "w") as f:
         await f.write(text)
+
+
+def smart_cache(
+    path: PathLike, cacher: T.Type[SmartCacher] = SmartCacher, **options: T.Any
+) -> T.AsyncContextManager[str]:
+    """Return an async cacher for non-local paths.
+
+    Examples: ::
+
+        >>> import asyncio
+        >>> from aiomegfile import smart_cache
+        >>> async def main():
+        ...     async with smart_cache(
+        ...         "s3://mybucket/myfile.mp4",
+        ...         mode="r",
+        ...     ) as cache_path:
+        ...         print(cache_path)
+        >>> asyncio.run(main())
+
+    :param path: Path to cache.
+    :param cacher: Cacher class for non-local paths.
+    :param options: Optional arguments for cacher.
+    :return: Async cacher instance.
+    :rtype: T.AsyncContextManager[str]
+    """
+    path_str = fspath(path)
+    protocol, _, _ = split_uri(path_str)
+    if protocol == "file":
+        return NullCacher(path_str)
+    return cacher(path_str, **options)
 
 
 async def smart_relpath(path: PathLike, start: PathLike) -> str:

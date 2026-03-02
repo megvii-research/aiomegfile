@@ -24,3 +24,4 @@ venv
 .python-version
 .devcontainer/
 .pdm-python
+.pdm-build
