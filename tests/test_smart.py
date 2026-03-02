@@ -47,6 +47,7 @@ from aiomegfile.smart import (
     smart_stat,
     smart_symlink,
     smart_sync,
+    smart_sync_with_progress,
     smart_touch,
     smart_unlink,
     smart_walk,
@@ -519,7 +520,7 @@ async def test_smart_sync_callbacks(tmp_path):
 
     copied = {"bytes": 0, "count": 0}
 
-    def callback(size: int) -> None:
+    def callback(_src_path: str, size: int) -> None:
         """Accumulate copied bytes."""
         copied["bytes"] += size
 
@@ -536,6 +537,75 @@ async def test_smart_sync_callbacks(tmp_path):
 
     assert copied["count"] == 2
     assert copied["bytes"] == file_a.stat().st_size + file_b.stat().st_size
+
+
+async def test_smart_sync_callback_with_path(tmp_path):
+    """Test smart_sync callback can receive source path."""
+    src_dir = tmp_path / "src_path_cb"
+    dst_dir = tmp_path / "dst_path_cb"
+    src_dir.mkdir()
+    dst_dir.mkdir()
+
+    file_a = src_dir / "a.txt"
+    file_a.write_text("alpha")
+
+    seen: list[tuple[str, int]] = []
+
+    def callback(src_path: str, size: int) -> None:
+        """Capture callback payloads."""
+        seen.append((src_path, size))
+
+    await smart_sync(src_dir, dst_dir, callback=callback)
+
+    assert (dst_dir / "a.txt").read_text() == "alpha"
+    assert seen
+    assert all(path == str(file_a) for path, _ in seen)
+    assert sum(size for _, size in seen) == file_a.stat().st_size
+
+
+async def test_smart_sync_glob(tmp_path):
+    """Test smart_sync supports glob source paths."""
+    src_dir = tmp_path / "src_glob"
+    dst_dir = tmp_path / "dst_glob"
+    src_dir.mkdir()
+    dst_dir.mkdir()
+
+    file_a = src_dir / "a.txt"
+    file_b = src_dir / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("alpha")
+    file_b.write_text("bravo")
+
+    pattern = str(src_dir / "*")
+    await smart_sync(pattern, dst_dir)
+
+    assert (dst_dir / "a.txt").read_text() == "alpha"
+    assert (dst_dir / "sub" / "b.txt").read_text() == "bravo"
+
+
+async def test_smart_sync_with_progress(tmp_path):
+    """Test smart_sync_with_progress copies files and reports progress."""
+    pytest.importorskip("tqdm")
+    src_dir = tmp_path / "src_progress"
+    dst_dir = tmp_path / "dst_progress"
+    src_dir.mkdir()
+    dst_dir.mkdir()
+
+    file_a = src_dir / "a.txt"
+    file_a.write_text("alpha")
+
+    copied = {"bytes": 0, "paths": set()}
+
+    def callback(src_path: str, size: int) -> None:
+        """Capture progress callback payloads."""
+        copied["bytes"] += size
+        copied["paths"].add(src_path)
+
+    await smart_sync_with_progress(src_dir, dst_dir, callback=callback)
+
+    assert (dst_dir / "a.txt").read_text() == "alpha"
+    assert copied["bytes"] == file_a.stat().st_size
+    assert str(file_a) in copied["paths"]
 
 
 async def test_smart_load_from(tmp_path):

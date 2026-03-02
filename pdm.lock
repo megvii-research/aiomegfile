@@ -5,7 +5,7 @@
 groups = ["default", "cli", "dev", "doc", "lint", "test", "typecheck"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:c0566b4370038de4b6c6f4cef467d2fee298f82fd9fe57000103dc5a5fab2376"
+content_hash = "sha256:21015de34ee2f7c81216276447a5c707164aa01e1afbe5aefa6879a29048118f"
 
 [[metadata.targets]]
 requires_python = ">=3.10"
@@ -640,7 +640,7 @@ name = "colorama"
 version = "0.4.6"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 summary = "Cross-platform colored terminal text."
-groups = ["cli", "dev", "doc", "test", "typecheck"]
+groups = ["default", "cli", "dev", "doc", "test", "typecheck"]
 marker = "platform_system == \"Windows\" or sys_platform == \"win32\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
@@ -3410,7 +3410,7 @@ name = "tqdm"
 version = "4.67.3"
 requires_python = ">=3.7"
 summary = "Fast, Extensible Progress Meter"
-groups = ["cli", "dev"]
+groups = ["default"]
 dependencies = [
     "colorama; platform_system == \"Windows\"",
     "importlib-metadata; python_version < \"3.8\"",
