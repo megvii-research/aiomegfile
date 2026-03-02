@@ -289,7 +289,10 @@ class SmartPath(os.PathLike):
         """
         path = self
         while await path.is_symlink():
-            path = await path.readlink()
+            try:
+                path = await path.readlink()
+            except OSError:
+                break
             if path == self:
                 if strict:
                     raise OSError("Symlink points to itself")

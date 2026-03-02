@@ -537,9 +537,7 @@ async def _iter_file_stats(
         try:
             smart_path = await smart_path.readlink()
         except OSError:
-            if missing_ok:
-                return
-            raise
+            pass
 
     async with smart_path.filesystem.scanfile(smart_path._path) as iterator:
         max_workers = max(GLOBAL_MAX_WORKERS, 1)

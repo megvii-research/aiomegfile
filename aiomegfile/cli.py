@@ -812,7 +812,6 @@ def sync(
                 await smart_sync(
                     src_path,
                     dst_path,
-                    followlinks=True,
                     force=force,
                     overwrite=not skip,
                     callback=callback,
