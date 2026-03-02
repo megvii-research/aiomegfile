@@ -28,6 +28,7 @@ from aiomegfile.errors import (
     translate_s3_error,
 )
 from aiomegfile.interfaces import (
+    Access,
     AioClosable,
     AioScannableManager,
     BaseFileSystem,
@@ -1709,6 +1710,58 @@ class S3FileSystem(BaseFileSystem):
                             )
                         )
                 await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def access(self, path: str, mode: Access = Access.READ) -> bool:
+        """
+        Test if path has access permission described by mode
+
+        :param mode: access mode
+        :returns: bool, if the bucket of s3_url has read/write access.
+        """
+        if mode not in (Access.READ, Access.WRITE):
+            raise TypeError("Unsupported mode: {}".format(mode))
+
+        bucket, key = parse_s3_path(path)  # only check bucket accessibility
+        if not bucket:
+            raise Exception("No available bucket")
+        if not isinstance(mode, Access):
+            raise TypeError(
+                "Unsupported mode: {} -- Mode should use one of "
+                "the enums belonging to:  {}".format(
+                    mode, ", ".join([str(a) for a in Access])
+                )
+            )
+        if mode not in (Access.READ, Access.WRITE):
+            raise TypeError("Unsupported mode: {}".format(mode))
+        try:
+            if not await self.exists(path):
+                return False
+        except Exception as error:
+            error = translate_s3_error(error, self.build_uri(path))
+            if isinstance(error, S3PermissionError):
+                return False
+            raise error
+
+        if mode == Access.READ:
+            return True
+        try:
+            if not key:
+                key = "test"
+            elif key.endswith("/"):
+                key = key[:-1]
+
+            client = await self._get_client()
+            response = await client.create_multipart_upload(Bucket=bucket, Key=key)
+            upload_id = response["UploadId"]
+            await client.abort_multipart_upload(
+                Bucket=bucket, Key=key, UploadId=upload_id
+            )
+            return True
+        except Exception as error:
+            error = translate_s3_error(error, self.build_uri(path))
+            if isinstance(error, S3PermissionError):
+                return False
+            raise error
 
     def same_endpoint(self, other_filesystem: "BaseFileSystem") -> bool:
         """

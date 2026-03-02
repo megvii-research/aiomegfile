@@ -29,6 +29,7 @@ from aiomegfile.filesystem.s3 import (
     is_s3,
     parse_s3_path,
 )
+from aiomegfile.interfaces import Access
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"
@@ -129,6 +130,28 @@ class TestS3FileSystem:
         assert await filesystem.exists(f"{_bucket_name}/null") is False
         assert await filesystem.exists(f"{_bucket_name}/null/") is False
         assert await filesystem.exists(f"{_bucket_name}/{subdir}/{filename}") is True
+
+    async def test_access_read_write(self, filesystem):
+        """Test access reports read and write permissions."""
+        await self._create_bucket(filesystem)
+        key = "access/file.txt"
+        await self._put_object(filesystem, key, b"data")
+
+        path = f"{_bucket_name}/{key}"
+        assert await filesystem.access(path, mode=Access.READ) is True
+        assert await filesystem.access(path, mode=Access.WRITE) is True
+
+    async def test_access_missing_returns_false(self, filesystem):
+        """Test access returns False for missing objects."""
+        await self._create_bucket(filesystem)
+        missing_path = f"{_bucket_name}/missing.txt"
+        assert await filesystem.access(missing_path, mode=Access.READ) is False
+
+    async def test_access_invalid_mode_raises(self, filesystem):
+        """Test access raises TypeError for unsupported modes."""
+        await self._create_bucket(filesystem)
+        with pytest.raises(TypeError):
+            await filesystem.access(f"{_bucket_name}/invalid.txt", mode="invalid")  # type: ignore[arg-type]
 
     async def test_remove_file(self, filesystem):
         await self._create_bucket(filesystem)

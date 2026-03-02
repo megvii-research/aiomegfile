@@ -5,9 +5,10 @@ import pytest
 from moto.server import ThreadedMotoServer
 
 from aiomegfile.filesystem.s3 import S3FileSystem
-from aiomegfile.interfaces import FILE_SYSTEMS, BaseFileSystem
+from aiomegfile.interfaces import FILE_SYSTEMS, Access, BaseFileSystem
 from aiomegfile.smart import (
     smart_abspath,
+    smart_access,
     smart_concat,
     smart_copy,
     smart_copy_file,
@@ -180,6 +181,36 @@ async def test_smart_open_read_write(tmp_path):
         await f.write("hello")
     async with smart_open(file_path, "r") as f:
         assert await f.read() == "hello"
+
+
+async def test_smart_access_local(tmp_path):
+    """Test smart_access on local filesystem paths."""
+    file_path = tmp_path / "access.txt"
+    file_path.write_text("data")
+
+    assert await smart_access(file_path, Access.READ) is True
+    assert await smart_access(file_path, Access.WRITE) is True
+    assert await smart_access(tmp_path / "missing.txt", Access.READ) is False
+
+
+async def test_smart_access_invalid_mode(tmp_path):
+    """Test smart_access rejects unsupported access modes."""
+    file_path = tmp_path / "access-invalid.txt"
+    file_path.write_text("data")
+
+    with pytest.raises(TypeError):
+        await smart_access(file_path, "invalid")  # type: ignore[arg-type]
+
+
+async def test_smart_access_s3(s3_filesystem):
+    """Test smart_access on S3 paths."""
+    await _create_bucket(s3_filesystem)
+    key = "access/object.txt"
+    await _put_object(s3_filesystem, key, b"data")
+
+    path = f"s3://{_bucket_name}/{key}"
+    assert await smart_access(path, Access.READ) is True
+    assert await smart_access(path, Access.WRITE) is True
 
 
 async def test_smart_save_as_and_load_text(tmp_path):

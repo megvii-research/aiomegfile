@@ -5,6 +5,7 @@ import os
 import pytest
 
 from aiomegfile.filesystem.local import LocalFileSystem
+from aiomegfile.interfaces import Access
 
 
 class TestLocalFileSystem:
@@ -108,6 +109,24 @@ class TestLocalFileSystem:
 
         with open(file_path) as f:
             assert f.read() == "New content"
+
+    async def test_access_read_write(self, temp_file):
+        """Test access reports read and write permissions for files."""
+        protocol = self._create_protocol()
+        assert await protocol.access(temp_file, mode=Access.READ) is True
+        assert await protocol.access(temp_file, mode=Access.WRITE) is True
+
+    async def test_access_missing_returns_false(self, temp_dir):
+        """Test access returns False for missing paths."""
+        protocol = self._create_protocol()
+        missing_path = os.path.join(temp_dir, "missing.txt")
+        assert await protocol.access(missing_path, mode=Access.READ) is False
+
+    async def test_access_invalid_mode_raises(self, temp_file):
+        """Test access raises TypeError for unsupported modes."""
+        protocol = self._create_protocol()
+        with pytest.raises(TypeError):
+            await protocol.access(temp_file, mode="invalid")  # type: ignore[arg-type]
 
     async def test_open_write_creates_parent(self, temp_dir):
         """Ensure write mode creates parent directories.
