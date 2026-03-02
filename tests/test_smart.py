@@ -10,6 +10,7 @@ from aiomegfile.smart import (
     smart_abspath,
     smart_access,
     smart_cache,
+    smart_combine_open,
     smart_concat,
     smart_copy,
     smart_copy_file,
@@ -182,6 +183,58 @@ async def test_smart_open_read_write(tmp_path):
         await f.write("hello")
     async with smart_open(file_path, "r") as f:
         assert await f.read() == "hello"
+
+
+async def test_smart_combine_open_reads_across_files(tmp_path):
+    """smart_combine_open should read files sequentially."""
+    first_path = tmp_path / "a.bin"
+    second_path = tmp_path / "b.bin"
+    first_path.write_bytes(b"hello")
+    second_path.write_bytes(b"world")
+
+    pattern = os.path.join(str(tmp_path), "*.bin")
+    async with smart_combine_open(pattern, "rb") as reader:
+        data = await reader.read()
+
+    assert data == b"helloworld"
+
+
+async def test_smart_combine_open_readline_across_boundary(tmp_path):
+    """smart_combine_open should read lines across file boundaries."""
+    first_path = tmp_path / "a.txt"
+    second_path = tmp_path / "b.txt"
+    first_path.write_bytes(b"hello")
+    second_path.write_bytes(b"world\nnext")
+
+    pattern = os.path.join(str(tmp_path), "*.txt")
+    async with smart_combine_open(pattern, "rb") as reader:
+        line = await reader.readline()
+
+    assert line == b"helloworld\n"
+
+
+async def test_smart_combine_open_seek(tmp_path):
+    """smart_combine_open should support seeking."""
+    first_path = tmp_path / "a.data"
+    second_path = tmp_path / "b.data"
+    first_path.write_bytes(b"abc")
+    second_path.write_bytes(b"def")
+
+    pattern = os.path.join(str(tmp_path), "*.data")
+    async with smart_combine_open(pattern, "rb") as reader:
+        await reader.seek(4)
+        data = await reader.read()
+
+    assert data == b"ef"
+
+
+async def test_smart_combine_open_empty_glob(tmp_path):
+    """smart_combine_open should return empty data for empty glob."""
+    pattern = os.path.join(str(tmp_path), "*.missing")
+    async with smart_combine_open(pattern, "rb") as reader:
+        data = await reader.read()
+
+    assert data == b""
 
 
 async def test_smart_access_local(tmp_path):

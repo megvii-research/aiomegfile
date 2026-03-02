@@ -56,8 +56,8 @@
 - [ ] `chmod`
 - [ ] `cwd`
 - [ ] `expanduser`
-- [ ] `getmtime`
-- [ ] `getsize`
+- [x] `getmtime`
+- [x] `getsize`
 - [ ] `glob_stat`
 - [ ] `group`
 - [ ] `home`

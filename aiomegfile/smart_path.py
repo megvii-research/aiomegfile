@@ -489,6 +489,16 @@ class SmartPath(os.PathLike):
         """
         return await self.stat(follow_symlinks=False)
 
+    async def getmtime(self, *, follow_symlinks: bool = False) -> float:
+        """Return the time of last modification of the file as a timestamp."""
+        stat_result = await self.stat(follow_symlinks=follow_symlinks)
+        return stat_result.st_mtime
+
+    async def getsize(self, *, follow_symlinks: bool = False) -> int:
+        """Return the size of the file in bytes."""
+        stat_result = await self.stat(follow_symlinks=follow_symlinks)
+        return stat_result.st_size
+
     async def match(
         self, pattern: str, *, case_sensitive: T.Optional[bool] = None
     ) -> bool:

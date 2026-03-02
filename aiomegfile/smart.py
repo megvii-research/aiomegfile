@@ -7,6 +7,7 @@ from collections import deque
 from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.interfaces import Access, FileEntry, StatResult
 from aiomegfile.lib.cacher import NullCacher, SmartCacher
+from aiomegfile.lib.combine_reader import AioCombineReader
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
 from aiomegfile.utils.path import PathLike, copyfileobj, fspath, split_uri
@@ -16,6 +17,7 @@ __all__ = [
     "smart_cache",
     "smart_copy",
     "smart_exists",
+    "smart_combine_open",
     "smart_glob",
     "smart_iglob",
     "smart_isabs",
@@ -209,6 +211,25 @@ async def smart_load_from(path: PathLike) -> T.BinaryIO:
     async with smart_open(path, "rb") as f:
         content = await f.read()
     return io.BytesIO(content)
+
+
+def smart_combine_open(
+    path_glob: str, mode: str = "rb", open_func=smart_open
+) -> AioCombineReader:
+    """Open a unified reader that supports multi-file reading.
+
+    :param path_glob: Path pattern that may contain shell wildcard characters.
+    :param mode: Mode to open file, supports 'rb'.
+    :param open_func: Callable to open each file.
+    :return: Combined async reader.
+    :rtype: AioCombineReader
+    """
+    return AioCombineReader(
+        path_glob,
+        mode=mode,
+        open_func=open_func,
+        glob_func=smart_glob,
+    )
 
 
 async def smart_load_content(

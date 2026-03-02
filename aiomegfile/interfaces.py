@@ -30,6 +30,34 @@ class StatResult(T.NamedTuple):
     islnk: bool = False
     extra: T.Any = None
 
+    def is_file(self) -> bool:
+        return not self.isdir or self.islnk
+
+    def is_dir(self) -> bool:
+        return self.isdir and not self.islnk
+
+    def is_symlink(self) -> bool:
+        return self.islnk
+
+    @property
+    def size(self) -> int:
+        """Size of the file in bytes."""
+        return self.st_size
+
+    @property
+    def ctime(self) -> float:
+        """Platform dependent:
+
+            the time of most recent metadata change on Unix,
+            the time of creation on Windows, expressed in seconds.
+        """
+        return self.st_ctime
+
+    @property
+    def mtime(self) -> float:
+        """Time of most recent content modification expressed in seconds."""
+        return self.st_mtime
+
     @property
     def st_mode(self) -> int:
         """
@@ -155,13 +183,13 @@ class FileEntry(T.NamedTuple):
         return self.stat.st_ino
 
     def is_file(self) -> bool:
-        return not self.stat.isdir or self.stat.islnk
+        return self.stat.is_file()
 
     def is_dir(self) -> bool:
-        return self.stat.isdir and not self.stat.islnk
+        return self.stat.is_dir()
 
     def is_symlink(self) -> bool:
-        return self.stat.islnk
+        return self.stat.is_symlink()
 
 
 class AioScannableManager(AbstractAsyncContextManager):
