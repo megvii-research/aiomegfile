@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from functools import cached_property
 
 from aiomegfile.config import GLOBAL_MAX_WORKERS
-from aiomegfile.interfaces import FileEntry, StatResult, get_filesystem_by_uri
+from aiomegfile.interfaces import Access, FileEntry, StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
 from aiomegfile.utils.path import PathLike, fspath
@@ -1006,3 +1006,18 @@ class SmartPath(os.PathLike):
         if case_sensitive is True:
             return fnmatchcase(path_str, pattern)
         return fnmatch(path_str, pattern)
+
+    async def access(self, mode: Access = Access.READ) -> bool:
+        """Test if path has access permission described by mode
+
+        :param mode: access mode, defaults to Access.READ
+        :type mode: Access, optional
+        :raises NotImplementedError: If the filesystem does not support access checks.
+        :return: True if the path has the specified access permission, False otherwise.
+        :rtype: bool
+        """
+        if not hasattr(self.filesystem, "access"):
+            raise NotImplementedError(
+                f"'access' is not implemented for '{self.filesystem.protocol}' protocol"
+            )
+        return await self.filesystem.access(self._path, mode=mode)

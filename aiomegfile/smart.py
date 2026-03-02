@@ -5,7 +5,7 @@ import typing as T
 from collections import deque
 
 from aiomegfile.config import GLOBAL_MAX_WORKERS
-from aiomegfile.interfaces import FileEntry, StatResult
+from aiomegfile.interfaces import Access, FileEntry, StatResult
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
 from aiomegfile.utils.path import PathLike, copyfileobj, fspath, split_uri
@@ -842,3 +842,15 @@ async def smart_concat(src_paths: T.List[PathLike], dst_path: PathLike) -> None:
         if hasattr(smart_path.filesystem, "concat"):
             concat_func = smart_path.filesystem.concat
     await concat_func(src_paths, dst_path)
+
+
+async def smart_access(path: PathLike, mode: Access = Access.READ) -> bool:
+    """Test if path has access permission described by mode.
+
+    :param path: Path to check.
+    :param mode: Access mode to check.
+    :return: True if the path has the specified access, otherwise False.
+    :rtype: bool
+    :raises TypeError: If an unsupported access mode is provided.
+    """
+    return await SmartPath(path).access(mode)

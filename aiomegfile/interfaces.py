@@ -6,6 +6,7 @@ import stat
 import typing as T
 from abc import ABC, abstractmethod
 from contextlib import AbstractAsyncContextManager
+from enum import Enum
 from types import TracebackType
 
 from aiomegfile.errors import ProtocolNotFoundError
@@ -14,6 +15,11 @@ from aiomegfile.utils.path import split_uri
 
 Self = T.TypeVar("Self")
 logger = logging.getLogger(__name__)
+
+
+class Access(Enum):
+    READ = 1
+    WRITE = 2
 
 
 class StatResult(T.NamedTuple):

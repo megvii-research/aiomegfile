@@ -9,6 +9,7 @@ import aiofiles.os
 import aiofiles.ospath
 
 from aiomegfile.interfaces import (
+    Access,
     AioScannableManager,
     BaseFileSystem,
     FileEntry,
@@ -391,6 +392,29 @@ class LocalFileSystem(BaseFileSystem):
             async with aiofiles.open(dst_path, "wb") as dst_file:
                 await copyfileobj(src_file, dst_file, callback=callback)
         return dst_path
+
+    async def access(self, path, mode: Access = Access.READ) -> bool:
+        """
+        Test if path has access permission described by mode
+        Using ``os.access``
+
+        :param mode: access mode
+        :returns: Access: Enum, the read/write access that path has.
+        """
+        if mode not in (Access.READ, Access.WRITE):
+            raise TypeError("Unsupported mode: {}".format(mode))
+
+        if mode == Access.READ:
+            return await asyncio.to_thread(os.access, path, os.R_OK)
+        elif mode == Access.WRITE:
+            return await asyncio.to_thread(os.access, path, os.W_OK)
+        else:
+            raise TypeError(
+                "Unsupported mode: {} -- Mode should use one of "
+                "the enums belonging to:  {}".format(
+                    mode, ", ".join([str(a) for a in Access])
+                )
+            )
 
     def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
         """

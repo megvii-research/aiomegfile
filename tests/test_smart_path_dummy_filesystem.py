@@ -3,7 +3,7 @@ import os
 import aiofiles
 import pytest
 
-from aiomegfile.interfaces import BaseFileSystem
+from aiomegfile.interfaces import Access, BaseFileSystem
 from aiomegfile.smart_path import SmartPath, URIPathParents
 from aiomegfile.utils.path import split_uri
 
@@ -142,6 +142,15 @@ async def test_comparisons_between_registered_protocols_raise_typeerror(
         _ = p_file >= p_dummy
     with pytest.raises(TypeError):
         _ = p_file / p_dummy
+
+
+async def test_access_not_implemented_raises(filesystem_registry_snapshot):
+    """Test access raises NotImplementedError for unsupported filesystems."""
+    _register_dummy_filesystem()
+
+    p_dummy = SmartPath("dummy://missing")
+    with pytest.raises(NotImplementedError):
+        await p_dummy.access(Access.READ)
 
 
 async def test_relative_to_error_branches(filesystem_registry_snapshot):
