@@ -20,6 +20,7 @@ __all__ = [
     "smart_combine_open",
     "smart_getmd5",
     "smart_glob",
+    "smart_glob_stat",
     "smart_iglob",
     "smart_isabs",
     "smart_isdir",
@@ -447,6 +448,27 @@ async def smart_glob(path: PathLike, *, recursive: bool = True) -> T.List[str]:
     """
     results = await SmartPath(path).glob("", recursive=recursive)
     return [str(item) for item in results]
+
+
+async def smart_glob_stat(
+    pathname: PathLike, recursive: bool = True, missing_ok: bool = True
+) -> T.AsyncIterator[FileEntry]:
+    """Return entries whose paths match the glob pattern.
+
+    :param pathname: Path pattern that may contain shell wildcard characters.
+    :param recursive: If False, ``**`` will not search directory recursively.
+    :param missing_ok: If False and target path doesn't match any file,
+        raise FileNotFoundError.
+    :return: Async iterator of FileEntry objects.
+    :rtype: T.AsyncIterator[FileEntry]
+    :raises FileNotFoundError: If no matches and missing_ok is False.
+    """
+    async for entry in SmartPath(pathname).glob_stat(
+        pattern="",
+        recursive=recursive,
+        missing_ok=missing_ok,
+    ):
+        yield entry
 
 
 async def smart_iglob(

@@ -9,7 +9,7 @@
 - [x] `smart_cache`
 - [x] `smart_combine_open`
 - [x] `smart_getmd5`
-- [ ] `smart_glob_stat`
+- [x] `smart_glob_stat`
 - [ ] `smart_lstat`
 - [ ] `smart_scan_stat`
 - [ ] `smart_sync_with_progress`
@@ -58,14 +58,14 @@
 - [ ] `expanduser`
 - [x] `getmtime`
 - [x] `getsize`
-- [ ] `glob_stat`
+- [x] `glob_stat`
 - [ ] `group`
 - [ ] `home`
 - [ ] `is_absolute`
 - [ ] `lchmod`
 - [ ] `listdir`
 - [ ] `load`
-- [ ] `md5`
+- [x] `md5`
 - [ ] `owner`
 - [ ] `realpath`
 - [ ] `relpath`

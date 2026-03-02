@@ -18,6 +18,7 @@ from aiomegfile.smart import (
     smart_exists,
     smart_getmd5,
     smart_glob,
+    smart_glob_stat,
     smart_iglob,
     smart_isabs,
     smart_isdir,
@@ -306,6 +307,23 @@ async def test_smart_getmd5_s3_etag(s3_filesystem):
 
     assert await smart_getmd5(path) == expected
     assert await smart_getmd5(path, recalculate=True) == expected
+
+
+async def test_smart_glob_stat_s3(s3_filesystem):
+    """smart_glob_stat should return entries for S3 paths."""
+    await _create_bucket(s3_filesystem)
+    key = "glob/stat.txt"
+    data = b"payload"
+    await _put_object(s3_filesystem, key, data)
+
+    pattern = f"s3://{_bucket_name}/glob/*.txt"
+    entries = []
+    async for entry in smart_glob_stat(pattern):
+        entries.append(entry)
+
+    assert {entry.name for entry in entries} == {"stat.txt"}
+    assert any(entry.path.startswith("s3://") for entry in entries)
+    assert {entry.stat.st_size for entry in entries} == {len(data)}
 
 
 async def test_smart_save_as_and_load_text(tmp_path):
@@ -741,6 +759,32 @@ async def test_smart_glob_and_iglob(tmp_path):
     async for item in smart_iglob(pattern):
         collected.append(item)
     assert {os.path.basename(path) for path in collected} == {"file1.txt", "file2.txt"}
+
+
+async def test_smart_glob_stat(tmp_path):
+    """smart_glob_stat should return FileEntry objects with stats."""
+    first_path = tmp_path / "file1.txt"
+    second_path = tmp_path / "file2.txt"
+    first_path.write_text("a")
+    second_path.write_text("bb")
+
+    pattern = os.path.join(str(tmp_path), "*.txt")
+    entries = []
+    async for entry in smart_glob_stat(pattern):
+        entries.append(entry)
+
+    names = {entry.name for entry in entries}
+    sizes = {entry.stat.st_size for entry in entries}
+    assert names == {"file1.txt", "file2.txt"}
+    assert sizes == {1, 2}
+
+
+async def test_smart_glob_stat_missing_ok_false(tmp_path):
+    """smart_glob_stat should raise when missing_ok is False."""
+    pattern = os.path.join(str(tmp_path), "*.missing")
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_glob_stat(pattern, missing_ok=False):
+            pass
 
 
 async def test_smart_walk(tmp_path):

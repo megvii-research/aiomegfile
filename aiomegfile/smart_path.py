@@ -754,6 +754,68 @@ class SmartPath(os.PathLike):
         async for path in iglob(path, fs=fs_func, recursive=recursive):
             yield self.from_uri(self.filesystem.build_uri(path))
 
+    async def glob_stat(
+        self, pattern: str, recursive: bool = True, missing_ok: bool = True
+    ) -> T.AsyncIterator[FileEntry]:
+        """Return entries whose paths match the glob pattern with stats.
+
+        :param pattern: Glob pattern to match relative to this path.
+        :param recursive: If False, `**` will not search directory recursively.
+        :param missing_ok: If False and target path doesn't match any file,
+            raise FileNotFoundError.
+        :return: Async iterator of matching FileEntry objects.
+        :rtype: T.AsyncIterator[FileEntry]
+        :raises FileNotFoundError: If no matches and missing_ok is False.
+        """
+        if hasattr(self.filesystem, "glob_stat"):
+            glob_path = self._path
+            if pattern:
+                glob_path = os.path.join(self._path, pattern)
+            iterator = self.filesystem.glob_stat(
+                glob_path,
+                recursive=recursive,
+                missing_ok=missing_ok,
+            )
+            async for file_entry in iterator:
+                entry_path = file_entry.path
+                if "://" not in entry_path:
+                    entry_path = self.filesystem.build_uri(entry_path)
+                yield FileEntry(
+                    name=file_entry.name,
+                    path=entry_path,
+                    stat=file_entry.stat,
+                )
+            return
+
+        async def _iter_entries() -> T.AsyncIterator[FileEntry]:
+            async for path_obj in self.iglob(pattern=pattern, recursive=recursive):
+                stat_result = await path_obj.lstat()
+                yield FileEntry(
+                    name=path_obj.name,
+                    path=fspath(path_obj),
+                    stat=stat_result,
+                )
+
+        iterator = _iter_entries()
+        if missing_ok:
+            async for entry in iterator:
+                yield entry
+            return
+
+        try:
+            first = await anext(iterator)
+        except StopAsyncIteration as exc:
+            glob_path = self._path
+            if pattern:
+                glob_path = os.path.join(self._path, pattern)
+            raise FileNotFoundError(
+                f"No match file: {self.filesystem.build_uri(glob_path)}"
+            ) from exc
+
+        yield first
+        async for entry in iterator:
+            yield entry
+
     async def glob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern.
 
