@@ -21,7 +21,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="API Reference" href="aiomegfile.html" />
+    <link rel="next" title="CLI" href="cli.html" />
     <link rel="prev" title="Welcome to aiomegfile’s documentation!" href="index.html" /> 
 </head>
 
@@ -55,9 +55,16 @@
 <li class="toctree-l3"><a class="reference internal" href="#smartpath-interface">SmartPath Interface</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Functional Interface Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">SmartPath Interface</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#cli">CLI</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#how-to-contribute">How to Contribute</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -151,6 +158,57 @@
 </div>
 </section>
 </section>
+<section id="id1">
+<h2>Quick Start<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<p>Smart methods and <code class="docutils literal notranslate"><span class="pre">SmartPath</span></code> are the same as <code class="docutils literal notranslate"><span class="pre">megfile</span></code>, but all methods are async. You can use <code class="docutils literal notranslate"><span class="pre">aiomegfile</span></code> to do file operations in an async way.</p>
+<section id="id2">
+<h3>Functional Interface Example<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">smart_open</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_open</span><span class="p">(</span><span class="s1">&#39;s3://bucket/key&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>SmartPath Interface<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">SmartPath</span></code> has a similar interface with <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code>, but async.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartPath</span>
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="s1">&#39;s3://bucket/key&#39;</span><span class="p">)</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">path</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="cli">
+<h2>CLI<a class="headerlink" href="#cli" title="Link to this heading"></a></h2>
+<p>Install the CLI extras:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip3<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;aiomegfile[cli]&quot;</span>
+</pre></div>
+</div>
+<p>Example usage:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>ls<span class="w"> </span>./data
+amf<span class="w"> </span>ls<span class="w"> </span>s3://bucket/prefix<span class="w"> </span>-l
+amf<span class="w"> </span>cp<span class="w"> </span>-r<span class="w"> </span>./data<span class="w"> </span>s3://bucket/backup
+amf<span class="w"> </span>sync<span class="w"> </span>./data<span class="w"> </span>s3://bucket/backup<span class="w"> </span>--progress-bar
+</pre></div>
+</div>
+<p>For a wider protocol matrix and advanced configuration, see the <code class="docutils literal notranslate"><span class="pre">megfile</span></code> docs:
+<a class="reference external" href="http://megvii-research.github.io/megfile">http://megvii-research.github.io/megfile</a></p>
+</section>
 <section id="how-to-contribute">
 <h2>How to Contribute<a class="headerlink" href="#how-to-contribute" title="Link to this heading"></a></h2>
 <ul>
@@ -169,7 +227,7 @@
 <li><p>Write code.</p></li>
 <li><p>Improve <a class="reference external" href="https://github.com/megvii-research/aiomegfile/blob/main/docs">documentation</a>.</p></li>
 <li><p>Report or investigate <a class="reference external" href="https://github.com/megvii-research/aiomegfile/issues">bugs and issues</a>.</p></li>
-<li><p>If you find any problem or have any improving suggestion, <a class="reference external" href="https://github.com/megvii-research/aiomegfile/issues">submit a new issuse</a> as well. We will reply as soon as possible and evaluate whether to adopt.</p></li>
+<li><p>If you find any problem or have any improving suggestion, <a class="reference external" href="https://github.com/megvii-research/aiomegfile/issues">submit a new issue</a> as well. We will reply as soon as possible and evaluate whether to adopt.</p></li>
 <li><p>Review <a class="reference external" href="https://github.com/megvii-research/aiomegfile/pulls">pull requests</a>.</p></li>
 <li><p>Star <code class="docutils literal notranslate"><span class="pre">aiomegfile</span></code> repo.</p></li>
 <li><p>Recommend <code class="docutils literal notranslate"><span class="pre">aiomegfile</span></code> to your friends.</p></li>
@@ -185,7 +243,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="index.html" class="btn btn-neutral float-left" title="Welcome to aiomegfile’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="aiomegfile.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="cli.html" class="btn btn-neutral float-right" title="CLI" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

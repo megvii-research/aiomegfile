@@ -44,6 +44,7 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cli.html">CLI</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../changelog.html">CHANGELOG</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -74,10 +75,13 @@
            <div itemprop="articleBody">
              
   <h1>Source code for aiomegfile.smart</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">GLOBAL_MAX_WORKERS</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileEntry</span><span class="p">,</span> <span class="n">StatResult</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.smart_path</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartPath</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.compare</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_sync_type</span><span class="p">,</span> <span class="n">is_same_file</span>
@@ -461,13 +465,18 @@
 
 
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_copy_file</span><span class="p">(</span>
-    <span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Copy a file and return the destination path string.</span>
 
 <span class="sd">    :param src_path: Source path to copy.</span>
 <span class="sd">    :param dst_path: Destination path.</span>
 <span class="sd">    :param followlinks: Whether to follow symbolic links.</span>
+<span class="sd">    :param callback: Called periodically during copy with bytes written.</span>
 <span class="sd">    :return: Destination path string.</span>
 <span class="sd">    :rtype: str</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -477,7 +486,7 @@
         <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
             <span class="k">pass</span>
 
-    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">copy_file</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span><span class="o">.</span><span class="n">copy_file</span><span class="p">(</span><span class="n">dst_path</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">)</span>
     <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 
 
@@ -706,19 +715,59 @@
             <span class="k">raise</span>
 
     <span class="k">async</span> <span class="k">with</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">scanfile</span><span class="p">(</span><span class="n">smart_path</span><span class="o">.</span><span class="n">_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">iterator</span><span class="p">:</span>
-        <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
-            <span class="n">stat</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">stat</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">path</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">max_workers</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">GLOBAL_MAX_WORKERS</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="n">max_workers</span><span class="p">)</span>
+        <span class="n">max_in_flight</span> <span class="o">=</span> <span class="n">max_workers</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="n">pending</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">FileEntry</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FileEntry</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Resolve entry details, following symlinks if requested.</span>
+
+<span class="sd">            :param entry: File entry to resolve.</span>
+<span class="sd">            :return: Resolved FileEntry with updated path and stat.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
             <span class="k">if</span> <span class="n">followlinks</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_symlink</span><span class="p">():</span>
-                <span class="n">path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">readlink</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-                <span class="n">name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-                <span class="n">stat</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span>
-            <span class="k">yield</span> <span class="n">FileEntry</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-                <span class="n">path</span><span class="o">=</span><span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
-                <span class="n">stat</span><span class="o">=</span><span class="n">stat</span><span class="p">,</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="n">semaphore</span><span class="p">:</span>
+                    <span class="n">resolved_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">readlink</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+                    <span class="n">resolved_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">)</span>
+                    <span class="n">resolved_stat</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span>
+                        <span class="n">resolved_path</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span>
+                    <span class="p">)</span>
+                <span class="k">return</span> <span class="n">FileEntry</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">resolved_name</span><span class="p">,</span>
+                    <span class="n">path</span><span class="o">=</span><span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">),</span>
+                    <span class="n">stat</span><span class="o">=</span><span class="n">resolved_stat</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">FileEntry</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">path</span><span class="o">=</span><span class="n">smart_path</span><span class="o">.</span><span class="n">filesystem</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">),</span>
+                <span class="n">stat</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span>
             <span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_await_next</span><span class="p">(</span>
+            <span class="n">tasks</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]],</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FileEntry</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Await the next pending task and cancel on failure.</span>
+
+<span class="sd">            :param tasks: Queue of pending tasks.</span>
+<span class="sd">            :return: Resolved FileEntry.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">tasks</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">task</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">pending_task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+                    <span class="n">pending_task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">,</span> <span class="n">return_exceptions</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">raise</span>
+
+        <span class="k">async</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">:</span>
+            <span class="n">pending</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">_resolve_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_in_flight</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="k">await</span> <span class="n">_await_next</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="n">pending</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="k">await</span> <span class="n">_await_next</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span>
 
 
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_iter_sync_entries</span><span class="p">(</span>
@@ -750,7 +799,8 @@
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_sync</span><span class="p">(</span>
     <span class="n">src_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
     <span class="n">dst_path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
-    <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">callback_after_copy_file</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -766,8 +816,9 @@
 
 <span class="sd">    :param src_path: Given source path.</span>
 <span class="sd">    :param dst_path: Given destination path.</span>
-<span class="sd">    :param callback: Called after each file copy attempt. The callback receives</span>
-<span class="sd">        ``(src_path, num_bytes)`` where ``num_bytes`` is the file size.</span>
+<span class="sd">    :param callback: Called periodically during copy with bytes written.</span>
+<span class="sd">    :param callback_after_copy_file: Called after copy success, and the input parameter</span>
+<span class="sd">        is src file path and dst file path.</span>
 <span class="sd">    :param followlinks: False if regard symlink as file, else True.</span>
 <span class="sd">    :param force: Sync file forcible, do not ignore same files, priority is higher than</span>
 <span class="sd">        ``overwrite``.</span>
@@ -798,83 +849,141 @@
     <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">src_item</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FileEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">dst_item</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FileEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">max_workers</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">GLOBAL_MAX_WORKERS</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="n">max_workers</span><span class="p">)</span>
+    <span class="n">max_in_flight</span> <span class="o">=</span> <span class="n">max_workers</span> <span class="o">*</span> <span class="mi">2</span>
+    <span class="n">copy_tasks</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">src_take</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">src_done</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_copy_and_callback</span><span class="p">(</span><span class="n">src_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy a file and invoke post-copy callback when provided.</span>
+
+<span class="sd">        :param src_file: Source file path.</span>
+<span class="sd">        :param dst_file: Destination file path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">semaphore</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
+                <span class="n">src_file</span><span class="p">,</span>
+                <span class="n">dst_file</span><span class="p">,</span>
+                <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
+                <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">callback_after_copy_file</span><span class="p">:</span>
+                <span class="n">callback_after_copy_file</span><span class="p">(</span><span class="n">src_file</span><span class="p">,</span> <span class="n">dst_file</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_drain_copy_tasks</span><span class="p">(</span>
+        <span class="n">tasks</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="kc">None</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">[</span><span class="kc">None</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for at least one copy task and propagate errors.</span>
+
+<span class="sd">        :param tasks: Active copy tasks.</span>
+<span class="sd">        :return: Remaining pending tasks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">done</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">tasks</span><span class="p">,</span> <span class="n">return_when</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">FIRST_COMPLETED</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">completed_task</span> <span class="ow">in</span> <span class="n">done</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">src_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="n">src_iter</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">StopAsyncIteration</span><span class="p">:</span>
-                <span class="n">src_done</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">src_item</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">dst_take</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dst_done</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">dst_iter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">dst_item</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="k">else</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">completed_task</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">pending_task</span> <span class="ow">in</span> <span class="n">pending</span><span class="p">:</span>
+                    <span class="n">pending_task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">pending</span><span class="p">,</span> <span class="n">return_exceptions</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">raise</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span>
+
+    <span class="n">error</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">src_take</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">src_done</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">dst_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="n">dst_iter</span><span class="p">)</span>
+                    <span class="n">src_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="n">src_iter</span><span class="p">)</span>
                 <span class="k">except</span> <span class="ne">StopAsyncIteration</span><span class="p">:</span>
+                    <span class="n">src_done</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">src_item</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">dst_take</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">dst_done</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">dst_iter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
                     <span class="n">dst_item</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">dst_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="n">dst_iter</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">StopAsyncIteration</span><span class="p">:</span>
+                        <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="n">dst_item</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="k">if</span> <span class="n">src_done</span> <span class="ow">or</span> <span class="n">src_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">break</span>
+            <span class="k">if</span> <span class="n">src_done</span> <span class="ow">or</span> <span class="n">src_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">break</span>
 
-        <span class="n">src_key</span><span class="p">,</span> <span class="n">src_entry</span> <span class="o">=</span> <span class="n">src_item</span>
-        <span class="k">if</span> <span class="n">src_key</span><span class="p">:</span>
-            <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path_join</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">,</span> <span class="n">src_key</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="n">dst_root_path</span>
+            <span class="n">src_key</span><span class="p">,</span> <span class="n">src_entry</span> <span class="o">=</span> <span class="n">src_item</span>
+            <span class="k">if</span> <span class="n">src_key</span><span class="p">:</span>
+                <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path_join</span><span class="p">(</span><span class="n">dst_root_path</span><span class="p">,</span> <span class="n">src_key</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dst_abs_file_path</span> <span class="o">=</span> <span class="n">dst_root_path</span>
 
-        <span class="k">if</span> <span class="n">dst_done</span><span class="p">:</span>
-            <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
-                <span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                <span class="n">dst_abs_file_path</span><span class="p">,</span>
-                <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
-                <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
-            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="k">continue</span>
-
-        <span class="k">if</span> <span class="n">dst_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">continue</span>
-
-        <span class="n">dst_key</span><span class="p">,</span> <span class="n">dst_entry</span> <span class="o">=</span> <span class="n">dst_item</span>
-        <span class="k">if</span> <span class="n">src_key</span> <span class="o">==</span> <span class="n">dst_key</span><span class="p">:</span>
-            <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
-                    <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
-                <span class="k">elif</span> <span class="n">is_same_file</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span> <span class="n">dst_entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span> <span class="n">sync_type</span><span class="p">):</span>
-                    <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="k">if</span> <span class="n">should_sync</span><span class="p">:</span>
-                <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
-                    <span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                    <span class="n">dst_abs_file_path</span><span class="p">,</span>
-                    <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
+            <span class="k">if</span> <span class="n">dst_done</span><span class="p">:</span>
+                <span class="n">copy_tasks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                    <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
+                        <span class="n">_copy_and_callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">dst_abs_file_path</span><span class="p">)</span>
+                    <span class="p">)</span>
                 <span class="p">)</span>
-            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
-                <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
-            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">src_key</span> <span class="o">&lt;</span> <span class="n">dst_key</span><span class="p">:</span>
-            <span class="k">await</span> <span class="n">smart_copy_file</span><span class="p">(</span>
-                <span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                <span class="n">dst_abs_file_path</span><span class="p">,</span>
-                <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
-                <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
-            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">src_take</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span></div>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">copy_tasks</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_in_flight</span><span class="p">:</span>
+                    <span class="n">copy_tasks</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_drain_copy_tasks</span><span class="p">(</span><span class="n">copy_tasks</span><span class="p">)</span>
+                <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">dst_item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dst_done</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">src_take</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">continue</span>
+
+            <span class="n">dst_key</span><span class="p">,</span> <span class="n">dst_entry</span> <span class="o">=</span> <span class="n">dst_item</span>
+            <span class="k">if</span> <span class="n">src_key</span> <span class="o">==</span> <span class="n">dst_key</span><span class="p">:</span>
+                <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+                        <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">elif</span> <span class="n">is_same_file</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span> <span class="n">dst_entry</span><span class="o">.</span><span class="n">stat</span><span class="p">,</span> <span class="n">sync_type</span><span class="p">):</span>
+                        <span class="n">should_sync</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="n">should_sync</span><span class="p">:</span>
+                    <span class="n">copy_tasks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                        <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
+                            <span class="n">_copy_and_callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">dst_abs_file_path</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">copy_tasks</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_in_flight</span><span class="p">:</span>
+                        <span class="n">copy_tasks</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_drain_copy_tasks</span><span class="p">(</span><span class="n">copy_tasks</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">callback</span><span class="p">:</span>
+                    <span class="n">callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+                <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">src_key</span> <span class="o">&lt;</span> <span class="n">dst_key</span><span class="p">:</span>
+                <span class="n">copy_tasks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                    <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span>
+                        <span class="n">_copy_and_callback</span><span class="p">(</span><span class="n">src_entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">dst_abs_file_path</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">copy_tasks</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_in_flight</span><span class="p">:</span>
+                    <span class="n">copy_tasks</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_drain_copy_tasks</span><span class="p">(</span><span class="n">copy_tasks</span><span class="p">)</span>
+                <span class="n">src_take</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">src_take</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">dst_take</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="n">exc</span>
+        <span class="k">raise</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">copy_tasks</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">pending_task</span> <span class="ow">in</span> <span class="n">copy_tasks</span><span class="p">:</span>
+                    <span class="n">pending_task</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">copy_tasks</span><span class="p">,</span> <span class="n">return_exceptions</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+                        <span class="n">result</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">CancelledError</span>
+                    <span class="p">):</span>
+                        <span class="k">raise</span> <span class="n">result</span></div>
 
 
 
