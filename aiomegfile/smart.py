@@ -6,15 +6,21 @@ from collections import deque
 
 from aiomegfile.config import GLOBAL_MAX_WORKERS
 from aiomegfile.interfaces import Access, FileEntry, StatResult
+from aiomegfile.lib.cacher import NullCacher, SmartCacher
+from aiomegfile.lib.combine_reader import AioCombineReader
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.compare import get_sync_type, is_same_file
 from aiomegfile.utils.path import PathLike, copyfileobj, fspath, split_uri
 
 __all__ = [
     "smart_abspath",
+    "smart_cache",
     "smart_copy",
     "smart_exists",
+    "smart_combine_open",
+    "smart_getmd5",
     "smart_glob",
+    "smart_glob_stat",
     "smart_iglob",
     "smart_isabs",
     "smart_isdir",
@@ -31,6 +37,7 @@ __all__ = [
     "smart_rename",
     "smart_scandir",
     "smart_scan",
+    "smart_scan_stat",
     "smart_save_as",
     "smart_save_content",
     "smart_save_text",
@@ -45,6 +52,7 @@ __all__ = [
     "smart_symlink",
     "smart_readlink",
     "smart_concat",
+    "SmartCacher",
 ]
 
 
@@ -96,6 +104,16 @@ async def smart_stat(path: PathLike, *, follow_symlinks: bool = False) -> StatRe
     :rtype: StatResult
     """
     return await SmartPath(path).stat(follow_symlinks=follow_symlinks)
+
+
+async def smart_lstat(path: PathLike) -> StatResult:
+    """Get the status of the path, not following symbolic links.
+
+    :param path: Path to stat.
+    :return: StatResult for the path.
+    :rtype: StatResult
+    """
+    return await SmartPath(path).lstat()
 
 
 async def smart_getsize(path: PathLike, *, follow_symlinks: bool = False) -> int:
@@ -208,6 +226,43 @@ async def smart_load_from(path: PathLike) -> T.BinaryIO:
     return io.BytesIO(content)
 
 
+def smart_combine_open(
+    path_glob: str, mode: str = "rb", open_func=smart_open
+) -> AioCombineReader:
+    """Open a unified reader that supports multi-file reading.
+
+    :param path_glob: Path pattern that may contain shell wildcard characters.
+    :param mode: Mode to open file, supports 'rb'.
+    :param open_func: Callable to open each file.
+    :return: Combined async reader.
+    :rtype: AioCombineReader
+    """
+    return AioCombineReader(
+        path_glob,
+        mode=mode,
+        open_func=open_func,
+        glob_func=smart_glob,
+    )
+
+
+async def smart_getmd5(
+    path: PathLike, recalculate: bool = False, followlinks: bool = False
+) -> str:
+    """Get the MD5 value of a file or directory.
+
+    :param path: File path to compute MD5.
+    :param recalculate: Calculate MD5 in real-time or return cached value when
+        supported by the filesystem.
+    :param followlinks: If True, follow symbolic links when calculating MD5.
+    :return: MD5 hex digest.
+    :rtype: str
+    """
+    return await SmartPath(path).md5(
+        recalculate=recalculate,
+        followlinks=followlinks,
+    )
+
+
 async def smart_load_content(
     path: PathLike, start: T.Optional[int] = None, stop: T.Optional[int] = None
 ) -> bytes:
@@ -271,10 +326,32 @@ async def smart_scan(
     :return: Async iterator of file paths.
     :rtype: T.AsyncIterator[str]
     """
-    async for entry in _iter_file_stats(
-        path, missing_ok=missing_ok, followlinks=followlinks
+    async for file_path in SmartPath(path).scan(
+        missing_ok=missing_ok,
+        followlinks=followlinks,
     ):
-        yield entry.path
+        yield file_path
+
+
+async def smart_scan_stat(
+    path: PathLike, *, missing_ok: bool = True, followlinks: bool = False
+) -> T.AsyncIterator[FileEntry]:
+    """Iteratively traverse only files in the given path with stats.
+
+    If the path is a file, yields that file entry only.
+
+    :param path: Given path.
+    :param missing_ok: If False and the path is missing, raise FileNotFoundError.
+    :param followlinks: Whether to follow symbolic links.
+    :return: Async iterator of FileEntry objects.
+    :rtype: T.AsyncIterator[FileEntry]
+    :raises FileNotFoundError: If no matches and missing_ok is False.
+    """
+    async for entry in SmartPath(path).scan_stat(
+        missing_ok=missing_ok,
+        followlinks=followlinks,
+    ):
+        yield entry
 
 
 async def smart_path_join(path: PathLike, *paths: PathLike) -> str:
@@ -406,6 +483,27 @@ async def smart_glob(path: PathLike, *, recursive: bool = True) -> T.List[str]:
     return [str(item) for item in results]
 
 
+async def smart_glob_stat(
+    pathname: PathLike, recursive: bool = True, missing_ok: bool = True
+) -> T.AsyncIterator[FileEntry]:
+    """Return entries whose paths match the glob pattern.
+
+    :param pathname: Path pattern that may contain shell wildcard characters.
+    :param recursive: If False, ``**`` will not search directory recursively.
+    :param missing_ok: If False and target path doesn't match any file,
+        raise FileNotFoundError.
+    :return: Async iterator of FileEntry objects.
+    :rtype: T.AsyncIterator[FileEntry]
+    :raises FileNotFoundError: If no matches and missing_ok is False.
+    """
+    async for entry in SmartPath(pathname).glob_stat(
+        pattern="",
+        recursive=recursive,
+        missing_ok=missing_ok,
+    ):
+        yield entry
+
+
 async def smart_iglob(
     path: PathLike, *, recursive: bool = True
 ) -> T.AsyncIterator[str]:
@@ -478,6 +576,36 @@ async def smart_save_text(path: PathLike, text: str) -> None:
     """
     async with smart_open(path, "w") as f:
         await f.write(text)
+
+
+def smart_cache(
+    path: PathLike, cacher: T.Type[SmartCacher] = SmartCacher, **options: T.Any
+) -> T.AsyncContextManager[str]:
+    """Return an async cacher for non-local paths.
+
+    Examples: ::
+
+        >>> import asyncio
+        >>> from aiomegfile import smart_cache
+        >>> async def main():
+        ...     async with smart_cache(
+        ...         "s3://mybucket/myfile.mp4",
+        ...         mode="r",
+        ...     ) as cache_path:
+        ...         print(cache_path)
+        >>> asyncio.run(main())
+
+    :param path: Path to cache.
+    :param cacher: Cacher class for non-local paths.
+    :param options: Optional arguments for cacher.
+    :return: Async cacher instance.
+    :rtype: T.AsyncContextManager[str]
+    """
+    path_str = fspath(path)
+    protocol, _, _ = split_uri(path_str)
+    if protocol == "file":
+        return NullCacher(path_str)
+    return cacher(path_str, **options)
 
 
 async def smart_relpath(path: PathLike, start: PathLike) -> str:

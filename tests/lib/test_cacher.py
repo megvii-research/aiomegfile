@@ -1,10 +1,10 @@
 import pytest
 
-from aiomegfile.lib.cacher import AioCacher
+from aiomegfile.lib.cacher import AioFileCacher
 
 
 class TestAioCacher:
-    """Tests for AioCacher."""
+    """Tests for AioFileCacher."""
 
     async def test_read_downloads_without_upload(self, tmp_path):
         """Read mode should download and skip upload."""
@@ -20,7 +20,7 @@ class TestAioCacher:
             upload_calls.append(path)
 
         cache_dir = tmp_path / "cache"
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "rb",
             download_fileobj=download,
@@ -46,7 +46,7 @@ class TestAioCacher:
             uploaded["data"] = await fileobj.read()
 
         cache_dir = tmp_path / "cache"
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "wb",
             download_fileobj=download,
@@ -69,7 +69,7 @@ class TestAioCacher:
             uploaded["data"] = await fileobj.read()
 
         cache_dir = tmp_path / "cache"
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "a+",
             download_fileobj=download,
@@ -96,7 +96,7 @@ class TestAioCacher:
         async def upload(fileobj, path):
             raise AssertionError("upload should not be called")
 
-        cacher = AioCacher(
+        cacher = AioFileCacher(
             "remote://file",
             "rb",
             download_fileobj=download,
@@ -117,7 +117,7 @@ class TestAioCacher:
         async def upload(fileobj, path):
             return None
 
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "wb",
             download_fileobj=download,
@@ -139,7 +139,7 @@ class TestAioCacher:
         async def upload(fileobj, path):
             raise AssertionError("upload should not be called")
 
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "rb",
             download_fileobj=download,
@@ -159,7 +159,7 @@ class TestAioCacher:
         async def upload(fileobj, path):
             raise AssertionError("upload should not be called")
 
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "rb",
             download_fileobj=download,
@@ -184,7 +184,7 @@ class TestAioCacher:
         async def upload(fileobj, path):
             uploaded["data"] = await fileobj.read()
 
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "wb+",
             download_fileobj=download,
@@ -212,7 +212,7 @@ class TestAioCacher:
         async def upload(fileobj, path):
             uploaded["data"] = await fileobj.read()
 
-        async with AioCacher(
+        async with AioFileCacher(
             "remote://file",
             "ab",
             download_fileobj=download,

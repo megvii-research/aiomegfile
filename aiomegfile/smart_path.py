@@ -1,10 +1,12 @@
 import asyncio
+import hashlib
+import inspect
 import os
 import typing as T
 from collections.abc import Sequence
 from functools import cached_property
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS
+from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
 from aiomegfile.interfaces import Access, FileEntry, StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
@@ -489,6 +491,74 @@ class SmartPath(os.PathLike):
         """
         return await self.stat(follow_symlinks=False)
 
+    async def getmtime(self, *, follow_symlinks: bool = False) -> float:
+        """Return the time of last modification of the file as a timestamp."""
+        stat_result = await self.stat(follow_symlinks=follow_symlinks)
+        return stat_result.st_mtime
+
+    async def getsize(self, *, follow_symlinks: bool = False) -> int:
+        """Return the size of the file in bytes."""
+        stat_result = await self.stat(follow_symlinks=follow_symlinks)
+        return stat_result.st_size
+
+    async def md5(self, recalculate: bool = False, followlinks: bool = False) -> str:
+        """Return the MD5 checksum for the path.
+
+        If the filesystem provides an optimized ``md5`` implementation, it will be
+        used. Otherwise, this method reads file contents to compute the checksum,
+        matching the behavior of megfile's ``FSPath.md5``.
+
+        :param recalculate: Whether to force recalculation when filesystem supports
+            cached MD5 metadata.
+        :param followlinks: Whether to follow symbolic links when supported.
+        :return: MD5 hex digest.
+        :rtype: str
+        """
+        md5_func = getattr(self.filesystem, "md5", None)
+        if callable(md5_func):
+            result = md5_func(
+                self._path,
+                recalculate=recalculate,
+                followlinks=followlinks,
+            )
+            if inspect.isawaitable(result):
+                return await result
+            return T.cast(str, result)
+        return await self._default_md5(recalculate=recalculate, followlinks=followlinks)
+
+    async def _default_md5(
+        self, recalculate: bool = False, followlinks: bool = False
+    ) -> str:
+        """Compute MD5 checksum by reading file contents.
+
+        :param recalculate: Unused, kept for compatibility.
+        :param followlinks: Unused, kept for compatibility.
+        :return: MD5 hex digest.
+        :rtype: str
+        """
+        if await self.is_dir(followlinks=True):
+            hash_md5 = hashlib.md5()  # nosec
+            names: T.List[str] = []
+            async for entry in self.iterdir():
+                names.append(entry.name)
+            for name in sorted(names):
+                child = await self.joinpath(name)
+                child_md5 = await child.md5(
+                    recalculate=recalculate,
+                    followlinks=followlinks,
+                )
+                hash_md5.update(child_md5.encode())
+            return hash_md5.hexdigest()
+
+        hash_md5 = hashlib.md5()  # nosec
+        async with self.open("rb") as fileobj:
+            while True:
+                chunk = await fileobj.read(READER_BLOCK_SIZE)
+                if not chunk:
+                    break
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
     async def match(
         self, pattern: str, *, case_sensitive: T.Optional[bool] = None
     ) -> bool:
@@ -655,6 +725,80 @@ class SmartPath(os.PathLike):
                     continue
                 pending.append((entry_path, is_symlink))
 
+    async def scan(
+        self, missing_ok: bool = True, followlinks: bool = False
+    ) -> T.AsyncIterator[str]:
+        """
+        Iteratively traverse only files in given directory, in alphabetical order.
+        Every iteration on generator yields a path string.
+
+        If path is a file path, yields the file only
+        If path is a non-existent path, return an empty generator
+        If path is a bucket path, return all file paths in the bucket
+
+        :param missing_ok: If False and there's no file in the directory,
+            raise FileNotFoundError.
+        :param followlinks: Whether to follow symbolic links.
+        :raises FileNotFoundError: If no matches and missing_ok is False.
+        :return: Async iterator of file path strings.
+        :rtype: T.AsyncIterator[str]
+        """
+        async for file_entry in self.scan_stat(
+            missing_ok=missing_ok,
+            followlinks=followlinks,
+        ):
+            yield file_entry.path
+
+    async def scan_stat(
+        self, missing_ok: bool = True, followlinks: bool = False
+    ) -> T.AsyncIterator[FileEntry]:
+        """
+        Iteratively traverse only files in given directory, in alphabetical order.
+        Every iteration on generator yields a tuple of path string and file stat.
+
+        :param missing_ok: If False and there's no file in the directory,
+            raise FileNotFoundError.
+        :param followlinks: Whether to follow symbolic links.
+        :raises FileNotFoundError: If no matches and missing_ok is False.
+        :return: Async iterator of FileEntry objects.
+        :rtype: T.AsyncIterator[FileEntry]
+        """
+
+        async def _iter_entries() -> T.AsyncIterator[FileEntry]:
+            async with self.filesystem.scanfile(self._path) as iterator:
+                async for entry in iterator:
+                    if followlinks and entry.is_symlink():
+                        resolved_path = await self.filesystem.readlink(entry.path)
+                        resolved_name = os.path.basename(resolved_path)
+                        resolved_stat = await self.filesystem.stat(
+                            resolved_path, followlinks=followlinks
+                        )
+                        yield FileEntry(
+                            name=resolved_name,
+                            path=self.filesystem.build_uri(resolved_path),
+                            stat=resolved_stat,
+                        )
+                        continue
+                    yield FileEntry(
+                        name=entry.name,
+                        path=self.filesystem.build_uri(entry.path),
+                        stat=entry.stat,
+                    )
+
+        iterator = _iter_entries()
+        if missing_ok:
+            async for entry in iterator:
+                yield entry
+            return
+
+        try:
+            first = await anext(iterator)
+        except StopAsyncIteration as exc:
+            raise FileNotFoundError(f"No match any file in: {fspath(self)}") from exc
+        yield first
+        async for entry in iterator:
+            yield entry
+
     async def iglob(
         self, pattern: str, recursive: bool = True
     ) -> T.AsyncIterator["SmartPath"]:
@@ -683,6 +827,68 @@ class SmartPath(os.PathLike):
             path = os.path.join(self._path, pattern)
         async for path in iglob(path, fs=fs_func, recursive=recursive):
             yield self.from_uri(self.filesystem.build_uri(path))
+
+    async def glob_stat(
+        self, pattern: str, recursive: bool = True, missing_ok: bool = True
+    ) -> T.AsyncIterator[FileEntry]:
+        """Return entries whose paths match the glob pattern with stats.
+
+        :param pattern: Glob pattern to match relative to this path.
+        :param recursive: If False, `**` will not search directory recursively.
+        :param missing_ok: If False and target path doesn't match any file,
+            raise FileNotFoundError.
+        :return: Async iterator of matching FileEntry objects.
+        :rtype: T.AsyncIterator[FileEntry]
+        :raises FileNotFoundError: If no matches and missing_ok is False.
+        """
+        if hasattr(self.filesystem, "glob_stat"):
+            glob_path = self._path
+            if pattern:
+                glob_path = os.path.join(self._path, pattern)
+            iterator = self.filesystem.glob_stat(
+                glob_path,
+                recursive=recursive,
+                missing_ok=missing_ok,
+            )
+            async for file_entry in iterator:
+                entry_path = file_entry.path
+                if "://" not in entry_path:
+                    entry_path = self.filesystem.build_uri(entry_path)
+                yield FileEntry(
+                    name=file_entry.name,
+                    path=entry_path,
+                    stat=file_entry.stat,
+                )
+            return
+
+        async def _iter_entries() -> T.AsyncIterator[FileEntry]:
+            async for path_obj in self.iglob(pattern=pattern, recursive=recursive):
+                stat_result = await path_obj.lstat()
+                yield FileEntry(
+                    name=path_obj.name,
+                    path=fspath(path_obj),
+                    stat=stat_result,
+                )
+
+        iterator = _iter_entries()
+        if missing_ok:
+            async for entry in iterator:
+                yield entry
+            return
+
+        try:
+            first = await anext(iterator)
+        except StopAsyncIteration as exc:
+            glob_path = self._path
+            if pattern:
+                glob_path = os.path.join(self._path, pattern)
+            raise FileNotFoundError(
+                f"No match file: {self.filesystem.build_uri(glob_path)}"
+            ) from exc
+
+        yield first
+        async for entry in iterator:
+            yield entry
 
     async def glob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern.

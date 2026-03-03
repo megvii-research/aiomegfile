@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import io
 import logging
 import os
@@ -35,7 +36,7 @@ from aiomegfile.interfaces import (
     FileEntry,
     StatResult,
 )
-from aiomegfile.lib.cacher import AioCacher
+from aiomegfile.lib.cacher import AioFileCacher
 from aiomegfile.lib.fnmatch import translate
 from aiomegfile.lib.glob import has_magic, has_magic_ignore_brace, ungloblize
 from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
@@ -578,6 +579,69 @@ class S3FileSystem(BaseFileSystem):
             extra=content,
         )
         return stat_record
+
+    async def md5(
+        self, path: str, recalculate: bool = False, followlinks: bool = False
+    ) -> str:
+        """Return the MD5 checksum for an S3 path.
+
+        :param path: S3 path to compute MD5.
+        :param recalculate: If True, recompute MD5 by reading the object.
+        :param followlinks: If True, follow symbolic links.
+        :return: MD5 hex digest.
+        :rtype: str
+        """
+        bucket, _ = parse_s3_path(path)
+        if not bucket:
+            raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
+
+        stat = await self.stat(path, followlinks=False)
+        if followlinks and stat.islnk:
+            target_path = await self.readlink(path)
+            return await self.md5(
+                target_path,
+                recalculate=recalculate,
+                followlinks=followlinks,
+            )
+
+        if stat.isdir:
+            hash_md5 = hashlib.md5()  # nosec
+            names: T.List[str] = []
+            async with self.scandir(path) as iterator:
+                async for entry in iterator:
+                    names.append(entry.name)
+            for name in sorted(names):
+                child_path = f"{path.rstrip('/')}/{name}" if name else path
+                child_md5 = await self.md5(
+                    child_path,
+                    recalculate=recalculate,
+                    followlinks=followlinks,
+                )
+                hash_md5.update(child_md5.encode())
+            return hash_md5.hexdigest()
+
+        if recalculate:
+            target_path = path
+            if followlinks:
+                try:
+                    target_path = await self.readlink(path)
+                except (S3NotALinkError, S3FileNotFoundError, S3IsADirectoryError):
+                    pass
+            hash_md5 = hashlib.md5()  # nosec
+            async with self.open(target_path, "rb") as fileobj:
+                while True:
+                    chunk = await fileobj.read(READER_BLOCK_SIZE)
+                    if not chunk:
+                        break
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+
+        etag = ""
+        if stat.extra and isinstance(stat.extra, dict):
+            etag = stat.extra.get("ETag", "")
+        if etag.startswith('"') and etag.endswith('"'):
+            etag = etag[1:-1]
+        return etag
 
     async def _get_dir_stat(self, path: str) -> StatResult:
         """
@@ -1212,7 +1276,7 @@ class S3FileSystem(BaseFileSystem):
             raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
 
         if "a" in mode or "+" in mode:
-            return AioCacher(
+            return AioFileCacher(
                 path,
                 mode,
                 download_fileobj=self._download_fileobj,

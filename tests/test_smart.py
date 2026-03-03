@@ -1,3 +1,4 @@
+import hashlib
 import io
 import os
 
@@ -9,11 +10,15 @@ from aiomegfile.interfaces import FILE_SYSTEMS, Access, BaseFileSystem
 from aiomegfile.smart import (
     smart_abspath,
     smart_access,
+    smart_cache,
+    smart_combine_open,
     smart_concat,
     smart_copy,
     smart_copy_file,
     smart_exists,
+    smart_getmd5,
     smart_glob,
+    smart_glob_stat,
     smart_iglob,
     smart_isabs,
     smart_isdir,
@@ -23,6 +28,7 @@ from aiomegfile.smart import (
     smart_load_content,
     smart_load_from,
     smart_load_text,
+    smart_lstat,
     smart_makedirs,
     smart_move,
     smart_open,
@@ -36,6 +42,7 @@ from aiomegfile.smart import (
     smart_save_content,
     smart_save_text,
     smart_scan,
+    smart_scan_stat,
     smart_scandir,
     smart_stat,
     smart_symlink,
@@ -44,6 +51,7 @@ from aiomegfile.smart import (
     smart_unlink,
     smart_walk,
 )
+from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.path import split_uri
 
 _aws_access_key_id = "testing"
@@ -183,6 +191,83 @@ async def test_smart_open_read_write(tmp_path):
         assert await f.read() == "hello"
 
 
+async def test_smart_combine_open_reads_across_files(tmp_path):
+    """smart_combine_open should read files sequentially."""
+    first_path = tmp_path / "a.bin"
+    second_path = tmp_path / "b.bin"
+    first_path.write_bytes(b"hello")
+    second_path.write_bytes(b"world")
+
+    pattern = os.path.join(str(tmp_path), "*.bin")
+    async with smart_combine_open(pattern, "rb") as reader:
+        data = await reader.read()
+
+    assert data == b"helloworld"
+
+
+async def test_smart_combine_open_readline_across_boundary(tmp_path):
+    """smart_combine_open should read lines across file boundaries."""
+    first_path = tmp_path / "a.txt"
+    second_path = tmp_path / "b.txt"
+    first_path.write_bytes(b"hello")
+    second_path.write_bytes(b"world\nnext")
+
+    pattern = os.path.join(str(tmp_path), "*.txt")
+    async with smart_combine_open(pattern, "rb") as reader:
+        line = await reader.readline()
+
+    assert line == b"helloworld\n"
+
+
+async def test_smart_combine_open_seek(tmp_path):
+    """smart_combine_open should support seeking."""
+    first_path = tmp_path / "a.data"
+    second_path = tmp_path / "b.data"
+    first_path.write_bytes(b"abc")
+    second_path.write_bytes(b"def")
+
+    pattern = os.path.join(str(tmp_path), "*.data")
+    async with smart_combine_open(pattern, "rb") as reader:
+        await reader.seek(4)
+        data = await reader.read()
+
+    assert data == b"ef"
+
+
+async def test_smart_combine_open_empty_glob(tmp_path):
+    """smart_combine_open should return empty data for empty glob."""
+    pattern = os.path.join(str(tmp_path), "*.missing")
+    async with smart_combine_open(pattern, "rb") as reader:
+        data = await reader.read()
+
+    assert data == b""
+
+
+async def test_smart_getmd5_file(tmp_path):
+    """smart_getmd5 should return file MD5."""
+    data = b"md5-content"
+    file_path = tmp_path / "hash.bin"
+    file_path.write_bytes(data)
+
+    expected = hashlib.md5(data).hexdigest()  # nosec
+    assert await smart_getmd5(file_path) == expected
+    assert await smart_getmd5(file_path, recalculate=True) == expected
+
+
+async def test_smart_getmd5_directory(tmp_path):
+    """smart_getmd5 should return directory MD5 based on children."""
+    dir_path = tmp_path / "dir"
+    dir_path.mkdir()
+    (dir_path / "b.txt").write_bytes(b"b")
+    (dir_path / "a.txt").write_bytes(b"a")
+
+    md5_a = hashlib.md5(b"a").hexdigest()  # nosec
+    md5_b = hashlib.md5(b"b").hexdigest()  # nosec
+    expected = hashlib.md5(f"{md5_a}{md5_b}".encode()).hexdigest()  # nosec
+
+    assert await smart_getmd5(dir_path) == expected
+
+
 async def test_smart_access_local(tmp_path):
     """Test smart_access on local filesystem paths."""
     file_path = tmp_path / "access.txt"
@@ -213,6 +298,37 @@ async def test_smart_access_s3(s3_filesystem):
     assert await smart_access(path, Access.WRITE) is True
 
 
+async def test_smart_getmd5_s3_etag(s3_filesystem):
+    """smart_getmd5 should return ETag for S3 objects."""
+    await _create_bucket(s3_filesystem)
+    key = "md5/object.txt"
+    data = b"s3-md5"
+    await _put_object(s3_filesystem, key, data)
+
+    path = f"s3://{_bucket_name}/{key}"
+    expected = hashlib.md5(data).hexdigest()  # nosec
+
+    assert await smart_getmd5(path) == expected
+    assert await smart_getmd5(path, recalculate=True) == expected
+
+
+async def test_smart_glob_stat_s3(s3_filesystem):
+    """smart_glob_stat should return entries for S3 paths."""
+    await _create_bucket(s3_filesystem)
+    key = "glob/stat.txt"
+    data = b"payload"
+    await _put_object(s3_filesystem, key, data)
+
+    pattern = f"s3://{_bucket_name}/glob/*.txt"
+    entries = []
+    async for entry in smart_glob_stat(pattern):
+        entries.append(entry)
+
+    assert {entry.name for entry in entries} == {"stat.txt"}
+    assert any(entry.path.startswith("s3://") for entry in entries)
+    assert {entry.stat.st_size for entry in entries} == {len(data)}
+
+
 async def test_smart_save_as_and_load_text(tmp_path):
     """Test smart_save_as writes stream content and smart_load_text reads it."""
     file_path = tmp_path / "stream.txt"
@@ -233,6 +349,48 @@ async def test_smart_save_content_and_text(tmp_path):
 
     assert bytes_path.read_bytes() == b"abc"
     assert text_path.read_text() == "hello"
+
+
+async def test_smart_cache_local(tmp_path):
+    """Test smart_cache returns local path without copying."""
+    file_path = tmp_path / "local.txt"
+    file_path.write_text("data")
+
+    async with smart_cache(file_path, mode="r") as cache_path:
+        assert cache_path == str(file_path)
+        assert os.path.exists(cache_path)
+        with open(cache_path, "r", encoding="utf-8") as handle:
+            assert handle.read() == "data"
+
+    assert file_path.exists()
+
+
+async def test_smart_cache_s3_read(tmp_path, s3_filesystem):
+    """Test smart_cache downloads remote file and cleans up."""
+    await _create_bucket(s3_filesystem)
+    key = "cache/read.txt"
+    await _put_object(s3_filesystem, key, b"content")
+    s3_path = f"s3://{_bucket_name}/{key}"
+
+    async with smart_cache(s3_path, mode="r") as cache_path:
+        assert os.path.exists(cache_path)
+        with open(cache_path, "rb") as handle:
+            assert handle.read() == b"content"
+
+    assert not os.path.exists(cache_path)
+
+
+async def test_smart_cache_s3_write(tmp_path, s3_filesystem):
+    """Test smart_cache uploads local changes for write mode."""
+    await _create_bucket(s3_filesystem)
+    s3_path = f"s3://{_bucket_name}/cache/write.txt"
+
+    async with smart_cache(s3_path, mode="w") as cache_path:
+        with open(cache_path, "wb") as handle:
+            handle.write(b"new-data")
+
+    assert await smart_load_content(s3_path) == b"new-data"
+    assert not os.path.exists(cache_path)
 
 
 async def test_smart_scan_and_isabs_abspath(tmp_path):
@@ -257,6 +415,75 @@ async def test_smart_scan_and_isabs_abspath(tmp_path):
     assert await smart_isabs(abs_path) is True
     assert await smart_isabs("relative/path") is False
     assert await smart_isabs("s3://bucket/key") is True
+
+
+async def test_smart_scan_stat(tmp_path):
+    """Test smart_scan_stat yields entries with stats."""
+    root = tmp_path / "scan_stat_root"
+    root.mkdir()
+    file_a = root / "a.txt"
+    file_b = root / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("a")
+    file_b.write_text("bb")
+
+    entries = []
+    async for entry in smart_scan_stat(root):
+        entries.append(entry)
+
+    names = {entry.name for entry in entries}
+    sizes = {entry.stat.st_size for entry in entries}
+    assert names == {"a.txt", "b.txt"}
+    assert sizes == {1, 2}
+
+
+async def test_smart_scan_stat_missing_ok_false(tmp_path):
+    """smart_scan_stat should raise when missing_ok is False."""
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_scan_stat(empty_dir, missing_ok=False):
+            pass
+
+
+async def test_smartpath_scan_and_scan_stat(tmp_path):
+    """SmartPath.scan and SmartPath.scan_stat should yield files."""
+    root = tmp_path / "sp_scan_root"
+    root.mkdir()
+    file_a = root / "a.txt"
+    file_b = root / "sub" / "b.txt"
+    file_b.parent.mkdir()
+    file_a.write_text("a")
+    file_b.write_text("bb")
+
+    smart_root = SmartPath(root)
+
+    scanned = []
+    async for path in smart_root.scan():
+        scanned.append(path)
+
+    assert str(file_a) in scanned
+    assert str(file_b) in scanned
+
+    entries = []
+    async for entry in smart_root.scan_stat():
+        entries.append(entry)
+
+    names = {entry.name for entry in entries}
+    sizes = {entry.stat.st_size for entry in entries}
+    assert names == {"a.txt", "b.txt"}
+    assert sizes == {1, 2}
+
+
+async def test_smartpath_scan_missing_ok_false(tmp_path):
+    """SmartPath.scan should raise when missing_ok is False."""
+    empty_dir = tmp_path / "sp_empty"
+    empty_dir.mkdir()
+    smart_root = SmartPath(empty_dir)
+
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_root.scan(missing_ok=False):
+            pass
 
 
 async def test_smart_copy_file_callback(tmp_path):
@@ -591,6 +818,22 @@ async def test_smart_stat(tmp_path):
     assert result.st_size > 0
 
 
+async def test_smart_lstat_symlink(tmp_path):
+    """smart_lstat should not follow symlinks."""
+    target_path = tmp_path / "target.txt"
+    target_path.write_text("data")
+    link_path = tmp_path / "link.txt"
+    os.symlink(target_path, link_path)
+
+    lstat_result = await smart_lstat(link_path)
+    stat_result = await smart_stat(link_path, follow_symlinks=True)
+
+    assert lstat_result.islnk is True
+    assert lstat_result.isdir is False
+    assert stat_result.islnk is False
+    assert stat_result.st_size == target_path.stat().st_size
+
+
 async def test_smart_glob_and_iglob(tmp_path):
     (tmp_path / "file1.txt").write_text("a")
     (tmp_path / "file2.txt").write_text("b")
@@ -604,6 +847,32 @@ async def test_smart_glob_and_iglob(tmp_path):
     async for item in smart_iglob(pattern):
         collected.append(item)
     assert {os.path.basename(path) for path in collected} == {"file1.txt", "file2.txt"}
+
+
+async def test_smart_glob_stat(tmp_path):
+    """smart_glob_stat should return FileEntry objects with stats."""
+    first_path = tmp_path / "file1.txt"
+    second_path = tmp_path / "file2.txt"
+    first_path.write_text("a")
+    second_path.write_text("bb")
+
+    pattern = os.path.join(str(tmp_path), "*.txt")
+    entries = []
+    async for entry in smart_glob_stat(pattern):
+        entries.append(entry)
+
+    names = {entry.name for entry in entries}
+    sizes = {entry.stat.st_size for entry in entries}
+    assert names == {"file1.txt", "file2.txt"}
+    assert sizes == {1, 2}
+
+
+async def test_smart_glob_stat_missing_ok_false(tmp_path):
+    """smart_glob_stat should raise when missing_ok is False."""
+    pattern = os.path.join(str(tmp_path), "*.missing")
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_glob_stat(pattern, missing_ok=False):
+            pass
 
 
 async def test_smart_walk(tmp_path):
