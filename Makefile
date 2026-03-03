@@ -3,7 +3,7 @@ VERSION := $(shell cat ${PACKAGE}/__version__.py | sed -n -E 's/.*=//; s/ //g; s
 
 test:
 	pdm run pytest \
-		--cov=${PACKAGE} --cov-config=pyproject.toml --no-cov-on-fail \
+		--cov=${PACKAGE} --cov-config=pyproject.toml --cov-report=html:html_cov/ --cov-report=term-missing --cov-report=xml --no-cov-on-fail \
 		--durations=10 \
 		tests/
 
