@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import inspect
+import io
 import os
 import typing as T
 from collections.abc import Sequence
@@ -162,6 +163,45 @@ class SmartPath(os.PathLike):
         """Return a string representation of the path with forward slashes (/)"""
         return fspath(self)
 
+    async def expanduser(self) -> "SmartPath":
+        """Return a new path with expanded ``~`` and ``~user`` constructs.
+
+        :return: Expanded SmartPath.
+        :rtype: SmartPath
+        :raises NotImplementedError: If protocol is not ``file``.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'expanduser' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+        return self.from_uri(os.path.expanduser(fspath(self)))
+
+    async def home(self) -> "SmartPath":
+        """Return the home directory path.
+
+        :return: Home directory SmartPath.
+        :rtype: SmartPath
+        :raises NotImplementedError: If protocol is not ``file``.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'home' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+        return self.from_uri(os.path.expanduser("~"))
+
+    async def cwd(self) -> "SmartPath":
+        """Return current working directory.
+
+        :return: Current working directory SmartPath.
+        :rtype: SmartPath
+        :raises NotImplementedError: If protocol is not ``file``.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'cwd' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+        return self.from_uri(os.getcwd())
+
     @classmethod
     def from_uri(cls, uri: PathLike) -> "SmartPath":
         """Return new instance of this class
@@ -254,6 +294,32 @@ class SmartPath(os.PathLike):
 
         raise ValueError("%r does not start with %r" % (path, other))
 
+    async def relpath(self, start: PathLike) -> str:
+        """Return the relative path from ``start`` to this path.
+
+        :param start: Base path to compute the relative path against.
+        :return: Relative path string.
+        :rtype: str
+        :raises TypeError: If ``start`` is not provided.
+        :raises ValueError: If this path is not under ``start``.
+        """
+        if start is None:
+            raise TypeError("start is required")
+        return await self.relative_to(start)
+
+    async def is_absolute(self) -> bool:
+        """Return True if the path is absolute.
+
+        :return: True if path is absolute, otherwise False.
+        :rtype: bool
+        """
+        if hasattr(self.filesystem, "is_absolute"):
+            return await self.filesystem.is_absolute(self._path)
+        path_str = fspath(self)
+        if "://" in path_str:
+            return True
+        return os.path.isabs(path_str)
+
     async def with_name(self, name: str) -> "SmartPath":
         """Return a new path with the name changed.
 
@@ -301,6 +367,15 @@ class SmartPath(os.PathLike):
                 break
         return await path.absolute()
 
+    async def realpath(self) -> str:
+        """Return the canonical path of the path.
+
+        :return: Canonical path string.
+        :rtype: str
+        """
+        result = await self.resolve()
+        return str(result)
+
     async def read_bytes(self) -> bytes:
         """Return the binary contents of the pointed-to file as a bytes object.
 
@@ -308,6 +383,31 @@ class SmartPath(os.PathLike):
         """
         async with self.open(mode="rb") as f:
             return await f.read()  # pytype: disable=bad-return-type
+
+    async def load(self) -> T.BinaryIO:
+        """Read all content in binary into memory.
+
+        Caller is responsible for closing the returned BinaryIO.
+
+        :return: BinaryIO containing file content.
+        :rtype: T.BinaryIO
+        """
+        content = await self.read_bytes()
+        return io.BytesIO(content)
+
+    async def save(self, file_object: T.BinaryIO) -> None:
+        """Write an opened binary stream to the path.
+
+        The input stream will not be closed.
+
+        :param file_object: Stream to be read.
+        """
+        async with self.open("wb") as f:
+            while True:
+                chunk = file_object.read(16 * 1024)
+                if not chunk:
+                    break
+                await f.write(chunk)
 
     async def read_text(
         self,
@@ -491,6 +591,77 @@ class SmartPath(os.PathLike):
         """
         return await self.stat(follow_symlinks=False)
 
+    async def chmod(self, mode: int, *, follow_symlinks: bool = True) -> None:
+        """Change the permission bits of the path.
+
+        :param mode: New permission bits.
+        :param follow_symlinks: Whether to follow symbolic links.
+        :raises NotImplementedError: If protocol is not ``file``.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'chmod' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+
+        await asyncio.to_thread(
+            os.chmod, self._path, mode, follow_symlinks=follow_symlinks
+        )
+
+    async def lchmod(self, mode: int) -> None:
+        """Change permissions of a symbolic link without following it.
+
+        :param mode: New permission bits.
+        """
+        await self.chmod(mode=mode, follow_symlinks=False)
+
+    async def owner(self) -> str:
+        """Return the name of the user owning the file.
+
+        :return: Owner username.
+        :rtype: str
+        :raises NotImplementedError: If protocol is not ``file`` or platform
+            does not support user lookups.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'owner' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+        import pathlib
+
+        path = pathlib.Path(self._path)
+        return path.owner()
+
+    async def group(self) -> str:
+        """Return the name of the group owning the file.
+
+        :return: Group name.
+        :rtype: str
+        :raises NotImplementedError: If protocol is not ``file`` or platform
+            does not support group lookups.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'group' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+        import pathlib
+
+        return pathlib.Path(self._path).group()
+
+    async def utime(
+        self, atime: T.Union[float, int], mtime: T.Union[float, int]
+    ) -> None:
+        """Set the access and modified times of the file.
+
+        :param atime: The access time to be set.
+        :param mtime: The modification time to be set.
+        :raises NotImplementedError: If protocol is not ``file``.
+        """
+        if self.filesystem.protocol != "file":
+            raise NotImplementedError(
+                f"'utime' is unsupported on '{self.filesystem.protocol}' protocol"
+            )
+        await asyncio.to_thread(os.utime, self._path, (atime, mtime))
+
     async def getmtime(self, *, follow_symlinks: bool = False) -> float:
         """Return the time of last modification of the file as a timestamp."""
         stat_result = await self.stat(follow_symlinks=follow_symlinks)
@@ -625,6 +796,7 @@ class SmartPath(os.PathLike):
         encoding: T.Optional[str] = None,
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
+        **kwargs: T.Any,
     ) -> T.AsyncContextManager:
         """Open the file with mode.
 
@@ -633,6 +805,7 @@ class SmartPath(os.PathLike):
         :param encoding: Text encoding in text mode.
         :param errors: Error handling strategy.
         :param newline: Newline handling policy in text mode.
+        :param kwargs: Extra open options for compatibility with megfile.
         """
         return self.filesystem.open(
             self._path,
@@ -641,6 +814,7 @@ class SmartPath(os.PathLike):
             encoding=encoding,
             errors=errors,
             newline=newline,
+            **kwargs,
         )
 
     async def walk(
@@ -800,12 +974,14 @@ class SmartPath(os.PathLike):
             yield entry
 
     async def iglob(
-        self, pattern: str, recursive: bool = True
+        self, pattern: str, recursive: bool = True, missing_ok: bool = True
     ) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern.
 
         :param pattern: Glob pattern to match relative to this path.
         :param recursive: If False, `**` will not search directory recursively.
+        :param missing_ok: If False and target path doesn't match any file,
+            raise FileNotFoundError.
         :return: Async iterator of matching SmartPath objects.
         """
 
@@ -813,9 +989,19 @@ class SmartPath(os.PathLike):
             iterator = self.filesystem.glob_stat(
                 os.path.join(self._path, pattern),
                 recursive=recursive,
+                missing_ok=missing_ok,
             )
+            matched = False
             async for file_entry in iterator:
+                matched = True
                 yield self.from_uri(self.filesystem.build_uri(file_entry.path))
+            if not matched and not missing_ok:
+                glob_path = self._path
+                if pattern:
+                    glob_path = os.path.join(self._path, pattern)
+                raise FileNotFoundError(
+                    f"No match file: {self.filesystem.build_uri(glob_path)}"
+                )
             return
         fs_func = FSFunc(
             exists=self.filesystem.exists,
@@ -825,8 +1011,17 @@ class SmartPath(os.PathLike):
         path = self._path
         if pattern:
             path = os.path.join(self._path, pattern)
+        matched = False
         async for path in iglob(path, fs=fs_func, recursive=recursive):
+            matched = True
             yield self.from_uri(self.filesystem.build_uri(path))
+        if not matched and not missing_ok:
+            glob_path = self._path
+            if pattern:
+                glob_path = os.path.join(self._path, pattern)
+            raise FileNotFoundError(
+                f"No match file: {self.filesystem.build_uri(glob_path)}"
+            )
 
     async def glob_stat(
         self, pattern: str, recursive: bool = True, missing_ok: bool = True
@@ -890,15 +1085,23 @@ class SmartPath(os.PathLike):
         async for entry in iterator:
             yield entry
 
-    async def glob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
+    async def glob(
+        self, pattern: str, recursive: bool = True, missing_ok: bool = True
+    ) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern.
 
         :param pattern: Glob pattern to match relative to this path.
         :param recursive: If False, `**` will not search directory recursively.
+        :param missing_ok: If False and target path doesn't match any file,
+            raise FileNotFoundError.
         :return: List of matching SmartPath instances.
         """
         result = []
-        async for item in self.iglob(pattern=pattern, recursive=recursive):
+        async for item in self.iglob(
+            pattern=pattern,
+            recursive=recursive,
+            missing_ok=missing_ok,
+        ):
             result.append(item)
         return result
 
@@ -976,19 +1179,28 @@ class SmartPath(os.PathLike):
         self,
         target: PathLike,
         *,
+        callback: T.Optional[T.Callable[[int], None]] = None,
         follow_symlinks: bool = False,
+        overwrite: bool = True,
     ) -> "SmartPath":
         """
         copy file
 
         :param target: Given destination path
+        :param callback: Called periodically during copy with bytes written.
         :param follow_symlinks: whether or not follow symbolic link
+        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath.
         """
 
         if follow_symlinks:
             src_path = await self.resolve()
-            return await src_path.copy(target=target, follow_symlinks=False)
+            return await src_path.copy(
+                target=target,
+                callback=callback,
+                follow_symlinks=False,
+                overwrite=overwrite,
+            )
 
         target_path = self.from_uri(target)
 
@@ -1010,8 +1222,13 @@ class SmartPath(os.PathLike):
                     )
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
+                    if not overwrite and await current_target_path.exists():
+                        return
                     await current_target_path.parent.mkdir(parents=True, exist_ok=True)
-                    await current_src_path.copy_file(target=current_target_path)
+                    await current_src_path.copy_file(
+                        target=current_target_path,
+                        callback=callback,
+                    )
 
             async def _drain_copy_tasks(
                 tasks: set[asyncio.Task[None]],
@@ -1051,25 +1268,36 @@ class SmartPath(os.PathLike):
                     raise
             return target_path
 
-        await self.copy_file(target=target_path)
+        if not overwrite and await target_path.exists():
+            return target_path
+        await self.copy_file(target=target_path, callback=callback)
         return target_path
 
     async def copy_into(
         self,
         target_dir: PathLike,
         *,
+        callback: T.Optional[T.Callable[[int], None]] = None,
         follow_symlinks: bool = False,
+        overwrite: bool = True,
     ) -> "SmartPath":
         """
         copy file or directory into dst directory
 
         :param target_dir: Given destination path
+        :param callback: Called periodically during copy with bytes written.
         :param follow_symlinks: whether or not follow symbolic link
+        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
         await target.parent.mkdir(parents=True, exist_ok=True)
-        await self.copy(target=target, follow_symlinks=follow_symlinks)
+        await self.copy(
+            target=target,
+            callback=callback,
+            follow_symlinks=follow_symlinks,
+            overwrite=overwrite,
+        )
         return target
 
     async def _move(self, target: PathLike, overwrite: bool = False) -> "SmartPath":
@@ -1077,6 +1305,7 @@ class SmartPath(os.PathLike):
         move file only
 
         :param target: Given destination path
+        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath after move.
         """
         target_path = self.from_uri(target)
@@ -1086,42 +1315,46 @@ class SmartPath(os.PathLike):
                 self._path, dst_path=target_path._path, overwrite=overwrite
             )
         else:
-            if overwrite and await target_path.exists():
+            if not overwrite and await target_path.exists():
                 raise FileExistsError(f"File exists: {fspath(target_path)}")
-            await self.copy(target=target_path)
+            await self.copy(target=target_path, overwrite=overwrite)
             await self.filesystem.remove(self._path)
         return target_path
 
-    async def rename(self, target: PathLike) -> "SmartPath":
+    async def rename(self, target: PathLike, overwrite: bool = True) -> "SmartPath":
         """
         rename file
 
         :param target: Given destination path
+        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath after rename.
-        :raises FileExistsError: If destination exists.
+        :raises FileExistsError: If destination exists and overwrite is False.
         """
-        return await self._move(target=target, overwrite=False)
+        return await self._move(target=target, overwrite=overwrite)
 
-    async def replace(self, target: PathLike) -> "SmartPath":
+    async def replace(self, target: PathLike, overwrite: bool = True) -> "SmartPath":
         """
         move file
 
         :param target: Given destination path
+        :param overwrite: whether or not overwrite file when exists
         :return: Destination SmartPath after replace.
         """
-        return await self._move(target=target, overwrite=True)
+        return await self._move(target=target, overwrite=overwrite)
 
     async def move(
         self,
         target: PathLike,
+        overwrite: bool = True,
     ) -> "SmartPath":
         """
         move file
 
         :param target: Given destination path
+        :param overwrite: whether or not overwrite file when exists
         :return: Destination SmartPath after move.
         """
-        return await self.replace(target=target)
+        return await self._move(target=target, overwrite=overwrite)
 
     async def move_into(
         self,
@@ -1136,13 +1369,31 @@ class SmartPath(os.PathLike):
         target = await self.from_uri(target_dir).joinpath(self.name)
         return await self.move(target=target)
 
-    async def symlink_to(self, target: PathLike) -> None:
+    async def symlink(self, dst_path: PathLike) -> None:
+        """Create a symbolic link pointing to this path named ``dst_path``.
+
+        :param dst_path: Path of the symlink to create.
+        :raises TypeError: If filesystems differ.
+        """
+        target_path = self.from_uri(dst_path)
+        if not target_path.filesystem.same_endpoint(self.filesystem):
+            raise TypeError("'symlink' not supported between different filesystems")
+        return await self.filesystem.symlink(
+            src_path=self._path,
+            dst_path=target_path._path,
+        )
+
+    async def symlink_to(
+        self, target: PathLike, target_is_directory: bool = False
+    ) -> None:
         """
         Make this path a symbolic link to target.
         symlink_to's arguments is the reverse of symlink's.
 
         :param target: Destination the new link should point to.
+        :param target_is_directory: Compatibility argument, ignored.
         """
+        _ = target_is_directory
         target_path = self.from_uri(target)
         if not target_path.filesystem.same_endpoint(self.filesystem):
             raise TypeError("'symlink_to' not supported between different filesystems")
@@ -1183,6 +1434,25 @@ class SmartPath(os.PathLike):
                 path_str = self.filesystem.build_uri(file_entry.path)
                 yield self.from_uri(path_str)
 
+    async def listdir(self) -> T.List[str]:
+        """Return the names of the entries in the directory this path points to.
+
+        :return: List of entry names.
+        :rtype: T.List[str]
+        """
+        names: T.List[str] = []
+        async for entry in self.iterdir():
+            names.append(entry.name)
+        return names
+
+    def scandir(self) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+        """Return an async context manager for directory entries.
+
+        :return: Async context manager yielding FileEntry items.
+        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
+        """
+        return self.filesystem.scandir(self._path)
+
     async def absolute(self) -> "SmartPath":
         """
         Make the path absolute, without normalization or resolving symlinks.
@@ -1192,6 +1462,14 @@ class SmartPath(os.PathLike):
         """
         result = await self.filesystem.absolute(self._path)
         return self.from_uri(self.filesystem.build_uri(result))
+
+    async def abspath(self) -> str:
+        """Return a normalized absolute version of the path.
+
+        :return: Absolute path string.
+        :rtype: str
+        """
+        return str(await self.absolute())
 
     async def full_match(
         self, pattern: str, *, case_sensitive: T.Optional[bool] = None

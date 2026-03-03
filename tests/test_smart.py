@@ -192,6 +192,23 @@ async def test_smart_open_read_write(tmp_path):
         assert await f.read() == "hello"
 
 
+async def test_smart_open_accepts_extra_options(tmp_path):
+    """smart_open should accept extra options for compatibility."""
+    file_path = tmp_path / "open_extra.txt"
+    async with smart_open(
+        file_path,
+        "w",
+        s3_open_func=lambda _path, _mode: io.BytesIO(),  # type: ignore[arg-type]
+        buffering=1,
+        followlinks=True,
+        custom_option="ignored",
+    ) as f:
+        await f.write("data")
+
+    async with smart_open(file_path, "r") as f:
+        assert await f.read() == "data"
+
+
 async def test_smart_combine_open_reads_across_files(tmp_path):
     """smart_combine_open should read files sequentially."""
     first_path = tmp_path / "a.bin"
@@ -660,6 +677,18 @@ async def test_smart_copy_move_rename(tmp_path):
     assert not rename_src.exists()
 
 
+async def test_smart_copy_no_overwrite(tmp_path):
+    """smart_copy should not overwrite when overwrite is False."""
+    src_file = tmp_path / "src.txt"
+    src_file.write_text("new")
+    dst_file = tmp_path / "dst.txt"
+    dst_file.write_text("old")
+
+    await smart_copy(src_file, dst_file, overwrite=False)
+
+    assert dst_file.read_text() == "old"
+
+
 async def test_smart_sync_directory(tmp_path):
     """Test syncing directory contents to a destination path."""
     src_dir = tmp_path / "src"
@@ -917,6 +946,21 @@ async def test_smart_glob_and_iglob(tmp_path):
     async for item in smart_iglob(pattern):
         collected.append(item)
     assert {os.path.basename(path) for path in collected} == {"file1.txt", "file2.txt"}
+
+
+async def test_smart_glob_missing_ok_false(tmp_path):
+    """smart_glob should raise when missing_ok is False."""
+    pattern = os.path.join(str(tmp_path), "*.missing")
+    with pytest.raises(FileNotFoundError):
+        await smart_glob(pattern, missing_ok=False)
+
+
+async def test_smart_iglob_missing_ok_false(tmp_path):
+    """smart_iglob should raise when missing_ok is False."""
+    pattern = os.path.join(str(tmp_path), "*.missing")
+    with pytest.raises(FileNotFoundError):
+        async for _ in smart_iglob(pattern, missing_ok=False):
+            pass
 
 
 async def test_smart_glob_stat(tmp_path):

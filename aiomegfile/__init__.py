@@ -1,3 +1,4 @@
+import aiomegfile.config  # noqa: F401 # make sure env config is loaded
 from aiomegfile.__version__ import __version__  # noqa: F401
 from aiomegfile.filesystem import (
     LocalFileSystem,

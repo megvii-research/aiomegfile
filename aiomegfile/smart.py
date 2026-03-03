@@ -193,6 +193,7 @@ def smart_open(
     encoding: T.Optional[str] = None,
     errors: T.Optional[str] = None,
     newline: T.Optional[str] = None,
+    **kwargs: T.Any,
 ) -> T.AsyncContextManager:
     """Open the file with mode.
 
@@ -202,6 +203,7 @@ def smart_open(
     :param encoding: Text encoding in text mode.
     :param errors: Error handling strategy.
     :param newline: Newline handling policy in text mode.
+    :param kwargs: Extra open options for compatibility with megfile.
     :return: Async file context manager.
     :rtype: T.AsyncContextManager
     """
@@ -211,6 +213,7 @@ def smart_open(
         encoding=encoding,
         errors=errors,
         newline=newline,
+        **kwargs,
     )
 
 
@@ -395,17 +398,28 @@ async def smart_isabs(path: PathLike) -> bool:
 
 
 async def smart_copy(
-    src_path: PathLike, dst_path: PathLike, *, followlinks: bool = False
+    src_path: PathLike,
+    dst_path: PathLike,
+    callback: T.Optional[T.Callable[[int], None]] = None,
+    followlinks: bool = False,
+    overwrite: bool = True,
 ) -> str:
     """Copy a file or directory and return the destination path string.
 
     :param src_path: Source path to copy.
     :param dst_path: Destination path.
+    :param callback: Called periodically during copy with bytes written.
     :param followlinks: Whether to follow symbolic links.
+    :param overwrite: Whether to overwrite destination when it exists.
     :return: Destination path string.
     :rtype: str
     """
-    result = await SmartPath(src_path).copy(dst_path, follow_symlinks=followlinks)
+    result = await SmartPath(src_path).copy(
+        dst_path,
+        follow_symlinks=followlinks,
+        callback=callback,
+        overwrite=overwrite,
+    )
     return str(result)
 
 
@@ -435,27 +449,33 @@ async def smart_copy_file(
     return str(result)
 
 
-async def smart_move(src_path: PathLike, dst_path: PathLike) -> str:
+async def smart_move(
+    src_path: PathLike, dst_path: PathLike, overwrite: bool = True
+) -> str:
     """Move a file or directory and return the destination path string.
 
     :param src_path: Source path to move.
     :param dst_path: Destination path.
+    :param overwrite: Whether to overwrite destination when it exists.
     :return: Destination path string.
     :rtype: str
     """
-    result = await SmartPath(src_path).move(dst_path)
+    result = await SmartPath(src_path).move(dst_path, overwrite=overwrite)
     return str(result)
 
 
-async def smart_rename(src_path: PathLike, dst_path: PathLike) -> str:
+async def smart_rename(
+    src_path: PathLike, dst_path: PathLike, overwrite: bool = True
+) -> str:
     """Rename a file or directory and return the destination path string.
 
     :param src_path: Source path to rename.
     :param dst_path: Destination path.
+    :param overwrite: Whether to overwrite destination when it exists.
     :return: Destination path string.
     :rtype: str
     """
-    result = await SmartPath(src_path).rename(dst_path)
+    result = await SmartPath(src_path).rename(dst_path, overwrite=overwrite)
     return str(result)
 
 
@@ -473,15 +493,21 @@ async def smart_walk(
         yield item
 
 
-async def smart_glob(path: PathLike, *, recursive: bool = True) -> T.List[str]:
+async def smart_glob(
+    path: PathLike, recursive: bool = True, missing_ok: bool = True
+) -> T.List[str]:
     """Return paths whose paths match the glob pattern.
 
     :param path: Base path to search under.
     :param recursive: If False, ``**`` will not search directory recursively.
+    :param missing_ok: If False and target path doesn't match any file,
+        raise FileNotFoundError.
     :return: List of matching path strings.
     :rtype: T.List[str]
+    :raises FileNotFoundError: If no matches and missing_ok is False.
     """
-    results = await SmartPath(path).glob("", recursive=recursive)
+    smart_path = SmartPath(path)
+    results = await smart_path.glob("", recursive=recursive, missing_ok=missing_ok)
     return [str(item) for item in results]
 
 
@@ -507,16 +533,20 @@ async def smart_glob_stat(
 
 
 async def smart_iglob(
-    path: PathLike, *, recursive: bool = True
+    path: PathLike, recursive: bool = True, missing_ok: bool = True
 ) -> T.AsyncIterator[str]:
     """Yield paths whose paths match the glob pattern.
 
     :param path: Base path to search under.
     :param recursive: If False, ``**`` will not search directory recursively.
+    :param missing_ok: If False and target path doesn't match any file,
+        raise FileNotFoundError.
     :return: Async iterator of matching path strings.
     :rtype: T.AsyncIterator[str]
     """
-    async for item in SmartPath(path).iglob("", recursive=recursive):
+    async for item in SmartPath(path).iglob(
+        "", recursive=recursive, missing_ok=missing_ok
+    ):
         yield str(item)
 
 
@@ -785,12 +815,13 @@ async def _iter_glob_file_stats(
     """
     async for entry in smart_glob_stat(pattern, recursive=True, missing_ok=False):
         if followlinks and entry.is_symlink():
+            resolved_stat: T.Optional[StatResult] = None
             try:
                 resolved = await SmartPath(entry.path).readlink()
                 resolved_stat = await resolved.stat(follow_symlinks=followlinks)
             except OSError:
                 resolved = None
-            if resolved is not None:
+            if resolved is not None and resolved_stat is not None:
                 if resolved_stat.is_dir():
                     async for child in smart_scan_stat(
                         str(resolved), followlinks=followlinks
@@ -900,7 +931,7 @@ async def _run_sync(
 
                 def wrapped_callback(length: int) -> None:
                     """Invoke copy callback with source path."""
-                    callback(src_file, length)
+                    callback(src_file, length)  # pyre-ignore[29]
 
             await smart_copy_file(
                 src_file,
@@ -1031,10 +1062,11 @@ async def smart_sync(
     src_path: PathLike,
     dst_path: PathLike,
     callback: T.Optional[T.Callable[[str, int], None]] = None,
-    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     followlinks: bool = False,
+    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     force: bool = False,
     overwrite: bool = True,
+    *,
     worker: int = -1,
 ) -> None:
     """Sync file or directory to the destination path.
@@ -1050,9 +1082,9 @@ async def smart_sync(
     :param dst_path: Given destination path.
     :param callback: Called periodically during copy with source path and bytes
         written.
+    :param followlinks: False if regard symlink as file, else True.
     :param callback_after_copy_file: Called after copy success, and the input parameter
         is src file path and dst file path.
-    :param followlinks: False if regard symlink as file, else True.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :param force: Sync file forcible, do not ignore same files, priority is higher than
         ``overwrite``.
@@ -1095,10 +1127,11 @@ async def smart_sync_with_progress(
     src_path: PathLike,
     dst_path: PathLike,
     callback: T.Optional[T.Callable[[str, int], None]] = None,
-    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     followlinks: bool = False,
     force: bool = False,
     overwrite: bool = True,
+    *,
+    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     worker: int = -1,
 ) -> None:
     """Sync file or directory with progress bars.
@@ -1107,12 +1140,12 @@ async def smart_sync_with_progress(
     :param dst_path: Given destination path.
     :param callback: Called periodically during copy with source path and bytes
         written.
-    :param callback_after_copy_file: Called after copy success, and the input parameter
-        is src file path and dst file path.
     :param followlinks: False if regard symlink as file, else True.
     :param force: Sync file forcible, do not ignore same files, priority is higher than
         ``overwrite``.
     :param overwrite: Whether to overwrite files when they already exist.
+    :param callback_after_copy_file: Called after copy success, and the input parameter
+        is src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :raises FileNotFoundError: If source path does not exist.
     :raises ImportError: If ``tqdm`` is not available.

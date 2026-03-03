@@ -1,5 +1,7 @@
 import asyncio
+import io
 import os
+import stat
 
 import pytest
 from moto.server import ThreadedMotoServer
@@ -898,3 +900,98 @@ class TestSmartPathHardlink:
         assert os.path.exists(link_file)
         # Check they point to same inode
         assert os.stat(src_file).st_ino == os.stat(link_file).st_ino
+
+
+class TestSmartPathExtraMethods:
+    """Tests for additional SmartPath methods."""
+
+    async def test_listdir_and_scandir(self, tmp_path):
+        """smart_path.listdir and scandir should enumerate directory entries."""
+        (tmp_path / "a.txt").write_text("a")
+        (tmp_path / "b.txt").write_text("b")
+
+        path = SmartPath(tmp_path)
+        listed = await path.listdir()
+        assert set(listed) == {"a.txt", "b.txt"}
+
+        names = []
+        async with path.scandir() as iterator:
+            async for entry in iterator:
+                names.append(entry.name)
+        assert set(names) == {"a.txt", "b.txt"}
+
+    async def test_relpath_abspath_realpath(self, tmp_path):
+        """smart_path relpath/abspath/realpath should match os.path behavior."""
+        src_file = tmp_path / "src.txt"
+        src_file.write_text("data")
+        link_path = tmp_path / "link.txt"
+        os.symlink(src_file, link_path)
+
+        path = SmartPath(src_file)
+        rel = await path.relpath(tmp_path)
+        assert rel == "src.txt"
+
+        abs_path = await path.abspath()
+        assert abs_path == os.path.abspath(str(src_file))
+
+        real_path = await SmartPath(link_path).realpath()
+        assert real_path == os.path.abspath(str(src_file))
+
+    async def test_expanduser_home_cwd(self):
+        """smart_path expanduser/home/cwd should resolve local paths."""
+        expanded = await SmartPath("~").expanduser()
+        assert str(expanded) == os.path.expanduser("~")
+
+        home_path = await SmartPath(".").home()
+        assert str(home_path) == os.path.expanduser("~")
+
+        cwd_path = await SmartPath(".").cwd()
+        assert str(cwd_path) == os.getcwd()
+
+    async def test_is_absolute(self, tmp_path):
+        """smart_path is_absolute should reflect absolute paths."""
+        abs_path = SmartPath(tmp_path)
+        assert await abs_path.is_absolute() is True
+
+        rel_path = SmartPath("relative.txt")
+        assert await rel_path.is_absolute() is False
+
+    async def test_load_save_and_symlink(self, tmp_path):
+        """smart_path load/save/symlink should operate on local files."""
+        target = SmartPath(tmp_path / "data.bin")
+        await target.save(io.BytesIO(b"payload"))
+
+        data = await target.load()
+        assert data.read() == b"payload"
+
+        link_path = SmartPath(tmp_path / "link.bin")
+        await target.symlink(link_path)
+        assert await link_path.is_symlink()
+
+    async def test_chmod_utime_owner_group(self, tmp_path):
+        """smart_path chmod/utime/owner/group should work on local files."""
+        try:
+            import grp
+            import pwd
+        except ImportError:
+            pytest.skip("owner/group lookup not supported on this platform")
+
+        file_path = tmp_path / "meta.txt"
+        file_path.write_text("meta")
+        path = SmartPath(file_path)
+
+        await path.chmod(0o600)
+        assert stat.S_IMODE(os.stat(file_path).st_mode) == 0o600
+
+        atime = os.path.getatime(file_path) - 100
+        mtime = os.path.getmtime(file_path) - 100
+        await path.utime(atime, mtime)
+
+        stat_result = os.stat(file_path)
+        assert int(stat_result.st_atime) == int(atime)
+        assert int(stat_result.st_mtime) == int(mtime)
+
+        owner = await path.owner()
+        group = await path.group()
+        assert owner == pwd.getpwuid(stat_result.st_uid).pw_name
+        assert group == grp.getgrgid(stat_result.st_gid).gr_name
