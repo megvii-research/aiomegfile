@@ -13,7 +13,15 @@ import botocore
 from aiobotocore.config import AioConfig
 from botocore.utils import calculate_md5 as botocore_calculate_md5
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
+from aiomegfile.config import (
+    DEFAULT_WRITER_BLOCK_AUTOSCALE,
+    GLOBAL_MAX_WORKERS,
+    READER_BLOCK_SIZE,
+    READER_MAX_BUFFER_SIZE,
+    S3_MAX_RETRY_TIMES,
+    WRITER_BLOCK_SIZE,
+    WRITER_MAX_BUFFER_SIZE,
+)
 from aiomegfile.errors import (
     S3BucketNotFoundError,
     S3ConfigError,
@@ -1286,7 +1294,10 @@ class S3FileSystem(BaseFileSystem):
             )
 
         if "w" in mode:
-            params = dict(
+            block_size = kwargs.get("block_size")
+            block_autoscale = kwargs.get("block_autoscale")
+            max_buffer_size = kwargs.get("max_buffer_size")
+            fileobj = AioS3BufferedWriter(
                 bucket=bucket,
                 key=key,
                 filesystem=self,
@@ -1294,16 +1305,26 @@ class S3FileSystem(BaseFileSystem):
                 encoding=encoding,
                 errors=errors,
                 newline=newline,
+                block_size=(
+                    int(block_size) if block_size is not None else WRITER_BLOCK_SIZE
+                ),
+                block_autoscale=(
+                    bool(block_autoscale)
+                    if block_autoscale is not None
+                    else DEFAULT_WRITER_BLOCK_AUTOSCALE
+                ),
+                max_buffer_size=(
+                    int(max_buffer_size)
+                    if max_buffer_size is not None
+                    else WRITER_MAX_BUFFER_SIZE
+                ),
             )
-            if kwargs.get("block_size") is not None:
-                params["block_size"] = kwargs["block_size"]
-            if kwargs.get("block_autoscale") is not None:
-                params["block_autoscale"] = kwargs["block_autoscale"]
-            if kwargs.get("max_buffer_size") is not None:
-                params["max_buffer_size"] = kwargs["max_buffer_size"]
-            fileobj = AioS3BufferedWriter(**params)
         else:
-            params = dict(
+            block_size = kwargs.get("block_size")
+            max_buffer_size = kwargs.get("max_buffer_size")
+            block_forward = kwargs.get("block_forward")
+            max_retries = kwargs.get("max_retries")
+            fileobj = AioS3PrefetchReader(
                 bucket=bucket,
                 key=key,
                 filesystem=self,
@@ -1311,16 +1332,21 @@ class S3FileSystem(BaseFileSystem):
                 encoding=encoding,
                 errors=errors,
                 newline=newline,
+                block_size=(
+                    int(block_size) if block_size is not None else READER_BLOCK_SIZE
+                ),
+                max_buffer_size=(
+                    int(max_buffer_size)
+                    if max_buffer_size is not None
+                    else READER_MAX_BUFFER_SIZE
+                ),
+                block_forward=(
+                    int(block_forward) if block_forward is not None else None
+                ),
+                max_retries=(
+                    int(max_retries) if max_retries is not None else S3_MAX_RETRY_TIMES
+                ),
             )
-            if kwargs.get("block_size") is not None:
-                params["block_size"] = kwargs["block_size"]
-            if kwargs.get("max_buffer_size") is not None:
-                params["max_buffer_size"] = kwargs["max_buffer_size"]
-            if kwargs.get("block_forward") is not None:
-                params["block_forward"] = kwargs["block_forward"]
-            if kwargs.get("max_retries") is not None:
-                params["max_retries"] = kwargs["max_retries"]
-            fileobj = AioS3PrefetchReader(**params)
         return fileobj
 
     async def upload(
@@ -1438,7 +1464,7 @@ class S3FileSystem(BaseFileSystem):
                     chunk = await fileobj.read(1024 * 1024)
                     if not chunk:
                         break
-                    await s3_file.write(chunk)
+                    await s3_file.write(chunk)  # pytype: disable=attribute-error
                     if callback:
                         callback(len(chunk))
 

@@ -585,7 +585,8 @@ class AioClosable(ABC):
 
         return dummy().__await__()
 
-    async def __aenter__(self: Self) -> Self:
+    async def __aenter__(self):
+        """Enter the async context and return the managed resource."""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:

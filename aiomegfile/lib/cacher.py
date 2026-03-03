@@ -222,7 +222,7 @@ class AioFileCacher(
 class SmartCacher(AioClosable):
     """Async smart cache files in local filesystem."""
 
-    cache_path = None
+    cache_path = ""
 
     def __init__(self, path: str, cache_path: T.Optional[str] = None, mode: str = "r"):
         """
@@ -251,7 +251,7 @@ class SmartCacher(AioClosable):
         """Return the cache mode."""
         return self._mode
 
-    async def __aenter__(self) -> str:
+    async def __aenter__(self) -> str:  # pytype: disable=signature-mismatch
         """Prepare the cache and return the local cache path."""
         if not self._prepared:
             await self._prepare_cache()
@@ -279,7 +279,7 @@ class SmartCacher(AioClosable):
 class NullCacher(AioClosable):
     """Async no-op cacher for local paths."""
 
-    cache_path = None
+    cache_path = ""
 
     def __init__(self, path: str):
         """
@@ -288,7 +288,7 @@ class NullCacher(AioClosable):
         """
         self.cache_path = fspath(path)
 
-    async def __aenter__(self) -> str:
+    async def __aenter__(self) -> str:  # pytype: disable=signature-mismatch
         """Return the local path."""
         return self.cache_path
 

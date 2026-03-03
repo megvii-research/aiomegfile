@@ -801,26 +801,6 @@ async def _iter_sync_entries_from_iter(
         yield key, entry
 
 
-def _ensure_async_entries(
-    entries: T.Union[T.AsyncIterator[FileEntry], T.Iterable[FileEntry]],
-) -> T.AsyncIterator[FileEntry]:
-    """Return an async iterator for the provided entries.
-
-    :param entries: Iterable or async iterator of FileEntry objects.
-    :return: Async iterator of FileEntry objects.
-    :rtype: T.AsyncIterator[FileEntry]
-    """
-    if hasattr(entries, "__aiter__"):
-        return T.cast(T.AsyncIterator[FileEntry], entries)
-
-    async def _iterator() -> T.AsyncIterator[FileEntry]:
-        """Yield entries from a synchronous iterable."""
-        for entry in entries:
-            yield entry
-
-    return _iterator()
-
-
 async def _iter_glob_file_stats(
     pattern: PathLike,
     *,
@@ -835,12 +815,13 @@ async def _iter_glob_file_stats(
     """
     async for entry in smart_glob_stat(pattern, recursive=True, missing_ok=False):
         if followlinks and entry.is_symlink():
+            resolved_stat: T.Optional[StatResult] = None
             try:
                 resolved = await SmartPath(entry.path).readlink()
                 resolved_stat = await resolved.stat(follow_symlinks=followlinks)
             except OSError:
                 resolved = None
-            if resolved is not None:
+            if resolved is not None and resolved_stat is not None:
                 if resolved_stat.is_dir():
                     async for child in smart_scan_stat(
                         str(resolved), followlinks=followlinks
@@ -950,7 +931,7 @@ async def _run_sync(
 
                 def wrapped_callback(length: int) -> None:
                     """Invoke copy callback with source path."""
-                    callback(src_file, length)
+                    callback(src_file, length)  # pyre-ignore[29]
 
             await smart_copy_file(
                 src_file,
