@@ -10,6 +10,7 @@ from enum import Enum
 from types import TracebackType
 
 from aiomegfile.errors import ProtocolNotFoundError
+from aiomegfile.utils.alias import apply_alias, resolve_alias
 from aiomegfile.utils.parse import fullname
 from aiomegfile.utils.path import split_uri
 
@@ -259,11 +260,16 @@ class BaseFileSystem(ABC):
                 directories to allow for file system optimizations.
                 In a local file system, for instance, moving a directory typically only
                 requires updating the directory entry.
+
+            3. The ``glob_stat``, ``is_absolute``, ``access``, ``concat`` operations are
+                not included in the base class. They can be added to the corresponding
+                FileSystem when needed due to performance or other requirements.
     """
 
     protocol = ""
 
     def __init_subclass__(cls):
+        super().__init_subclass__()
         if not cls.protocol:
             raise ValueError(
                 f"Subclasses({cls.__name__}) of BaseFileSystem must define a protocol"
@@ -274,6 +280,48 @@ class BaseFileSystem(ABC):
                 f"already registered by {FILE_SYSTEMS[cls.protocol]!r}"
             )
         FILE_SYSTEMS[cls.protocol] = cls
+
+        build_uri_impl = cls.build_uri
+        if not getattr(build_uri_impl, "__alias_wrapped__", False):
+
+            def _build_uri_with_alias(self, path: str) -> str:
+                """Build URI and apply alias mapping when configured.
+
+                :param path: Path without protocol.
+                :return: Generated URI string.
+                :rtype: str
+                """
+                uri = build_uri_impl(self, path)
+                alias_info = getattr(self, "_alias_info", None)
+                return apply_alias(uri, alias_info)
+
+            _build_uri_with_alias.__name__ = build_uri_impl.__name__
+            _build_uri_with_alias.__qualname__ = build_uri_impl.__qualname__
+            _build_uri_with_alias.__doc__ = build_uri_impl.__doc__
+            _build_uri_with_alias.__alias_wrapped__ = True
+            cls.build_uri = _build_uri_with_alias
+
+        from_uri_impl = cls.from_uri
+        from_uri_func = getattr(from_uri_impl, "__func__", from_uri_impl)
+        if not getattr(from_uri_func, "__alias_wrapped__", False):
+
+            def _from_uri_with_alias(inner_cls, uri: str):
+                """Create filesystem instance with alias resolution.
+
+                :param uri: URI string.
+                :return: Filesystem instance.
+                """
+                unaliased_uri, alias_info = resolve_alias(uri)
+                filesystem = from_uri_func(inner_cls, unaliased_uri)
+                if alias_info is not None:
+                    setattr(filesystem, "_alias_info", alias_info)
+                return filesystem
+
+            _from_uri_with_alias.__name__ = from_uri_func.__name__
+            _from_uri_with_alias.__qualname__ = from_uri_func.__qualname__
+            _from_uri_with_alias.__doc__ = from_uri_func.__doc__
+            _from_uri_with_alias.__alias_wrapped__ = True
+            cls.from_uri = classmethod(_from_uri_with_alias)
 
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a directory.
@@ -536,7 +584,8 @@ class BaseFileSystem(ABC):
 def get_filesystem_by_uri(
     uri: str,
 ) -> BaseFileSystem:
-    protocol, _, _ = split_uri(uri)
+    unaliased_uri, _ = resolve_alias(uri)
+    protocol, _, _ = split_uri(unaliased_uri)
     if protocol not in FILE_SYSTEMS:
         raise ProtocolNotFoundError(f"protocol {protocol!r} not found")
     path_class = FILE_SYSTEMS[protocol]

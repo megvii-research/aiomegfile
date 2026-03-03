@@ -39,6 +39,7 @@ from aiomegfile.smart import (
     smart_unlink,
 )
 from aiomegfile.smart_path import SmartPath
+from aiomegfile.utils.alias import CONFIG_PATH, CaseSensitiveConfigParser
 from aiomegfile.utils.path import copyfileobj
 
 options: dict[str, T.Any] = {}
@@ -1166,6 +1167,41 @@ def s3(
     with open(path, "w", encoding="utf-8") as fp:
         fp.write(text)
     click.echo(f"Your s3 config has been saved into {path}")
+
+
+@config.command(short_help="Update the config file for aliases")
+@click.option(
+    "-p",
+    "--path",
+    default=CONFIG_PATH,
+    help=f"megfile config file, default is {CONFIG_PATH}",
+)
+@click.argument("name")
+@click.argument("protocol_or_path")
+@click.option("--no-cover", is_flag=True, help="Not cover the same-name config")
+def alias(path: str, name: str, protocol_or_path: str, no_cover: bool) -> None:
+    """Update alias configuration in the config file.
+
+    :param path: Config file path.
+    :param name: Alias name.
+    :param protocol_or_path: Protocol or protocol/prefix mapping.
+    :param no_cover: Whether to forbid overwriting existing alias.
+    :return: None
+    :rtype: None
+    """
+    path = os.path.expanduser(path)
+    config = CaseSensitiveConfigParser()
+    if os.path.exists(path):
+        config.read(path)
+    config.setdefault("alias", {})
+    if config.has_option("alias", name) and no_cover:
+        value = config.get("alias", name)
+        raise NameError(f"alias-name has been used: {name} = {value}")
+    config.set("alias", name, protocol_or_path)
+    _safe_makedirs(os.path.dirname(path))
+    with open(path, "w", encoding="utf-8") as fp:
+        config.write(fp)
+    click.echo(f"Your alias config has been saved into {path}")
 
 
 @cli.group(short_help="Return the completion file")

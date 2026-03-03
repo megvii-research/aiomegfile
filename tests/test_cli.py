@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import configparser
 import hashlib
 import io
 import sys
@@ -196,6 +197,34 @@ def test_path_type_shell_complete_protocols() -> None:
     items = PathType().shell_complete(None, None, "")
     values = {item.value for item in items}
     assert "file://" in values
+
+
+def test_cli_config_alias_writes_config(tmp_path) -> None:
+    """CLI config alias should write config entries.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :return: None
+    :rtype: None
+    """
+    runner = CliRunner()
+    config_path = tmp_path / "megfile.conf"
+
+    result = runner.invoke(
+        cli, ["config", "alias", "-p", str(config_path), "data", "s3"]
+    )
+    assert result.exit_code == 0
+
+    parser = configparser.ConfigParser()
+    parser.read(config_path)
+    assert parser.has_section("alias")
+    assert parser.get("alias", "data") == "s3"
+
+    result = runner.invoke(
+        cli, ["config", "alias", "-p", str(config_path), "data", "s3", "--no-cover"]
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, NameError)
+    assert "alias-name has been used" in str(result.exception)
 
 
 def test_path_type_shell_complete_local_paths(tmp_path) -> None:
