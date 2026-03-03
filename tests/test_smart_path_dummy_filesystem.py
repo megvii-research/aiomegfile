@@ -200,7 +200,7 @@ async def test_touch_exist_ok_false_raises(tmp_path):
 
 
 async def test_glob_collects_from_iglob(monkeypatch, tmp_path):
-    async def fake_iglob(self, pattern, recursive):
+    async def fake_iglob(self, pattern, recursive, missing_ok=True):
         yield self.from_uri("/tmp/a")
         yield self.from_uri("/tmp/b")
 

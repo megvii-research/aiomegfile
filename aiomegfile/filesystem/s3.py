@@ -1255,6 +1255,7 @@ class S3FileSystem(BaseFileSystem):
         encoding: T.Optional[str] = None,
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
+        **kwargs: T.Any,
     ) -> T.AsyncContextManager:
         """Open the file with mode.
 
@@ -1264,6 +1265,7 @@ class S3FileSystem(BaseFileSystem):
         :param encoding: Text encoding when using text modes.
         :param errors: Error handling strategy for encoding/decoding.
         :param newline: Newline handling in text mode.
+        :param kwargs: Extra open options for compatibility with megfile.
         :return: Async file context manager.
         """
         if "x" in mode:
@@ -1284,7 +1286,7 @@ class S3FileSystem(BaseFileSystem):
             )
 
         if "w" in mode:
-            fileobj = AioS3BufferedWriter(
+            params = dict(
                 bucket=bucket,
                 key=key,
                 filesystem=self,
@@ -1293,8 +1295,15 @@ class S3FileSystem(BaseFileSystem):
                 errors=errors,
                 newline=newline,
             )
+            if kwargs.get("block_size") is not None:
+                params["block_size"] = kwargs["block_size"]
+            if kwargs.get("block_autoscale") is not None:
+                params["block_autoscale"] = kwargs["block_autoscale"]
+            if kwargs.get("max_buffer_size") is not None:
+                params["max_buffer_size"] = kwargs["max_buffer_size"]
+            fileobj = AioS3BufferedWriter(**params)
         else:
-            fileobj = AioS3PrefetchReader(
+            params = dict(
                 bucket=bucket,
                 key=key,
                 filesystem=self,
@@ -1303,6 +1312,15 @@ class S3FileSystem(BaseFileSystem):
                 errors=errors,
                 newline=newline,
             )
+            if kwargs.get("block_size") is not None:
+                params["block_size"] = kwargs["block_size"]
+            if kwargs.get("max_buffer_size") is not None:
+                params["max_buffer_size"] = kwargs["max_buffer_size"]
+            if kwargs.get("block_forward") is not None:
+                params["block_forward"] = kwargs["block_forward"]
+            if kwargs.get("max_retries") is not None:
+                params["max_retries"] = kwargs["max_retries"]
+            fileobj = AioS3PrefetchReader(**params)
         return fileobj
 
     async def upload(

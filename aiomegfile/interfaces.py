@@ -348,6 +348,7 @@ class BaseFileSystem(ABC):
         encoding: T.Optional[str] = None,
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
+        **kwargs: T.Any,
     ) -> T.AsyncContextManager:
         """Open the file with mode.
 
@@ -357,6 +358,7 @@ class BaseFileSystem(ABC):
         :param encoding: Text encoding when opening in text mode.
         :param errors: Error handling strategy for encoding/decoding.
         :param newline: Newline handling in text mode.
+        :param kwargs: Extra open options for compatibility with megfile.
         :return: Async file context manager.
         """
         raise NotImplementedError('method "open" not implemented: %r' % self)

@@ -147,6 +147,7 @@ class LocalFileSystem(BaseFileSystem):
         encoding: T.Optional[str] = None,
         errors: T.Optional[str] = None,
         newline: T.Optional[str] = None,
+        **kwargs: T.Any,  # noqa: F401
     ) -> T.AsyncContextManager:
         """Open the file with mode.
 
@@ -156,6 +157,7 @@ class LocalFileSystem(BaseFileSystem):
         :param encoding: Text encoding when using text modes.
         :param errors: Error handling strategy for encoding/decoding.
         :param newline: Newline handling in text mode.
+        :param kwargs: Extra open options for compatibility with megfile.
         :return: Async file context manager.
         """
         if any(flag in mode for flag in ("w", "a", "x", "+")):
