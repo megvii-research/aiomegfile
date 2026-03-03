@@ -2,6 +2,8 @@
 
 > 说明：对比 `aiomegfile/smart.py`、`aiomegfile/smart_path.py` 与 megfile 仓库同名文件的公开接口。
 
+megfile 仓库地址：/home/vscode/project/megfile
+
 ## smart.py 函数差异
 
 ### megfile 有而 aiomegfile 缺失

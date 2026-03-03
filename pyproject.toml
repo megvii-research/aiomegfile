@@ -26,12 +26,12 @@ dependencies = [
     "aiofiles",
     "aiobotocore>=3.1.0",
     "types-aiobotocore[essential]>=3.1.0",
+    "tqdm>=4.67.3",
 ]
 
 [project.optional-dependencies]
 cli = [
     "click>=8.1.7",
-    "tqdm",
 ]
 doc = [
     "Sphinx>=7.3.7; python_version >= '3.10'",

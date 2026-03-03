@@ -34,6 +34,7 @@ from aiomegfile.smart import (
     smart_rename,
     smart_stat,
     smart_sync,
+    smart_sync_with_progress,
     smart_touch,
     smart_unlink,
 )
@@ -571,7 +572,7 @@ def cp(
 
         if recursive:
 
-            def callback(length: int) -> None:
+            def callback(_src_path: str, length: int) -> None:
                 """Update progress for copied bytes."""
                 if pbar is not None:
                     pbar.update(length)
@@ -677,7 +678,7 @@ def mv(
                         unit_divisor=1024,
                     )
 
-                    def callback(length: int) -> None:
+                    def callback(_src_path: str, length: int) -> None:
                         """Update progress for copied bytes."""
                         pbar.update(length)
 
@@ -772,9 +773,6 @@ def sync(
 
     async def _run() -> None:
         """Execute the sync operation."""
-        if worker != -1 and options.get("debug"):
-            logging.getLogger(__name__).debug("worker option is ignored")
-
         progress_enabled = progress_bar
         verbose_enabled = verbose
         if quiet:
@@ -782,48 +780,25 @@ def sync(
             verbose_enabled = False
 
         if progress_enabled:
-            tbar = tqdm(
-                total=None,
-                ascii=True,
-                desc="Files",
-            )
-            sbar = tqdm(
-                total=None,
-                ascii=True,
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-                desc="Bytes",
-            )
 
             def callback_after_copy_file(
                 src_file_path: str, dst_file_path: str
             ) -> None:
-                """Update file count after each file copy."""
+                """Emit verbose logs after each file copy."""
                 if verbose_enabled:
                     tqdm.write(f"copy {src_file_path} -> {dst_file_path} done")
-                tbar.update(1)
 
-            def callback(length: int) -> None:
-                """Update size progress after each data chunk."""
-                sbar.update(length)
-
-            try:
-                await smart_sync(
-                    src_path,
-                    dst_path,
-                    force=force,
-                    overwrite=not skip,
-                    callback=callback,
-                    callback_after_copy_file=callback_after_copy_file,
-                )
-            finally:
-                tbar.set_description_str("Files")
-                sbar.set_description_str("Bytes")
-                tbar.refresh()
-                sbar.refresh()
-                tbar.close()
-                sbar.close()
+            await smart_sync_with_progress(
+                src_path,
+                dst_path,
+                followlinks=True,
+                force=force,
+                overwrite=not skip,
+                worker=worker,
+                callback_after_copy_file=callback_after_copy_file
+                if verbose_enabled
+                else None,
+            )
         else:
 
             def callback_after_copy_file(
@@ -839,6 +814,7 @@ def sync(
                 followlinks=True,
                 force=force,
                 overwrite=not skip,
+                worker=worker,
                 callback_after_copy_file=callback_after_copy_file
                 if verbose_enabled
                 else None,
