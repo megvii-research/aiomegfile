@@ -11,6 +11,7 @@ from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
 from aiomegfile.interfaces import Access, FileEntry, StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
+from aiomegfile.utils.alias import resolve_alias
 from aiomegfile.utils.path import PathLike, fspath
 
 
@@ -18,7 +19,7 @@ class URIPathParents(Sequence):
     def __init__(self, path: "SmartPath"):
         # We don't store the instance to avoid reference cycles
         self.cls = type(path)
-        self.protocol = path.filesystem.protocol
+        self.protocol = path.protocol
         parts = path.parts
         if len(parts) > 0 and parts[0] == self.protocol + "://":
             self.prefix = parts[0]
@@ -66,8 +67,21 @@ class SmartPath(os.PathLike):
             self._path = uri._path
         else:
             uri = fspath(uri)
+            unaliased_uri, _ = resolve_alias(uri)
             self.filesystem = get_filesystem_by_uri(uri)
-            self._path = self.filesystem.parse_uri(uri)
+            self._path = self.filesystem.parse_uri(unaliased_uri)
+
+    @property
+    def protocol(self) -> str:
+        """Return the protocol for this path, preferring aliases when configured.
+
+        :return: Protocol string for display.
+        :rtype: str
+        """
+        alias_info = getattr(self.filesystem, "_alias_info", None)
+        if alias_info is not None:
+            return alias_info.alias
+        return self.filesystem.protocol
 
     def __str__(self) -> str:
         return fspath(self)
@@ -219,7 +233,7 @@ class SmartPath(os.PathLike):
         A string representing the final path component, excluding the drive and root
         """
         parts = self.parts
-        if len(parts) == 1 and parts[0] == self.filesystem.protocol + "://":
+        if len(parts) == 1 and parts[0] == self.protocol + "://":
             return ""
         return parts[-1]
 
@@ -488,7 +502,12 @@ class SmartPath(os.PathLike):
 
     @cached_property
     def root(self) -> str:
-        return self.filesystem.protocol + "://"
+        """Return the protocol root for this path.
+
+        :return: Protocol root string.
+        :rtype: str
+        """
+        return self.protocol + "://"
 
     @cached_property
     def anchor(self) -> str:
