@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import configparser
-import hashlib
 import io
 import sys
 
@@ -18,7 +17,6 @@ from aiomegfile.cli import (
     PathType,
     _get_human_size,
     _maybe_await,
-    _md5sum,
     _run_async,
     _safe_makedirs,
     _tail_follow_content,
@@ -155,23 +153,6 @@ async def test_tail_follow_content_outputs_and_returns_offset(tmp_path, monkeypa
     assert output.getvalue() == data
 
 
-async def test_md5sum_computes_and_rejects_directory(tmp_path):
-    """_md5sum should return checksum and reject directories.
-
-    :param tmp_path: Pytest temporary path fixture.
-    :return: None
-    :rtype: None
-    """
-    file_path = tmp_path / "data.bin"
-    file_path.write_bytes(b"abc")
-
-    expected = hashlib.md5(b"abc").hexdigest()
-    assert await _md5sum(str(file_path)) == expected
-
-    with pytest.raises(IsADirectoryError):
-        await _md5sum(str(tmp_path))
-
-
 def test_safe_makedirs_creates_nested(tmp_path) -> None:
     """_safe_makedirs should create nested directories.
 
@@ -197,6 +178,29 @@ def test_path_type_shell_complete_protocols() -> None:
     items = PathType().shell_complete(None, None, "")
     values = {item.value for item in items}
     assert "file://" in values
+
+
+def test_path_type_shell_complete_profiles(monkeypatch) -> None:
+    """PathType should include s3 profile prefixes.
+
+    :param monkeypatch: Pytest monkeypatch fixture.
+    :return: None
+    :rtype: None
+    """
+
+    def fake_profiles() -> list[str]:
+        """Return fake profile names.
+
+        :return: Profile names.
+        :rtype: list[str]
+        """
+        return ["default", "demo"]
+
+    monkeypatch.setattr("aiomegfile.cli._get_s3_profiles", fake_profiles)
+    items = PathType().shell_complete(None, None, "")
+    values = {item.value for item in items}
+    assert "s3+demo://" in values
+    assert "s3+default://" not in values
 
 
 def test_cli_config_alias_writes_config(tmp_path) -> None:
@@ -225,6 +229,91 @@ def test_cli_config_alias_writes_config(tmp_path) -> None:
     assert result.exit_code != 0
     assert isinstance(result.exception, NameError)
     assert "alias-name has been used" in str(result.exception)
+
+
+def test_cli_config_env_writes_config(tmp_path) -> None:
+    """CLI config env should write config entries.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :return: None
+    :rtype: None
+    """
+    runner = CliRunner()
+    config_path = tmp_path / "megfile.conf"
+
+    result = runner.invoke(cli, ["config", "env", "-p", str(config_path), "FOO=bar"])
+    assert result.exit_code == 0
+
+    parser = configparser.ConfigParser()
+    parser.read(config_path)
+    assert parser.has_section("env")
+    assert parser.get("env", "FOO") == "bar"
+
+    result = runner.invoke(
+        cli, ["config", "env", "-p", str(config_path), "FOO=baz", "--no-cover"]
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, NameError)
+
+
+def test_cli_config_hdfs_writes_config(tmp_path) -> None:
+    """CLI config hdfs should write config entries.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :return: None
+    :rtype: None
+    """
+    runner = CliRunner()
+    config_path = tmp_path / "hdfscli.cfg"
+
+    result = runner.invoke(
+        cli,
+        [
+            "config",
+            "hdfs",
+            "--path",
+            str(config_path),
+            "http://localhost:9870",
+            "--profile-name",
+            "demo",
+            "--user",
+            "alice",
+            "--root",
+            "/data",
+            "--token",
+            "token123",
+            "--timeout",
+            "5",
+        ],
+    )
+    assert result.exit_code == 0
+
+    parser = configparser.ConfigParser()
+    parser.read(config_path)
+    assert parser.has_section("global")
+    assert parser.get("global", "default.alias") == "default"
+    assert parser.has_section("demo.alias")
+    assert parser.get("demo.alias", "url") == "http://localhost:9870"
+    assert parser.get("demo.alias", "user") == "alice"
+    assert parser.get("demo.alias", "root") == "/data"
+    assert parser.get("demo.alias", "token") == "token123"
+    assert parser.get("demo.alias", "timeout") == "5"
+
+    result = runner.invoke(
+        cli,
+        [
+            "config",
+            "hdfs",
+            "--path",
+            str(config_path),
+            "http://localhost:9870",
+            "--profile-name",
+            "demo",
+            "--no-cover",
+        ],
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, NameError)
 
 
 def test_path_type_shell_complete_local_paths(tmp_path) -> None:
@@ -322,6 +411,36 @@ def test_cli_size_mtime_stat_and_to(tmp_path) -> None:
     result = runner.invoke(cli, ["to", str(dst_path)], input="payload")
     assert result.exit_code == 0
     assert dst_path.read_text(encoding="utf-8") == "payload"
+
+
+def test_cli_edit_invokes_editor(tmp_path, monkeypatch) -> None:
+    """CLI edit should invoke the editor with the cached path.
+
+    :param tmp_path: Pytest temporary path fixture.
+    :param monkeypatch: Pytest monkeypatch fixture.
+    :return: None
+    :rtype: None
+    """
+    target_path = tmp_path / "edit.txt"
+    target_path.write_text("data", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_check_call(cmd: list[str]) -> None:
+        """Record editor invocation.
+
+        :param cmd: Editor command list.
+        :return: None
+        :rtype: None
+        """
+        calls.append(cmd)
+
+    monkeypatch.setattr("aiomegfile.cli.subprocess.check_call", fake_check_call)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["edit", "-e", "echo", str(target_path)])
+    assert result.exit_code == 0
+    assert calls
+    assert calls[0][0] == "echo"
+    assert calls[0][-1] == str(target_path)
 
 
 def test_cli_config_s3_writes_and_updates(tmp_path) -> None:
