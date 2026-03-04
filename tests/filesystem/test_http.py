@@ -14,7 +14,7 @@ import pytest
 
 from aiomegfile.filesystem.http import HttpFileSystem, HttpsFileSystem, is_http
 from aiomegfile.interfaces import get_filesystem_by_uri
-from aiomegfile.lib.http_prefetch_reader import AioHttpPrefetchReader
+from aiomegfile.lib.prefetch_reader.http_prefetch_reader import AioHttpPrefetchReader
 
 
 class QuietSimpleHTTPRequestHandler(SimpleHTTPRequestHandler):

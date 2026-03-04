@@ -11,7 +11,7 @@ from http.server import (
 
 import pytest
 
-from aiomegfile.lib.http_prefetch_reader import AioHttpPrefetchReader
+from aiomegfile.lib.prefetch_reader.http_prefetch_reader import AioHttpPrefetchReader
 
 
 @pytest.fixture

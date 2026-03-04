@@ -4,7 +4,7 @@ import typing as T
 import aiohttp
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.lib.http_retry import http_retry
+from aiomegfile.utils.retry.http_retry import http_retry
 
 _CONTENT_RANGE_TOTAL_RE = re.compile(r"/(\d+)\s*$")
 

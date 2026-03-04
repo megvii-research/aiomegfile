@@ -4,7 +4,7 @@ import asyncio
 
 import aiohttp
 
-from aiomegfile.lib.http_retry import (
+from aiomegfile.utils.retry.http_retry import (
     http_retry,
     http_should_retry,
     translate_http_error,
