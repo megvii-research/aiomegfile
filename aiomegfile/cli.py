@@ -1,10 +1,11 @@
 import asyncio
 import glob
-import hashlib
 import inspect
 import logging
 import os
+import shlex
 import signal
+import subprocess
 import sys
 import time
 import typing as T
@@ -20,8 +21,10 @@ from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
 from aiomegfile.interfaces import FILE_SYSTEMS, FileEntry
 from aiomegfile.lib.glob import FSFunc, get_non_glob_dir, has_magic, iglob
 from aiomegfile.smart import (
+    smart_cache,
     smart_copy,
     smart_exists,
+    smart_getmd5,
     smart_getmtime,
     smart_getsize,
     smart_isdir,
@@ -43,6 +46,7 @@ from aiomegfile.utils.alias import CONFIG_PATH, CaseSensitiveConfigParser
 from aiomegfile.utils.path import copyfileobj
 
 options: dict[str, T.Any] = {}
+DEFAULT_HDFS_TIMEOUT = 10
 
 
 def _configure_logging(level: str) -> None:
@@ -92,6 +96,23 @@ def _get_human_size(num_bytes: int) -> str:
             return f"{size:.1f}{unit}"
         size /= 1024
     return f"{int(num_bytes)}B"
+
+
+def _get_s3_profiles() -> list[str]:
+    """Return available AWS profile names.
+
+    :return: List of profile names.
+    :rtype: list[str]
+    """
+    try:
+        import botocore.session
+    except Exception:
+        return []
+    try:
+        session = botocore.session.Session()
+        return session.available_profiles
+    except Exception:
+        return []
 
 
 @click.group()
@@ -389,7 +410,12 @@ class PathType(ParamType):
     def shell_complete(self, ctx, param, incomplete):  # noqa: D401
         """Return shell completion candidates for paths."""
         if not incomplete:
-            return [CompletionItem(f"{protocol}://") for protocol in FILE_SYSTEMS]
+            items = [CompletionItem(f"{protocol}://") for protocol in FILE_SYSTEMS]
+            for profile_name in _get_s3_profiles():
+                if profile_name == "default":
+                    continue
+                items.append(CompletionItem(f"s3+{profile_name}://"))
+            return items
 
         if "//" not in incomplete:
             matches = glob.glob(incomplete + "*")
@@ -984,25 +1010,6 @@ def to(path: str, append: bool, stdout: bool) -> None:
     _run_async(_run())
 
 
-async def _md5sum(path: str) -> str:
-    """Compute MD5 checksum for a file.
-
-    :param path: File path.
-    :return: MD5 hex digest.
-    """
-    # TODO: support smart_getmd5
-    if await smart_isdir(path):
-        raise IsADirectoryError(f"md5sum only supports files: {path}")
-    md5 = hashlib.md5()
-    async with smart_open(path, "rb") as src_file:
-        while True:
-            chunk = await src_file.read(READER_BLOCK_SIZE)
-            if not chunk:
-                break
-            md5.update(chunk)
-    return md5.hexdigest()
-
-
 @cli.command(short_help="Produce an md5sum file for the objects in the path.")
 @click.argument("path", type=PathType())
 def md5sum(path: str) -> None:
@@ -1010,7 +1017,7 @@ def md5sum(path: str) -> None:
 
     async def _run() -> None:
         """Execute md5sum."""
-        click.echo(await _md5sum(path))
+        click.echo(await smart_getmd5(path, recalculate=True))
 
     _run_async(_run())
 
@@ -1047,6 +1054,26 @@ def stat(path: str) -> None:
     async def _run() -> None:
         """Execute stat."""
         click.echo(await smart_stat(path))
+
+    _run_async(_run())
+
+
+@cli.command(short_help="Edit the file.")
+@click.argument("path", type=PathType())
+@click.option("-e", "--editor", type=str, default="vim", help="Editor to use.")
+def edit(path: str, editor: str) -> None:
+    """Edit a file using a local editor.
+
+    :param path: File path to edit.
+    :param editor: Editor command to use.
+    """
+
+    async def _run() -> None:
+        """Execute edit."""
+        async with smart_cache(path, mode="a") as cache_path:
+            cmds = shlex.split(editor)
+            cmds.append(cache_path)
+            await asyncio.to_thread(subprocess.check_call, cmds)
 
     _run_async(_run())
 
@@ -1169,6 +1196,75 @@ def s3(
     click.echo(f"Your s3 config has been saved into {path}")
 
 
+@config.command(short_help="Update the config file for hdfs")
+@click.option(
+    "-p",
+    "--path",
+    default="~/.hdfscli.cfg",
+    help="hdfs config file, default is $HOME/.hdfscli.cfg",
+)
+@click.argument("url")
+@click.option("-n", "--profile-name", default="default", help="hdfs config file")
+@click.option("-u", "--user", help="user name")
+@click.option("-r", "--root", help="hdfs path's root dir")
+@click.option("-t", "--token", help="token for requesting hdfs server")
+@click.option(
+    "-o",
+    "--timeout",
+    help=f"request hdfs server timeout, default {DEFAULT_HDFS_TIMEOUT}",
+)
+@click.option("--no-cover", is_flag=True, help="Not cover the same-name config")
+def hdfs(
+    path: str,
+    url: str,
+    profile_name: str,
+    user: str | None,
+    root: str | None,
+    token: str | None,
+    timeout: str | None,
+    no_cover: bool,
+) -> None:
+    """Update HDFS configuration in the config file.
+
+    :param path: Config file path.
+    :param url: HDFS URL.
+    :param profile_name: Profile name.
+    :param user: HDFS user.
+    :param root: Root path.
+    :param token: Auth token.
+    :param timeout: Request timeout.
+    :param no_cover: Whether to forbid overwriting existing profile.
+    :return: None
+    :rtype: None
+    """
+    path = os.path.expanduser(path)
+    current_config = {
+        "url": url,
+        "user": user,
+        "root": root,
+        "token": token,
+        "timeout": timeout,
+    }
+    profile_section = f"{profile_name}.alias"
+    config = CaseSensitiveConfigParser()
+    if os.path.exists(path):
+        config.read(path)
+    if "global" not in config.sections():
+        config["global"] = {"default.alias": "default"}
+    if profile_section in config.sections():
+        if no_cover:
+            raise NameError(f"profile-name has been used: {profile_name}")
+    else:
+        config[profile_section] = {}
+    for key, value in current_config.items():
+        if value:
+            config[profile_section][key] = value
+    _safe_makedirs(os.path.dirname(path))
+    with open(path, "w", encoding="utf-8") as fp:
+        config.write(fp)
+    click.echo(f"Your hdfs config has been saved into {path}")
+
+
 @config.command(short_help="Update the config file for aliases")
 @click.option(
     "-p",
@@ -1202,6 +1298,42 @@ def alias(path: str, name: str, protocol_or_path: str, no_cover: bool) -> None:
     with open(path, "w", encoding="utf-8") as fp:
         config.write(fp)
     click.echo(f"Your alias config has been saved into {path}")
+
+
+@config.command(short_help="Update the config file for envs")
+@click.option(
+    "-p",
+    "--path",
+    default=CONFIG_PATH,
+    help=f"megfile config file, default is {CONFIG_PATH}",
+)
+@click.argument("expr")
+@click.option("--no-cover", is_flag=True, help="Not cover the same-name config")
+def env(path: str, expr: str, no_cover: bool) -> None:
+    """Update env configuration in the config file.
+
+    :param path: Config file path.
+    :param expr: Environment assignment in the form NAME=VALUE.
+    :param no_cover: Whether to forbid overwriting existing env.
+    :return: None
+    :rtype: None
+    """
+    if "=" not in expr:
+        raise ValueError(f"Invalid env format: {expr}")
+    name, value = expr.split("=", 1)
+    path = os.path.expanduser(path)
+    config = CaseSensitiveConfigParser()
+    if os.path.exists(path):
+        config.read(path)
+    config.setdefault("env", {})
+    if config.has_option("env", name) and no_cover:
+        current_value = config.get("env", name)
+        raise NameError(f"env has been set: {name} = {current_value}")
+    config.set("env", name, value)
+    _safe_makedirs(os.path.dirname(path))
+    with open(path, "w", encoding="utf-8") as fp:
+        config.write(fp)
+    click.echo(f"Your env config has been saved into {path}")
 
 
 @cli.group(short_help="Return the completion file")

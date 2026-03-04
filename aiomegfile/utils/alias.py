@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import configparser
+import logging
 import os
 from dataclasses import dataclass
 
+from aiomegfile.config import CONFIG_PATH
 from aiomegfile.utils.path import PathLike, fspath
 
-CONFIG_PATH = "~/.config/megfile/megfile.conf"
+logger = logging.getLogger(__name__)
+# Legacy aliases config path for backward compatibility
 LEGACY_ALIASES_CONFIG = "~/.config/megfile/aliases.conf"
 
 
@@ -71,6 +74,13 @@ def _load_legacy_aliases(path: str) -> dict[str, AliasInfo]:
     config_path = os.path.expanduser(path)
     if not os.path.isfile(config_path):
         return configs
+
+    logger.warning(
+        "DeprecationWarning: legacy alias config from %s will be deprecated, "
+        "please migrate to %s",
+        config_path,
+        CONFIG_PATH,
+    )
     parser = CaseSensitiveConfigParser()
     parser.read(config_path)
     for section in parser.sections():

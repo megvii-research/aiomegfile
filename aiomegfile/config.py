@@ -1,4 +1,6 @@
+import configparser
 import os
+import typing as T
 
 from aiomegfile.utils.parse import parse_boolean, parse_quantity
 
@@ -43,3 +45,27 @@ READER_LAZY_PREFETCH = parse_boolean(
 S3_MAX_RETRY_TIMES = int(
     os.getenv("AIOMEGFILE_S3_MAX_RETRY_TIMES") or DEFAULT_MAX_RETRY_TIMES
 )
+
+
+CONFIG_PATH = "~/.config/megfile/megfile.conf"
+
+
+class CaseSensitiveConfigParser(configparser.ConfigParser):
+    def optionxform(self, optionstr: str) -> str:
+        return optionstr
+
+
+def load_aiomegfile_config(section) -> T.Dict[str, str]:
+    path = os.path.expanduser(CONFIG_PATH)
+    if not os.path.isfile(path):
+        return {}
+    config = CaseSensitiveConfigParser()
+    if os.path.exists(path):
+        config.read(path)
+    if not config.has_section(section):
+        return {}
+    return dict(config.items(section))
+
+
+for key, value in load_aiomegfile_config("env").items():
+    os.environ.setdefault(key.upper(), value)
