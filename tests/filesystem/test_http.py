@@ -143,6 +143,101 @@ def range_http_server():
         server.server_close()
 
 
+@pytest.fixture
+def head_405_range_http_server():
+    """Start an HTTP server where ``HEAD`` is not allowed but range works."""
+    content = b"range with head 405\nline2\n"
+
+    class Head405RangeHandler(BaseHTTPRequestHandler):
+        """HTTP handler with ``HEAD`` 405 and byte-range ``GET`` support."""
+
+        def _send_not_found(self) -> None:
+            """Send a 404 response."""
+            self.send_response(404)
+            self.end_headers()
+
+        def _send_headers(
+            self,
+            status_code: int,
+            content_length: int,
+            *,
+            content_range: str | None = None,
+        ) -> None:
+            """Send common response headers.
+
+            :param status_code: HTTP status code.
+            :param content_length: Body length.
+            :param content_range: Optional ``Content-Range`` value.
+            """
+            self.send_response(status_code)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(content_length))
+            if content_range is not None:
+                self.send_header("Content-Range", content_range)
+            self.end_headers()
+
+        def do_HEAD(self) -> None:
+            """Handle HEAD request."""
+            if self.path != "/data.txt":
+                self._send_not_found()
+                return
+            self.send_response(405)
+            self.send_header("Allow", "GET")
+            self.end_headers()
+
+        def do_GET(self) -> None:
+            """Handle GET request with optional Range header."""
+            if self.path != "/data.txt":
+                self._send_not_found()
+                return
+
+            range_header = self.headers.get("Range")
+            if not range_header:
+                self._send_headers(200, len(content))
+                self.wfile.write(content)
+                return
+
+            match = re.match(r"^bytes=(\d+)-(\d+)$", range_header)
+            if match is None:
+                self.send_response(416)
+                self.end_headers()
+                return
+
+            start = int(match.group(1))
+            end = min(int(match.group(2)), len(content) - 1)
+            if start >= len(content):
+                self.send_response(416)
+                self.end_headers()
+                return
+
+            chunk = content[start : end + 1]
+            self._send_headers(
+                206,
+                len(chunk),
+                content_range=f"bytes {start}-{end}/{len(content)}",
+            )
+            self.wfile.write(chunk)
+
+        def log_message(self, format, *args) -> None:
+            """Suppress request logs for deterministic test output."""
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Head405RangeHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+    try:
+        yield {
+            "file_url": f"{base_url}/data.txt",
+            "content": content,
+        }
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
 class TestHttpFileSystem:
     """Test cases for HttpFileSystem."""
 
@@ -220,6 +315,29 @@ class TestHttpFileSystem:
         async with filesystem.open(path, "rb") as file_obj:
             assert isinstance(file_obj, AioHttpPrefetchReader)
             assert await file_obj.read() == range_http_server["content"]
+
+    async def test_stat_head_405_range_server_uses_total_content_size(
+        self,
+        head_405_range_http_server,
+    ):
+        """Test stat size prefers total size from ``Content-Range``."""
+        filesystem = HttpFileSystem()
+        path = self._parse_http_path(head_405_range_http_server["file_url"])
+
+        stat_result = await filesystem.stat(path)
+        assert stat_result.st_size == len(head_405_range_http_server["content"])
+
+    async def test_open_head_405_range_server_uses_prefetch(
+        self,
+        head_405_range_http_server,
+    ):
+        """Test fallback header probing still selects prefetch reader."""
+        filesystem = HttpFileSystem()
+        path = self._parse_http_path(head_405_range_http_server["file_url"])
+
+        async with filesystem.open(path, "rb") as file_obj:
+            assert isinstance(file_obj, AioHttpPrefetchReader)
+            assert await file_obj.read() == head_405_range_http_server["content"]
 
     async def test_missing_file_behavior(self, plain_http_server):
         """Test missing HTTP resources for stat and open."""

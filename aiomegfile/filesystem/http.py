@@ -26,6 +26,11 @@ from aiomegfile.lib.http_retry import (
     http_retry,
     translate_http_error,
 )
+from aiomegfile.utils.http import (
+    is_byte_range_supported,
+    parse_total_size_from_headers,
+    request_headers,
+)
 from aiomegfile.utils.path import PathLike, fspath, split_uri
 
 DEFAULT_HTTP_TIMEOUT = 60.0
@@ -43,62 +48,6 @@ def is_http(path: PathLike) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
-def _is_byte_range_supported(headers: T.Mapping[str, str], status_code: int) -> bool:
-    """Return whether response supports byte-range access.
-
-    :param headers: HTTP response headers.
-    :param status_code: HTTP status code.
-    :return: True if byte-range request is supported.
-    :rtype: bool
-    """
-    accept_ranges = (headers.get("Accept-Ranges") or "").lower()
-    if accept_ranges == "bytes":
-        return True
-    if "Content-Range" in headers:
-        return True
-    return status_code == 206
-
-
-async def _request_headers(
-    url: str,
-    timeout: float,
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
-) -> tuple[dict[str, str], int]:
-    """Fetch response headers for an HTTP URL.
-
-    This function tries ``HEAD`` first. If the endpoint does not support
-    ``HEAD`` (HTTP 405), it falls back to ``GET`` with
-    ``Range: bytes=0-0``.
-
-    :param url: Full HTTP(S) URL.
-    :param timeout: Request timeout in seconds.
-    :param max_retries: Maximum retry attempts.
-    :return: Tuple of response headers and status code.
-    :rtype: tuple[dict[str, str], int]
-    """
-    request_timeout = aiohttp.ClientTimeout(total=timeout)
-    async with aiohttp.ClientSession(timeout=request_timeout) as session:
-
-        @http_retry(max_retries=max_retries)
-        async def _fetch_headers() -> tuple[dict[str, str], int]:
-            try:
-                async with session.head(url) as response:
-                    headers = dict(response.headers.items())
-                    response.raise_for_status()
-                    return headers, response.status
-            except aiohttp.ClientResponseError as error:
-                if error.status != 405:
-                    raise
-
-            async with session.get(url, headers={"Range": "bytes=0-0"}) as response:
-                headers = dict(response.headers.items())
-                await response.read()
-                response.raise_for_status()
-                return headers, response.status
-
-        return await _fetch_headers()
-
-
 def _parse_http_timestamp(last_modified: T.Optional[str]) -> float:
     """Parse HTTP ``Last-Modified`` header into unix timestamp.
 
@@ -114,21 +63,6 @@ def _parse_http_timestamp(last_modified: T.Optional[str]) -> float:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.timestamp()
-
-
-def _parse_content_length(content_length: T.Optional[str]) -> int:
-    """Parse ``Content-Length`` header into file size.
-
-    :param content_length: Header value.
-    :return: Parsed content length, or 0 when unavailable.
-    :rtype: int
-    """
-    if not content_length:
-        return 0
-    try:
-        return int(content_length)
-    except (TypeError, ValueError):
-        return 0
 
 
 class AioHttpContentReader(AioReadable[T.AnyStr]):
@@ -460,7 +394,7 @@ class AioHttpAdaptiveReader(AioReadable[T.AnyStr], AioSeekable[T.AnyStr]):
             return self._reader
 
         try:
-            headers, status_code = await _request_headers(
+            headers, status_code = await request_headers(
                 self._uri,
                 self._timeout,
                 max_retries=self._max_retries,
@@ -468,8 +402,8 @@ class AioHttpAdaptiveReader(AioReadable[T.AnyStr], AioSeekable[T.AnyStr]):
         except Exception as error:
             raise translate_http_error(error, self._uri) from error
 
-        if _is_byte_range_supported(headers, status_code):
-            content_size = _parse_content_length(headers.get("Content-Length"))
+        if is_byte_range_supported(headers, status_code):
+            content_size = parse_total_size_from_headers(headers)
             self._reader = AioHttpPrefetchReader(
                 self._uri,
                 mode=self._mode,
@@ -477,7 +411,7 @@ class AioHttpAdaptiveReader(AioReadable[T.AnyStr], AioSeekable[T.AnyStr]):
                 errors=self._errors,
                 newline=self._newline,
                 timeout=self._timeout,
-                content_size=content_size if content_size > 0 else None,
+                content_size=content_size,
                 block_size=self._block_size,
                 max_buffer_size=self._max_buffer_size,
                 block_forward=self._block_forward,
@@ -618,7 +552,7 @@ class HttpFileSystem(BaseFileSystem):
         """
         url = self.build_uri(path)
         try:
-            await _request_headers(url, self._timeout)
+            await request_headers(url, self._timeout)
             return True
         except aiohttp.ClientResponseError as error:
             return error.status not in HTTP_NOT_FOUND_STATUS_CODES
@@ -638,14 +572,14 @@ class HttpFileSystem(BaseFileSystem):
         """
         url = self.build_uri(path)
         try:
-            headers, _ = await _request_headers(url, self._timeout)
+            headers, _ = await request_headers(url, self._timeout)
         except Exception as error:
             raise translate_http_error(error, url) from error
 
-        size = _parse_content_length(headers.get("Content-Length"))
+        size = parse_total_size_from_headers(headers)
         mtime = _parse_http_timestamp(headers.get("Last-Modified"))
         return StatResult(
-            st_size=size,
+            st_size=size or 0,
             st_ctime=mtime,
             st_mtime=mtime,
             isdir=False,

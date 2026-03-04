@@ -10,6 +10,12 @@ from aiomegfile.config import (
 )
 from aiomegfile.lib.base_prefetch_reader import AioBasePrefetchReader
 from aiomegfile.lib.http_retry import http_retry, translate_http_error
+from aiomegfile.utils.http import (
+    is_byte_range_supported,
+    parse_content_length,
+    parse_total_size_from_headers,
+    request_headers,
+)
 
 __all__ = [
     "DEFAULT_TIMEOUT",
@@ -17,63 +23,6 @@ __all__ = [
 ]
 
 DEFAULT_TIMEOUT = 60.0
-
-
-def _parse_total_size_from_headers(headers: T.Mapping[str, str]) -> T.Optional[int]:
-    """Parse total size from HTTP headers.
-
-    :param headers: HTTP response headers.
-    :return: Total content size, or ``None`` if unavailable.
-    :rtype: T.Optional[int]
-    """
-    content_range = headers.get("Content-Range")
-    if content_range and "/" in content_range:
-        total_size = content_range.rsplit("/", 1)[-1]
-        if total_size != "*":
-            try:
-                return int(total_size)
-            except ValueError:
-                pass
-
-    content_length = headers.get("Content-Length")
-    if content_length:
-        try:
-            return int(content_length)
-        except ValueError:
-            pass
-    return None
-
-
-def _parse_content_length(headers: T.Mapping[str, str]) -> T.Optional[int]:
-    """Parse content length from headers.
-
-    :param headers: HTTP response headers.
-    :return: Content length, or ``None`` when unavailable.
-    :rtype: T.Optional[int]
-    """
-    content_length = headers.get("Content-Length")
-    if content_length is None:
-        return None
-    try:
-        return int(content_length)
-    except ValueError:
-        return None
-
-
-def _supports_byte_range(headers: T.Mapping[str, str], status_code: int) -> bool:
-    """Return whether the response supports byte-range reading.
-
-    :param headers: HTTP response headers.
-    :param status_code: HTTP status code.
-    :return: True if byte-range request is supported.
-    :rtype: bool
-    """
-    accept_ranges = (headers.get("Accept-Ranges") or "").lower()
-    if accept_ranges == "bytes":
-        return True
-    if "Content-Range" in headers:
-        return True
-    return status_code == 206
 
 
 class AioHttpPrefetchReader(AioBasePrefetchReader):
@@ -129,7 +78,6 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
         self._url = url
         self._timeout = timeout
         self._explicit_content_size = content_size
-        self._response_headers: dict[str, str] = {}
         self._supports_range = False
 
         self._session = session
@@ -181,32 +129,6 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
         self._owns_session = True
         return self._session
 
-    async def _fetch_headers_once(self) -> tuple[dict[str, str], int]:
-        """Fetch response headers once.
-
-        This tries ``HEAD`` first and falls back to ``GET`` with
-        ``Range: bytes=0-0`` when the endpoint returns ``405``.
-
-        :return: Tuple of response headers and status code.
-        :rtype: tuple[dict[str, str], int]
-        """
-        session = await self._ensure_session()
-
-        try:
-            async with session.head(self._url) as response:
-                headers = dict(response.headers.items())
-                response.raise_for_status()
-                return headers, response.status
-        except aiohttp.ClientResponseError as error:
-            if error.status != 405:
-                raise
-
-        async with session.get(self._url, headers={"Range": "bytes=0-0"}) as response:
-            headers = dict(response.headers.items())
-            await response.read()
-            response.raise_for_status()
-            return headers, response.status
-
     async def _download_bytes_once(
         self,
         headers: T.Optional[dict[str, str]] = None,
@@ -225,19 +147,20 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
             response.raise_for_status()
             return body, response_headers, response.status
 
-    async def _fetch_headers_with_retry(self) -> tuple[dict[str, str], int]:
+    async def _request_headers(self) -> tuple[dict[str, str], int]:
         """Fetch response headers with retry behavior.
 
         :return: Tuple of response headers and status code.
         :rtype: tuple[dict[str, str], int]
         """
-
-        @http_retry(max_retries=self._max_retries)
-        async def _fetch() -> tuple[dict[str, str], int]:
-            return await self._fetch_headers_once()
-
+        session = await self._ensure_session()
         try:
-            return await _fetch()
+            return await request_headers(
+                self._url,
+                self._timeout,
+                max_retries=self._max_retries,
+                session=session,
+            )
         except Exception as error:
             raise translate_http_error(error, self._url) from error
 
@@ -272,36 +195,18 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
             self._supports_range = True
             return int(self._explicit_content_size)
 
-        headers, status_code = await self._fetch_headers_with_retry()
-        self._response_headers = headers
+        headers, status_code = await self._request_headers()
 
-        if not _supports_byte_range(headers, status_code):
+        if not is_byte_range_supported(headers, status_code):
             raise OSError(
                 "Unsupported server, server must support byte-range request: "
                 f"{self._url!r}"
             )
         self._supports_range = True
 
-        content_size = _parse_total_size_from_headers(headers)
+        content_size = parse_total_size_from_headers(headers)
         if content_size is not None:
             return content_size
-
-        body, headers, status_code = await self._download_with_retry(
-            headers={"Range": "bytes=0-0"}
-        )
-        self._response_headers = headers
-        if status_code != 206 or not _supports_byte_range(headers, status_code):
-            raise OSError(
-                "Unsupported server, server must support byte-range request: "
-                f"{self._url!r}"
-            )
-
-        content_size = _parse_total_size_from_headers(headers)
-        if content_size is not None:
-            return content_size
-
-        if len(body) == 0:
-            return 0
 
         raise OSError(
             f"Cannot determine content size from response headers: {self._url!r}"
@@ -321,8 +226,7 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
         :raises OSError: If server returns non-range response.
         """
         if start is None or end is None:
-            headers, status_code = await self._fetch_headers_with_retry()
-            self._response_headers = headers
+            headers, status_code = await self._request_headers()
             return {
                 "Headers": headers,
                 "StatusCode": status_code,
@@ -338,7 +242,6 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
         body, headers, status_code = await self._download_with_retry(
             headers={"Range": f"bytes={start}-{range_end}"}
         )
-        self._response_headers = headers
 
         if status_code != 206:
             raise OSError(
@@ -346,7 +249,7 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
                 f"{self._url!r}"
             )
 
-        expected_size = _parse_content_length(headers)
+        expected_size = parse_content_length(headers.get("Content-Length"))
         if expected_size is not None and expected_size != len(body):
             raise OSError(
                 "The downloaded content is incomplete, "
