@@ -1,6 +1,8 @@
 import aiomegfile.config  # noqa: F401 # make sure env config is loaded
 from aiomegfile.__version__ import __version__  # noqa: F401
 from aiomegfile.filesystem import (
+    HttpFileSystem,
+    HttpsFileSystem,
     LocalFileSystem,
     S3FileSystem,
 )
@@ -51,6 +53,8 @@ from aiomegfile.smart_path import SmartPath
 
 __all__ = [
     "SmartPath",
+    "HttpFileSystem",
+    "HttpsFileSystem",
     "LocalFileSystem",
     "S3FileSystem",
     "smart_abspath",

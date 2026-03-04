@@ -24,6 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "aiofiles",
+    "aiohttp",
     "aiobotocore>=3.1.0",
     "types-aiobotocore[essential]>=3.1.0",
     "tqdm>=4.67.3",
