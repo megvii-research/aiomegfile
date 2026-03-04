@@ -5,6 +5,7 @@ from aiomegfile.filesystem import (
     HttpsFileSystem,
     LocalFileSystem,
     S3FileSystem,
+    StdioFileSystem,
 )
 from aiomegfile.smart import (
     SmartCacher,
@@ -50,6 +51,7 @@ from aiomegfile.smart import (
     smart_walk,
 )
 from aiomegfile.smart_path import SmartPath
+from aiomegfile.stdio import is_stdio, stdio_open
 
 __all__ = [
     "SmartPath",
@@ -57,6 +59,8 @@ __all__ = [
     "HttpsFileSystem",
     "LocalFileSystem",
     "S3FileSystem",
+    "StdioFileSystem",
+    "is_stdio",
     "smart_abspath",
     "smart_cache",
     "smart_combine_open",
@@ -93,6 +97,7 @@ __all__ = [
     "smart_touch",
     "smart_unlink",
     "smart_walk",
+    "stdio_open",
     "smart_realpath",
     "smart_relpath",
     "smart_symlink",
