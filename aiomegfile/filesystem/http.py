@@ -20,11 +20,6 @@ from aiomegfile.interfaces import (
     BaseFileSystem,
     StatResult,
 )
-from aiomegfile.utils.retry.http_retry import (
-    HTTP_NOT_FOUND_STATUS_CODES,
-    http_retry,
-    translate_http_error,
-)
 from aiomegfile.lib.prefetch_reader.http_prefetch_reader import AioHttpPrefetchReader
 from aiomegfile.utils.http import (
     is_byte_range_supported,
@@ -32,6 +27,11 @@ from aiomegfile.utils.http import (
     request_headers,
 )
 from aiomegfile.utils.path import PathLike, fspath, split_uri
+from aiomegfile.utils.retry.http_retry import (
+    HTTP_NOT_FOUND_STATUS_CODES,
+    http_retry,
+    translate_http_error,
+)
 
 DEFAULT_HTTP_TIMEOUT = 60.0
 

@@ -49,8 +49,8 @@ from aiomegfile.lib.fnmatch import translate
 from aiomegfile.lib.glob import has_magic, has_magic_ignore_brace, ungloblize
 from aiomegfile.lib.prefetch_reader.s3_prefetch_reader import AioS3PrefetchReader
 from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
-from aiomegfile.utils.retry.s3_retry import register_retry_handler
 from aiomegfile.utils.path import PathLike, fspath, split_uri
+from aiomegfile.utils.retry.s3_retry import register_retry_handler
 
 if T.TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
