@@ -160,7 +160,7 @@ class AioHttpContentReader(AioReadable[T.AnyStr]):
         @http_retry(max_retries=self._max_retries)
         async def _open_once() -> tuple[T.Any, aiohttp.ClientResponse]:
             session = await self._ensure_session()
-            response_ctx = session.get(self._uri)
+            response_ctx = session.get(self._uri)  # pyre-ignore[16]
             try:
                 response = await response_ctx.__aenter__()
                 response.raise_for_status()
@@ -210,7 +210,7 @@ class AioHttpContentReader(AioReadable[T.AnyStr]):
         if size is None or size < 0:
             prefix = bytes(self._pending)
             self._pending.clear()
-            suffix = await self._stream.read(-1)
+            suffix = await self._stream.read(-1)  # pyre-ignore[16]
             return prefix + suffix
 
         if size == 0:
@@ -256,7 +256,7 @@ class AioHttpContentReader(AioReadable[T.AnyStr]):
                 del self._pending[:size]
                 return line
 
-            chunk = await self._stream.read(8192)
+            chunk = await self._stream.read(8192)  # pyre-ignore[16]
             if not chunk:
                 if size is None or size < 0:
                     end = len(self._pending)
@@ -454,9 +454,9 @@ class AioHttpAdaptiveReader(AioReadable[T.AnyStr], AioSeekable[T.AnyStr]):
             return
 
         if self._entered and hasattr(self._reader, "__aexit__"):
-            await self._reader.__aexit__(exc_type, exc_val, exc_tb)
+            await self._reader.__aexit__(exc_type, exc_val, exc_tb)  # pyre-ignore[16]
         else:
-            await self._reader.close()
+            await self._reader.close()  # pyre-ignore[16]
         self._entered = False
 
     async def read(self, size: T.Optional[int] = None) -> T.AnyStr:

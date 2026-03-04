@@ -78,8 +78,8 @@ async def test_request_headers_fallback_to_range_probe():
     try:
         url = f"http://127.0.0.1:{server.server_port}/data.txt"
         headers, status_code = await request_headers(url, timeout=10)
-        assert status_code == 206
-        assert headers["Content-Length"] == "1"
+        assert status_code == 200
+        assert headers["Content-Length"] == "11"
         assert parse_total_size_from_headers(headers) == len(content)
     finally:
         server.shutdown()

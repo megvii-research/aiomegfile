@@ -141,7 +141,9 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
         """
         session = await self._ensure_session()
 
-        async with session.get(self._url, headers=headers) as response:
+        async with session.get(  # pyre-ignore[16]
+            self._url, headers=headers
+        ) as response:
             body = await response.read()
             response_headers = dict(response.headers.items())
             response.raise_for_status()

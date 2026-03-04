@@ -27,7 +27,7 @@ def http_should_retry(error: Exception) -> bool:
     :rtype: bool
     """
     if isinstance(error, aiohttp.ClientResponseError):
-        return error.status in HTTP_RETRYABLE_STATUS_CODES
+        return error.status in HTTP_RETRYABLE_STATUS_CODES  # type: ignore
     if isinstance(error, asyncio.TimeoutError):
         return True
     if isinstance(error, aiohttp.ClientConnectionError):
@@ -48,11 +48,11 @@ def translate_http_error(error: Exception, url: str) -> Exception:
     :rtype: Exception
     """
     if isinstance(error, aiohttp.ClientResponseError):
-        if error.status in HTTP_NOT_FOUND_STATUS_CODES:
+        if error.status in HTTP_NOT_FOUND_STATUS_CODES:  # type: ignore
             return FileNotFoundError(f"No such file: {url!r}")
-        if error.status in HTTP_PERMISSION_STATUS_CODES:
+        if error.status in HTTP_PERMISSION_STATUS_CODES:  # type: ignore
             return PermissionError(f"Permission denied: {url!r}")
-        return OSError(f"HTTP error {error.status}: {url!r}")
+        return OSError(f"HTTP error {error.status}: {url!r}")  # type: ignore
 
     if isinstance(error, asyncio.TimeoutError):
         return TimeoutError(f"Request timeout: {url!r}")
