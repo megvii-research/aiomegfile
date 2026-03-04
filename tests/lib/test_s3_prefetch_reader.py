@@ -4,7 +4,7 @@ import pytest
 from moto.server import ThreadedMotoServer
 
 from aiomegfile.filesystem.s3 import S3FileSystem, get_s3_client
-from aiomegfile.lib.s3_prefetch_reader import AioS3PrefetchReader
+from aiomegfile.lib.prefetch_reader.s3_prefetch_reader import AioS3PrefetchReader
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"

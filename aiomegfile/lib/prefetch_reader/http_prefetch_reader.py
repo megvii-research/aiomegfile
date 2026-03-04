@@ -8,14 +8,14 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
-from aiomegfile.lib.base_prefetch_reader import AioBasePrefetchReader
-from aiomegfile.lib.http_retry import http_retry, translate_http_error
+from aiomegfile.lib.prefetch_reader.base_prefetch_reader import AioBasePrefetchReader
 from aiomegfile.utils.http import (
     is_byte_range_supported,
     parse_content_length,
     parse_total_size_from_headers,
     request_headers,
 )
+from aiomegfile.utils.retry.http_retry import http_retry, translate_http_error
 
 __all__ = [
     "DEFAULT_TIMEOUT",
