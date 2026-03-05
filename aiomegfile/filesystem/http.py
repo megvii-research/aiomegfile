@@ -27,7 +27,7 @@ from aiomegfile.utils.http import (
     request_headers,
 )
 from aiomegfile.utils.path import PathLike, fspath, split_uri
-from aiomegfile.utils.retry.http_retry import (
+from aiomegfile.utils.retry.http import (
     HTTP_NOT_FOUND_STATUS_CODES,
     http_retry,
     translate_http_error,

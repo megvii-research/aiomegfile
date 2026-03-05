@@ -1,6 +1,5 @@
 import asyncio
 import glob
-import inspect
 import logging
 import os
 import shlex
@@ -43,6 +42,8 @@ from aiomegfile.smart import (
 )
 from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.alias import CONFIG_PATH, CaseSensitiveConfigParser
+from aiomegfile.utils.async_tools import maybe_await
+from aiomegfile.utils.parse import get_human_size
 from aiomegfile.utils.path import copyfileobj
 
 options: dict[str, T.Any] = {}
@@ -68,34 +69,6 @@ def _run_async(task: T.Coroutine[T.Any, T.Any, T.Any]) -> T.Any:
     except RuntimeError:
         return asyncio.run(task)
     raise RuntimeError("aiomegfile CLI cannot run inside an active event loop")
-
-
-async def _maybe_await(result: T.Any) -> T.Any:
-    """Await the result if needed.
-
-    :param result: Possibly awaitable result.
-    :return: Final resolved result.
-    """
-    if inspect.isawaitable(result):
-        return await result
-    return result
-
-
-def _get_human_size(num_bytes: int) -> str:
-    """Return a human-readable size string.
-
-    :param num_bytes: Size in bytes.
-    :return: Human-readable size.
-    """
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
-    size = float(num_bytes)
-    for unit in units:
-        if size < 1024 or unit == units[-1]:
-            if unit == "B":
-                return f"{int(size)}{unit}"
-            return f"{size:.1f}{unit}"
-        size /= 1024
-    return f"{int(num_bytes)}B"
 
 
 def _get_s3_profiles() -> list[str]:
@@ -202,7 +175,7 @@ async def _human_echo(
     :return: Display line with human size and mtime.
     """
     return "%10s %s %s" % (
-        _get_human_size(file_stat.stat.st_size),
+        get_human_size(file_stat.stat.st_size),
         time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(file_stat.stat.st_mtime)),
         await _get_echo_path(file_stat, base_path, full),
     )
@@ -399,7 +372,7 @@ async def _ls(
     while pending:
         click.echo(await _await_next(pending))
     if long:
-        click.echo(f"total({total_count}): {_get_human_size(total_size)}")
+        click.echo(f"total({total_count}): {get_human_size(total_size)}")
 
 
 class PathType(ParamType):
@@ -924,11 +897,11 @@ async def _tail_follow_content(path: str, offset: int) -> int:
     """
     stdout = click.get_binary_stream("stdout")
     async with smart_open(path, "rb") as src_file:
-        await _maybe_await(src_file.seek(offset))
+        await maybe_await(src_file.seek(offset))
         for line in await src_file.readlines():
             stdout.write(line)
         stdout.flush()
-        offset = await _maybe_await(src_file.tell())
+        offset = await maybe_await(src_file.tell())
     return offset
 
 
@@ -946,9 +919,9 @@ def tail(path: str, lines: int, follow: bool) -> None:
         stdout = click.get_binary_stream("stdout")
         line_list: list[bytes] = []
         async with smart_open(path, "rb") as src_file:
-            await _maybe_await(src_file.seek(0, os.SEEK_END))
-            file_size = await _maybe_await(src_file.tell())
-            await _maybe_await(src_file.seek(0, os.SEEK_SET))
+            await maybe_await(src_file.seek(0, os.SEEK_END))
+            file_size = await maybe_await(src_file.tell())
+            await maybe_await(src_file.seek(0, os.SEEK_SET))
 
             for current_offset in range(
                 file_size - READER_BLOCK_SIZE,
@@ -956,7 +929,7 @@ def tail(path: str, lines: int, follow: bool) -> None:
                 -READER_BLOCK_SIZE,
             ):
                 current_offset = max(0, current_offset)
-                await _maybe_await(src_file.seek(current_offset))
+                await maybe_await(src_file.seek(current_offset))
                 block_lines = (await src_file.read(READER_BLOCK_SIZE)).split(b"\n")
                 if line_list:
                     block_lines[-1] += line_list[0]

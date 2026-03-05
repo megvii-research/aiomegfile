@@ -67,3 +67,20 @@ def fullname(o):
     if module == "builtins":
         return klass.__qualname__  # avoid outputs like 'builtins.str'
     return module + "." + klass.__qualname__
+
+
+def get_human_size(num_bytes: int) -> str:
+    """Return a human-readable size string.
+
+    :param num_bytes: Size in bytes.
+    :return: Human-readable size.
+    """
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    size = float(num_bytes)
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)}{unit}"
+            return f"{size:.1f}{unit}"
+        size /= 1024
+    return f"{int(num_bytes)}B"

@@ -1,4 +1,5 @@
 import os
+import tempfile
 import typing as T
 import uuid
 
@@ -38,7 +39,7 @@ def split_uri(uri: PathLike) -> T.Tuple[str, str, T.Optional[str]]:
 
 def generate_cache_path(filename: str, cache_dir: T.Optional[str] = None) -> str:
     if cache_dir is None:
-        cache_dir = "/tmp"
+        cache_dir = tempfile.gettempdir()
     suffix = os.path.splitext(filename)[1]
     return os.path.join(cache_dir, str(uuid.uuid4()) + suffix)
 

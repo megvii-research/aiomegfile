@@ -16,13 +16,13 @@ from aiomegfile.__version__ import __version__
 from aiomegfile.cli import (
     PathType,
     _get_human_size,
-    _maybe_await,
     _run_async,
     _safe_makedirs,
     _tail_follow_content,
     cli,
 )
 from aiomegfile.interfaces import FileEntry, StatResult
+from aiomegfile.utils.async_tools import maybe_await
 
 
 def test_cli_version() -> None:
@@ -124,13 +124,13 @@ async def test_run_async_raises_in_active_loop() -> None:
 
 
 async def test_maybe_await_handles_values() -> None:
-    """_maybe_await should return values and await coroutines.
+    """maybe_await should return values and await coroutines.
 
     :return: None
     :rtype: None
     """
-    assert await _maybe_await("value") == "value"
-    assert await _maybe_await(asyncio.sleep(0, result="ok")) == "ok"
+    assert await maybe_await("value") == "value"
+    assert await maybe_await(asyncio.sleep(0, result="ok")) == "ok"
 
 
 async def test_tail_follow_content_outputs_and_returns_offset(tmp_path, monkeypatch):

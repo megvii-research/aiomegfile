@@ -4,6 +4,7 @@ from aiomegfile.filesystem.http import (
 )
 from aiomegfile.filesystem.local import LocalFileSystem
 from aiomegfile.filesystem.s3 import S3FileSystem
+from aiomegfile.filesystem.sftp import SftpFileSystem
 from aiomegfile.filesystem.stdio import StdioFileSystem
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     "HttpsFileSystem",
     "LocalFileSystem",
     "S3FileSystem",
+    "SftpFileSystem",
     "StdioFileSystem",
 ]
