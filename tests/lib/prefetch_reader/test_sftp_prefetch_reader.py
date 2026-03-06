@@ -23,12 +23,7 @@ def fake_filesystem(monkeypatch):
     async def _open_client():
         return FakeSSHConnection(), client
 
-    async def _close_client(connection, sftp_client) -> None:
-        _ = connection, sftp_client
-        return None
-
     monkeypatch.setattr(filesystem, "_open_client", _open_client)
-    monkeypatch.setattr(filesystem, "_close_client", _close_client)
 
     return filesystem, client
 

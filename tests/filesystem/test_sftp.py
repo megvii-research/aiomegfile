@@ -32,12 +32,7 @@ def filesystem(monkeypatch):
     async def _open_client():
         return FakeSSHConnection(), client
 
-    async def _close_client(connection, sftp_client) -> None:
-        _ = connection, sftp_client
-        return None
-
     monkeypatch.setattr(filesystem, "_open_client", _open_client)
-    monkeypatch.setattr(filesystem, "_close_client", _close_client)
 
     return filesystem, client
 
@@ -92,11 +87,10 @@ class TestSftpFileSystem:
             filesystem_no_user.build_uri("/data.txt") == "sftp://example.com//data.txt"
         )
 
-    def test_from_uri_uses_env_keepalive_interval(self, monkeypatch):
-        """Test keepalive interval is loaded from environment."""
+    def test_get_keepalive_interval_from_env(self, monkeypatch):
+        """Test keepalive interval value is loaded from environment."""
         monkeypatch.setenv("SFTP_KEEPALIVE_INTERVAL", "7.5")
-        filesystem = SftpFileSystem.from_uri("sftp://example.com//data.txt")
-        assert filesystem._endpoint.keepalive_interval == pytest.approx(7.5)
+        assert sftp_module._get_keepalive_interval() == pytest.approx(7.5)
 
     async def test_open_read_absolute_and_relative(self, filesystem):
         """Test opening and reading absolute and home-relative files."""
@@ -290,8 +284,8 @@ class TestSftpClientCache:
 
         calls = {"count": 0}
 
-        async def _fake_get(endpoint, *, max_retries):
-            _ = endpoint, max_retries
+        async def _fake_get(endpoint):
+            _ = endpoint
             calls["count"] += 1
             return _Conn(), _Client()
 
@@ -438,10 +432,10 @@ class TestSftpClientCache:
         monkeypatch.setattr(sftp_module.asyncssh, "connect", _fake_connect)
         monkeypatch.setattr(sftp_module, "_sftp_connect_file_lock", _fake_file_lock)
 
+        monkeypatch.setenv("SFTP_KEEPALIVE_INTERVAL", "7.5")
         endpoint = sftp_module._SftpEndpoint(
             host="locked-host",
             port=22,
-            keepalive_interval=7.5,
         )
         connection, client = await sftp_module._get_sftp_client(endpoint, max_retries=1)
 

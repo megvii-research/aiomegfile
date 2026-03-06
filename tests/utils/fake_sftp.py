@@ -188,6 +188,39 @@ class FakeSFTPFile:
         """Close fake file handle."""
         return None
 
+    def __await__(self) -> T.Generator[T.Any, None, "FakeSFTPFile"]:
+        """Support awaiting the opened file object.
+
+        :return: Awaitable yielding the file object itself.
+        :rtype: typing.Generator[typing.Any, None, FakeSFTPFile]
+        """
+
+        async def _identity() -> "FakeSFTPFile":
+            return self
+
+        return _identity().__await__()
+
+    async def __aenter__(self) -> "FakeSFTPFile":
+        """Enter async context and return file object.
+
+        :return: Current file object.
+        :rtype: FakeSFTPFile
+        """
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        """Exit async context and close the file.
+
+        :param exc_type: Exception type.
+        :param exc: Exception instance.
+        :param tb: Exception traceback.
+        :return: False to propagate exceptions.
+        :rtype: bool
+        """
+        _ = exc_type, exc, tb
+        await self.close()
+        return False
+
 
 class FakeSFTPClient:
     """Fake asyncssh SFTP client for tests.

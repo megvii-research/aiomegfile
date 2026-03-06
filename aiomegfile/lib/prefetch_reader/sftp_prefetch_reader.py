@@ -156,7 +156,6 @@ class AioSftpPrefetchReader(AioBasePrefetchReader):
 
         byte_count = end - start + 1
 
-        file_obj = None
         try:
             async with self._client.open(
                 self._remote_path,
