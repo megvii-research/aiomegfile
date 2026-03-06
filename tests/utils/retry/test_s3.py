@@ -8,7 +8,7 @@ import urllib3.exceptions
 from aiobotocore.retries.standard import AioRetryHandler
 
 from aiomegfile.filesystem.s3 import S3FileSystem
-from aiomegfile.utils.retry.s3_retry import (
+from aiomegfile.utils.retry.s3 import (
     AioMegfileRetryConditions,
     register_retry_handler,
     s3_should_retry,

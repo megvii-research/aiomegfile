@@ -5,6 +5,7 @@ from aiomegfile.filesystem import (
     HttpsFileSystem,
     LocalFileSystem,
     S3FileSystem,
+    SftpFileSystem,
     StdioFileSystem,
 )
 from aiomegfile.smart import (
@@ -59,6 +60,7 @@ __all__ = [
     "HttpsFileSystem",
     "LocalFileSystem",
     "S3FileSystem",
+    "SftpFileSystem",
     "StdioFileSystem",
     "is_stdio",
     "smart_abspath",

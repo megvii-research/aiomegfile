@@ -1,4 +1,5 @@
 import os
+import tempfile
 import typing as T
 
 import aiofiles
@@ -31,7 +32,7 @@ class AioFileCacher(
         self._mode = mode
         self._fileobj = None
         self._path = path
-        self._cache_dir = cache_dir or "/tmp"
+        self._cache_dir = cache_dir or tempfile.gettempdir()
         self._download_fileobj = download_fileobj
         self._upload_fileobj = upload_fileobj
 
@@ -228,7 +229,7 @@ class SmartCacher(AioClosable):
         """
         :param path: Path to cache.
         :type path: str
-        :param cache_path: Path to cache file, defaults to None, will use ``/tmp``.
+        :param cache_path: Path to cache file, defaults to None, will use tmp directory.
         :type cache_path: T.Optional[str], optional
         :param mode: Mode to open cache file, defaults to "r".
         :type mode: str, optional

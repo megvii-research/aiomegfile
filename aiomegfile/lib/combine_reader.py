@@ -5,19 +5,9 @@ import typing as T
 from io import BytesIO, StringIO
 
 from aiomegfile.interfaces import AioReadable, AioSeekable
+from aiomegfile.utils.async_tools import maybe_await
 
 CloseAction = T.Callable[[], T.Awaitable[None]]
-
-
-async def _maybe_await(value: T.Any) -> T.Any:
-    """Return the awaited value when value is awaitable.
-
-    :param value: Value or awaitable to resolve.
-    :return: Resolved value.
-    """
-    if inspect.isawaitable(value):
-        return await value
-    return value
 
 
 async def _call_method(fileobj: T.Any, method_name: str, *args: T.Any) -> T.Any:
@@ -29,7 +19,7 @@ async def _call_method(fileobj: T.Any, method_name: str, *args: T.Any) -> T.Any:
     :return: Method result.
     """
     method = getattr(fileobj, method_name)
-    return await _maybe_await(method(*args))
+    return await maybe_await(method(*args))
 
 
 def _get_name(fileobj: T.Any) -> str:
@@ -70,7 +60,7 @@ async def _is_readable(fileobj: T.Any) -> bool:
     if readable is None:
         return hasattr(fileobj, "read")
     if callable(readable):
-        return bool(await _maybe_await(readable()))
+        return bool(await maybe_await(readable()))
     return bool(readable)
 
 
@@ -85,7 +75,7 @@ async def _is_seekable(fileobj: T.Any) -> bool:
     if seekable is None:
         return hasattr(fileobj, "seek")
     if callable(seekable):
-        return bool(await _maybe_await(seekable()))
+        return bool(await maybe_await(seekable()))
     return bool(seekable)
 
 
@@ -100,7 +90,7 @@ async def _is_writable(fileobj: T.Any) -> bool:
     if writable is None:
         return hasattr(fileobj, "write")
     if callable(writable):
-        return bool(await _maybe_await(writable()))
+        return bool(await maybe_await(writable()))
     return bool(writable)
 
 
@@ -119,7 +109,7 @@ async def _get_content_size(fileobj: T.Any, *, intrusive: bool = False) -> int:
     if hasattr(fileobj, "_content_size"):
         try:
             size = getattr(fileobj, "_content_size")
-            size = await _maybe_await(size)
+            size = await maybe_await(size)
             if isinstance(size, int):
                 return size
         except Exception:
@@ -169,10 +159,10 @@ def _make_close_action(
 
     async def _close_context() -> None:
         if context is not None and hasattr(context, "__aexit__"):
-            await _maybe_await(context.__aexit__(None, None, None))
+            await maybe_await(context.__aexit__(None, None, None))
             return
         if hasattr(fileobj, "close"):
-            await _maybe_await(fileobj.close())
+            await maybe_await(fileobj.close())
 
     return _close_context
 
