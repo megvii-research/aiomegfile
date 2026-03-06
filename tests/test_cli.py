@@ -15,7 +15,6 @@ import aiomegfile  # noqa: F401
 from aiomegfile.__version__ import __version__
 from aiomegfile.cli import (
     PathType,
-    _get_human_size,
     _run_async,
     _safe_makedirs,
     _tail_follow_content,
@@ -23,6 +22,7 @@ from aiomegfile.cli import (
 )
 from aiomegfile.interfaces import FileEntry, StatResult
 from aiomegfile.utils.async_tools import maybe_await
+from aiomegfile.utils.parse import get_human_size
 
 
 def test_cli_version() -> None:
@@ -98,15 +98,15 @@ def test_cli_cp_mv_rm(tmp_path) -> None:
 
 
 def test_get_human_size_formats_units() -> None:
-    """_get_human_size should format byte sizes.
+    """get_human_size should format byte sizes.
 
     :return: None
     :rtype: None
     """
-    assert _get_human_size(0) == "0B"
-    assert _get_human_size(512) == "512B"
-    assert _get_human_size(1024) == "1.0KB"
-    assert _get_human_size(1024 * 1024) == "1.0MB"
+    assert get_human_size(0) == "0B"
+    assert get_human_size(512) == "512B"
+    assert get_human_size(1024) == "1.0KB"
+    assert get_human_size(1024 * 1024) == "1.0MB"
 
 
 async def test_run_async_raises_in_active_loop() -> None:
