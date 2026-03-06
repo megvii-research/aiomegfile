@@ -243,6 +243,7 @@ def get_env_var(env_name: str, profile_name: T.Optional[str] = None) -> T.Option
 
 
 def get_session(profile_name: T.Optional[str] = None) -> aiobotocore.session.AioSession:
+    # aiohttp will close in __del__, so we don't need to worry about closing the session
     session = aiobotocore.session.get_session()
     if profile_name:
         session.set_config_variable("profile", profile_name)

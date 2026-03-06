@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 import os
 import posixpath
 import random
@@ -31,6 +32,8 @@ from aiomegfile.lib.prefetch_reader.sftp_prefetch_reader import AioSftpPrefetchR
 from aiomegfile.utils.path import PathLike, fspath
 from aiomegfile.utils.retry.sftp import sftp_retry, translate_sftp_error
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "get_sftp_client",
     "SftpFileSystem",
@@ -41,18 +44,19 @@ SFTP_DEFAULT_PORT = 22
 SFTP_DEFAULT_CONNECT_TIMEOUT = 10.0
 SFTP_TYPE_DIRECTORY = 2
 SFTP_TYPE_SYMLINK = 3
+SFTP_DEFAULT_MAX_UNAUTH_CONNECTIONS = 10
+SFTP_DEFAULT_KEEPALIVE_INTERVAL = 15
 
+SFTP_PORT_ENV = "SFTP_PORT"
 SFTP_USERNAME_ENV = "SFTP_USERNAME"
 SFTP_PASSWORD_ENV = "SFTP_PASSWORD"  # nosec B105
 SFTP_PRIVATE_KEY_PATH_ENV = "SFTP_PRIVATE_KEY_PATH"
-SFTP_PRIVATE_KEY_PASSWORD_ENV = "SFTP_PRIVATE_KEY_PASSWORD"  # nosec B105
-SFTP_KNOWN_HOSTS_ENV = "SFTP_KNOWN_HOSTS"
+SFTP_PRIVATE_KEY_PASSPHRASE_ENV = "SFTP_PRIVATE_KEY_PASSPHRASE"  # nosec B105
 SFTP_CONNECT_TIMEOUT_ENV = "SFTP_CONNECT_TIMEOUT"
-SFTP_PORT_ENV = "SFTP_PORT"
+SFTP_KEEPALIVE_INTERVAL_ENV = "SFTP_KEEPALIVE_INTERVAL"
 SFTP_MAX_UNAUTH_CONNECTIONS_ENV = "SFTP_MAX_UNAUTH_CONNECTIONS"
-SFTP_DEFAULT_MAX_UNAUTH_CONNECTIONS = 10
+SFTP_HOST_KEY_POLICY_ENV = "MEGFILE_SFTP_HOST_KEY_POLICY"
 
-_UNSET = object()
 _SFTP_CLIENT_CACHE = weakref.WeakKeyDictionary()
 _SFTP_CLIENT_LOCKS = weakref.WeakKeyDictionary()
 _SFTP_CONNECT_LOCK_SUFFIX = ".lock"
@@ -67,24 +71,12 @@ class _SftpEndpoint:
     :param port: SFTP port.
     :param username: Optional username.
     :param password: Optional password.
-    :param client_keys: Optional private key path list.
-    :param passphrase: Optional private key passphrase.
-    :param known_hosts: ``known_hosts`` setting or internal sentinel.
-    :param connect_timeout: SSH connect timeout in seconds.
-    :param show_username_in_uri: Whether to render username in ``build_uri``.
-    :param show_password_in_uri: Whether to render password in ``build_uri``.
     """
 
     host: str
     port: int = SFTP_DEFAULT_PORT
     username: T.Optional[str] = None
     password: T.Optional[str] = None
-    client_keys: T.Optional[T.Tuple[str, ...]] = None
-    passphrase: T.Optional[str] = None
-    known_hosts: T.Any = _UNSET
-    connect_timeout: float = SFTP_DEFAULT_CONNECT_TIMEOUT
-    show_username_in_uri: bool = True
-    show_password_in_uri: bool = True
 
 
 def _get_sftp_max_unauth_connections() -> int:
@@ -202,9 +194,6 @@ def _build_sftp_cache_key(endpoint: _SftpEndpoint) -> T.Tuple[T.Hashable, ...]:
         endpoint.port,
         endpoint.username,
         endpoint.password,
-        _freeze_cache_value(endpoint.client_keys),
-        endpoint.passphrase,
-        _freeze_cache_value(endpoint.known_hosts),
     )
 
 
@@ -241,6 +230,38 @@ async def _close_client_pair(connection: T.Any, sftp_client: T.Any) -> None:
             await connection.wait_closed()
 
 
+def _get_connect_timeout():
+    """Return connect timeout value from environment or default.
+
+    :return: Connect timeout in seconds.
+    :rtype: float
+    """
+    raw_value = os.getenv(
+        SFTP_CONNECT_TIMEOUT_ENV,
+        str(SFTP_DEFAULT_CONNECT_TIMEOUT),
+    )
+    try:
+        return float(raw_value)
+    except (TypeError, ValueError):
+        return SFTP_DEFAULT_CONNECT_TIMEOUT
+
+
+def _get_keepalive_interval():
+    """Return keepalive interval value from environment or default.
+
+    :return: Keepalive interval in seconds.
+    :rtype: float
+    """
+    raw_value = os.getenv(
+        SFTP_KEEPALIVE_INTERVAL_ENV,
+        str(SFTP_DEFAULT_KEEPALIVE_INTERVAL),
+    )
+    try:
+        return float(raw_value)
+    except (TypeError, ValueError):
+        return SFTP_DEFAULT_KEEPALIVE_INTERVAL
+
+
 async def _get_sftp_client(
     endpoint: _SftpEndpoint,
     *,
@@ -256,18 +277,43 @@ async def _get_sftp_client(
     connect_kwargs: T.Dict[str, T.Any] = {
         "host": endpoint.host,
         "port": endpoint.port,
-        "connect_timeout": endpoint.connect_timeout,
+        "connect_timeout": _get_connect_timeout(),
+        "keepalive_interval": _get_keepalive_interval(),
     }
     if endpoint.username is not None:
         connect_kwargs["username"] = endpoint.username
     if endpoint.password is not None:
         connect_kwargs["password"] = endpoint.password
-    if endpoint.client_keys:
-        connect_kwargs["client_keys"] = list(endpoint.client_keys)
-    if endpoint.passphrase is not None:
-        connect_kwargs["passphrase"] = endpoint.passphrase
-    if endpoint.known_hosts is not _UNSET:
-        connect_kwargs["known_hosts"] = endpoint.known_hosts
+
+    client_key = os.getenv(SFTP_PRIVATE_KEY_PATH_ENV)
+    if client_key:
+        connect_kwargs["client_keys"] = client_key
+
+    passphrase = os.getenv(SFTP_PRIVATE_KEY_PASSPHRASE_ENV)
+    if passphrase:
+        connect_kwargs["passphrase"] = passphrase
+
+    policy = os.getenv(SFTP_HOST_KEY_POLICY_ENV, "reject").lower()
+    if policy == "auto":
+        connect_kwargs["known_hosts"] = None
+    elif policy == "warning":
+        connect_kwargs["known_hosts"] = None
+        known_hosts_path = os.path.expanduser("~/.ssh/known_hosts")
+        if os.path.exists(known_hosts_path):
+            # Preload known hosts to trigger warnings for unknown keys
+            known_hosts = asyncssh.read_known_hosts(known_hosts_path)
+            try:
+                r = known_hosts.match(endpoint.host, "", endpoint.port)
+                if not r or not r[0]:
+                    raise ValueError("Host key not found in known_hosts")
+            except Exception:
+                logger.warning(
+                    "Connecting to unknown SFTP host %s:%d. "
+                    "Host key verification is set to 'warning', "
+                    "but the host is not in known_hosts.",
+                    endpoint.host,
+                    endpoint.port,
+                )
 
     @sftp_retry(max_retries=max_retries)
     async def _connect_once() -> T.Tuple[T.Any, T.Any]:
@@ -278,6 +324,18 @@ async def _get_sftp_client(
         except Exception:
             await _close_client_pair(connection, None)
             raise
+
+        def _ensure_closed(conn):
+            try:
+                if not conn.is_closed():
+                    conn.close()
+            except Exception as error:
+                logger.debug(
+                    "Failed to close SSH connection during finalization: %s",
+                    error,
+                )
+
+        weakref.finalize(sftp_client, _ensure_closed, connection)
         return connection, sftp_client
 
     return await _connect_once()
@@ -289,11 +347,6 @@ async def get_sftp_client(
     *,
     username: T.Optional[str] = None,
     password: T.Optional[str] = None,
-    client_keys: T.Optional[T.Sequence[str]] = None,
-    passphrase: T.Optional[str] = None,
-    known_hosts: T.Any = _UNSET,
-    connect_timeout: float = SFTP_DEFAULT_CONNECT_TIMEOUT,
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
 ) -> T.Tuple[T.Any, T.Any]:
     """Get a cached SFTP client pair bound to the current event loop.
 
@@ -301,11 +354,6 @@ async def get_sftp_client(
     :param port: SFTP port.
     :param username: Optional username.
     :param password: Optional password.
-    :param client_keys: Optional private key path list.
-    :param passphrase: Optional private key passphrase.
-    :param known_hosts: Optional ``known_hosts`` setting.
-    :param connect_timeout: SSH connect timeout in seconds.
-    :param max_retries: Maximum retry attempts for client creation.
     :return: Tuple of ``(ssh_connection, sftp_client)``.
     :rtype: tuple[Any, Any]
     """
@@ -314,10 +362,6 @@ async def get_sftp_client(
         port=int(port),
         username=username,
         password=password,
-        client_keys=tuple(client_keys) if client_keys else None,
-        passphrase=passphrase,
-        known_hosts=known_hosts,
-        connect_timeout=float(connect_timeout),
     )
 
     loop = asyncio.get_running_loop()
@@ -335,7 +379,7 @@ async def get_sftp_client(
             return pair
         if pair is not None:
             await _close_client_pair(pair[0], pair[1])
-        pair = await _get_sftp_client(endpoint, max_retries=max_retries)
+        pair = await _get_sftp_client(endpoint)
         cache[cache_key] = pair
         return pair
 
@@ -356,25 +400,23 @@ def _is_absolute_uri_path(path: str) -> bool:
     """Return whether URI path is absolute in megfile SFTP semantics.
 
     :param path: Path without protocol.
-    :return: True when path starts with ``//``.
+    :return: True when path starts with ``/``.
     :rtype: bool
     """
-    return path.startswith("//")
+    return path.startswith("/")
 
 
 def _to_absolute_uri_path(remote_path: str) -> str:
     """Convert a normalized remote path to absolute URI path format.
 
     :param remote_path: Absolute remote path like ``/a/b``.
-    :return: URI path with absolute form like ``//a/b``.
+    :return: Absolute path without protocol like ``/a/b``.
     :rtype: str
     """
     normalized = posixpath.normpath(remote_path)
     if normalized == ".":
         normalized = "/"
-    if normalized == "/":
-        return "//"
-    return f"//{normalized.lstrip('/')}"
+    return "/" + normalized.lstrip("/")
 
 
 def _join_uri_path(base_path: str, name: str) -> str:
@@ -385,11 +427,15 @@ def _join_uri_path(base_path: str, name: str) -> str:
     :return: Joined URI path without protocol.
     :rtype: str
     """
-    if base_path in ("", "/"):
+    if not base_path:
+        return name
+
+    normalized_base = (
+        _to_absolute_uri_path(base_path) if base_path.startswith("/") else base_path
+    )
+    if normalized_base == "/":
         return f"/{name}"
-    if base_path == "//":
-        return f"//{name}"
-    return f"{base_path.rstrip('/')}/{name}"
+    return f"{normalized_base.rstrip('/')}/{name}"
 
 
 def _make_stat_result(attrs: T.Any) -> StatResult:
@@ -520,7 +566,6 @@ class AioSftpWritableFile(AioWritable[T.AnyStr], AioSeekable[T.AnyStr]):
                 errors=self._errors,
             )
         except Exception as error:
-            await self._filesystem._close_client(self._connection, self._client)
             translated = translate_sftp_error(error, self.name)
             raise translated from error
 
@@ -605,7 +650,6 @@ class AioSftpWritableFile(AioWritable[T.AnyStr], AioSeekable[T.AnyStr]):
                 await self._file.close()
             self._file = None
 
-        await self._filesystem._close_client(self._connection, self._client)
         self._connection = None
         self._client = None
 
@@ -615,8 +659,9 @@ class SftpFileSystem(BaseFileSystem):
 
     URI formats:
 
-    - Absolute remote path: ``sftp://user@host//path/to/file``
-    - Home-relative path: ``sftp://user@host/path/to/file``
+    - Absolute remote path: ``sftp://[username[:password]@]hostname[:port]//file_path``.
+    - Home-relative path: ``sftp://[username[:password]@]hostname[:port]/path/to/file``.
+      Path part does not start with ``//`` after parsing.
     """
 
     protocol = "sftp"
@@ -624,17 +669,11 @@ class SftpFileSystem(BaseFileSystem):
     def __init__(
         self,
         host: str,
-        port: int = SFTP_DEFAULT_PORT,
+        port: T.Optional[int] = None,
         *,
         username: T.Optional[str] = None,
         password: T.Optional[str] = None,
-        client_keys: T.Optional[T.Sequence[str]] = None,
-        passphrase: T.Optional[str] = None,
-        known_hosts: T.Any = _UNSET,
-        connect_timeout: float = SFTP_DEFAULT_CONNECT_TIMEOUT,
-        max_retries: int = DEFAULT_MAX_RETRY_TIMES,
-        sftp_block_size: int = -1,
-        sftp_max_requests: int = -1,
+        show_port_in_uri: T.Optional[bool] = None,
         show_username_in_uri: T.Optional[bool] = None,
         show_password_in_uri: T.Optional[bool] = None,
     ) -> None:
@@ -644,36 +683,27 @@ class SftpFileSystem(BaseFileSystem):
         :param port: SFTP port.
         :param username: Optional username.
         :param password: Optional password.
-        :param client_keys: Optional private key file path list.
-        :param passphrase: Optional private key passphrase.
-        :param known_hosts: ``known_hosts`` config. Internal sentinel means default.
-        :param connect_timeout: SSH connect timeout in seconds.
-        :param max_retries: Maximum retry attempts for creating cached clients.
-        :param sftp_block_size: Block size forwarded to asyncssh open.
-        :param sftp_max_requests: Max parallel requests forwarded to asyncssh open.
+        :param show_port_in_uri: Whether to render port in ``build_uri``.
         :param show_username_in_uri: Whether to render username in ``build_uri``.
         :param show_password_in_uri: Whether to render password in ``build_uri``.
         """
+        self._show_port_in_uri = show_port_in_uri
+        if show_port_in_uri is None:
+            self._show_port_in_uri = port is not None
+        self._show_username_in_uri = show_username_in_uri
         if show_username_in_uri is None:
-            show_username_in_uri = username is not None
+            self._show_username_in_uri = username is not None
+        self._show_password_in_uri = show_password_in_uri
         if show_password_in_uri is None:
-            show_password_in_uri = bool(show_username_in_uri) and password is not None
+            # Never show password in URI by default for security reasons
+            self._show_password_in_uri = False
 
         self._endpoint = _SftpEndpoint(
             host=host,
-            port=int(port),
+            port=port,
             username=username,
             password=password,
-            client_keys=(tuple(client_keys) if client_keys else None),
-            passphrase=passphrase,
-            known_hosts=known_hosts,
-            connect_timeout=float(connect_timeout),
-            show_username_in_uri=bool(show_username_in_uri),
-            show_password_in_uri=bool(show_password_in_uri),
         )
-        self._max_retries = int(max_retries)
-        self._sftp_block_size = int(sftp_block_size)
-        self._sftp_max_requests = int(sftp_max_requests)
 
     async def _open_client(self) -> T.Tuple[T.Any, T.Any]:
         """Get a cached SSH and SFTP client pair.
@@ -686,25 +716,7 @@ class SftpFileSystem(BaseFileSystem):
             port=self._endpoint.port,
             username=self._endpoint.username,
             password=self._endpoint.password,
-            client_keys=self._endpoint.client_keys,
-            passphrase=self._endpoint.passphrase,
-            known_hosts=self._endpoint.known_hosts,
-            connect_timeout=self._endpoint.connect_timeout,
-            max_retries=self._max_retries,
         )
-
-    async def _close_client(
-        self,
-        connection: T.Any,
-        sftp_client: T.Any,
-    ) -> None:
-        """Release client pair owned by the filesystem.
-
-        :param connection: SSH connection object.
-        :param sftp_client: SFTP client object.
-        """
-        _ = connection, sftp_client
-        return None
 
     async def _open_remote_file(
         self,
@@ -730,15 +742,13 @@ class SftpFileSystem(BaseFileSystem):
             mode,
             encoding=encoding,
             errors=errors,
-            block_size=self._sftp_block_size,
-            max_requests=self._sftp_max_requests,
         )
 
     async def _resolve_remote_path(self, sftp_client: T.Any, path: str) -> str:
         """Resolve URI path into absolute remote path.
 
-        ``//`` prefix is treated as absolute remote path. ``/`` prefix is treated
-        as relative to remote home directory.
+        ``/`` prefix is treated as absolute remote path. Path without leading
+        slash is treated as relative to remote home directory.
 
         :param sftp_client: SFTP client object.
         :param path: URI path without protocol.
@@ -746,7 +756,7 @@ class SftpFileSystem(BaseFileSystem):
         :rtype: str
         """
         if not path:
-            path = "/"
+            path = "."
 
         if _is_absolute_uri_path(path):
             normalized = posixpath.normpath("/" + path.lstrip("/"))
@@ -754,7 +764,7 @@ class SftpFileSystem(BaseFileSystem):
 
         home_dir = _ensure_text(await sftp_client.realpath("."))
         relative_path = path.lstrip("/")
-        if not relative_path:
+        if relative_path in ("", "."):
             return home_dir
         return posixpath.normpath(posixpath.join(home_dir, relative_path))
 
@@ -841,11 +851,8 @@ class SftpFileSystem(BaseFileSystem):
     @asynccontextmanager
     async def _session(self):
         """Yield an opened SFTP client and ensure cleanup."""
-        connection, sftp_client = await self._open_client()
-        try:
-            yield sftp_client
-        finally:
-            await self._close_client(connection, sftp_client)
+        _, sftp_client = await self._open_client()
+        yield sftp_client
 
     async def is_dir(self, path: str, followlinks: bool = False) -> bool:
         """Return True when path points to a directory.
@@ -1000,7 +1007,7 @@ class SftpFileSystem(BaseFileSystem):
         """Return absolute URI path without protocol.
 
         :param path: Path without protocol.
-        :return: Absolute URI path in ``//`` form.
+        :return: Absolute path in ``/`` form.
         :rtype: str
         """
         uri = self.build_uri(path)
@@ -1017,7 +1024,7 @@ class SftpFileSystem(BaseFileSystem):
         """Return whether URI path is absolute in SFTP semantics.
 
         :param path: Path without protocol.
-        :return: True when path starts with ``//``.
+        :return: True when path starts with ``/``.
         :rtype: bool
         """
         return _is_absolute_uri_path(path)
@@ -1151,8 +1158,6 @@ class SftpFileSystem(BaseFileSystem):
                     recurse=False,
                     follow_symlinks=False,
                     sparse=True,
-                    block_size=self._sftp_block_size,
-                    max_requests=self._sftp_max_requests,
                     progress_handler=self._build_progress_handler(callback),
                     remote_only=True,
                 )
@@ -1192,8 +1197,6 @@ class SftpFileSystem(BaseFileSystem):
                     recurse=False,
                     follow_symlinks=False,
                     sparse=True,
-                    block_size=self._sftp_block_size,
-                    max_requests=self._sftp_max_requests,
                     progress_handler=self._build_progress_handler(callback),
                 )
         except Exception as error:
@@ -1232,8 +1235,6 @@ class SftpFileSystem(BaseFileSystem):
                     recurse=False,
                     follow_symlinks=False,
                     sparse=True,
-                    block_size=self._sftp_block_size,
-                    max_requests=self._sftp_max_requests,
                     progress_handler=self._build_progress_handler(callback),
                 )
         except Exception as error:
@@ -1497,7 +1498,12 @@ class SftpFileSystem(BaseFileSystem):
         parsed = urllib.parse.urlsplit(uri)
         if parsed.scheme == "":
             return uri
-        return parsed.path or "/"
+        path = parsed.path or "/"
+        if path.startswith("//"):
+            return _to_absolute_uri_path(path)
+        if path.startswith("/"):
+            return path.lstrip("/")
+        return path
 
     def build_uri(self, path: str) -> str:
         """Build URI from path part.
@@ -1507,31 +1513,36 @@ class SftpFileSystem(BaseFileSystem):
         :rtype: str
         """
         if not path:
-            path = "/"
-        if not path.startswith("/"):
-            path = "/" + path
+            uri_path = "/"
+        else:
+            normalized_path = (
+                _to_absolute_uri_path(path) if path.startswith("/") else path
+            )
+            if normalized_path.startswith("/"):
+                uri_path = (
+                    "//"
+                    if normalized_path == "/"
+                    else f"//{normalized_path.lstrip('/')}"
+                )
+            else:
+                uri_path = f"/{normalized_path}"
 
         host = self._endpoint.host
-        if ":" in host and not host.startswith("["):
-            host = f"[{host}]"
 
         netloc = host
-        if self._endpoint.port != SFTP_DEFAULT_PORT:
+        if self._show_port_in_uri and self._endpoint.port:
             netloc = f"{netloc}:{self._endpoint.port}"
 
-        if self._endpoint.show_username_in_uri and self._endpoint.username:
+        if self._show_username_in_uri and self._endpoint.username:
             username = urllib.parse.quote(self._endpoint.username, safe="")
-            if (
-                self._endpoint.show_password_in_uri
-                and self._endpoint.password is not None
-            ):
+            if self._show_password_in_uri and self._endpoint.password is not None:
                 password = urllib.parse.quote(self._endpoint.password, safe="")
                 userinfo = f"{username}:{password}"
             else:
                 userinfo = username
             netloc = f"{userinfo}@{netloc}"
 
-        return urllib.parse.urlunsplit((self.protocol, netloc, path, "", ""))
+        return urllib.parse.urlunsplit((self.protocol, netloc, uri_path, "", ""))
 
     @classmethod
     def from_uri(cls, uri: str) -> "SftpFileSystem":
@@ -1566,36 +1577,12 @@ class SftpFileSystem(BaseFileSystem):
         else:
             port = SFTP_DEFAULT_PORT
 
-        client_keys: T.Optional[T.List[str]] = None
-        key_path = os.getenv(SFTP_PRIVATE_KEY_PATH_ENV)
-        if key_path:
-            client_keys = [item for item in key_path.split(os.pathsep) if item]
-
-        passphrase = os.getenv(SFTP_PRIVATE_KEY_PASSWORD_ENV)
-
-        known_hosts_env = os.getenv(SFTP_KNOWN_HOSTS_ENV)
-        if known_hosts_env is None:
-            known_hosts: T.Any = _UNSET
-        elif known_hosts_env == "":
-            known_hosts = None
-        else:
-            known_hosts = known_hosts_env
-
-        timeout_value = os.getenv(SFTP_CONNECT_TIMEOUT_ENV)
-        if timeout_value is None:
-            connect_timeout = SFTP_DEFAULT_CONNECT_TIMEOUT
-        else:
-            connect_timeout = float(timeout_value)
-
         return cls(
             host=parsed.hostname,
             port=port,
             username=username,
             password=password,
-            client_keys=client_keys,
-            passphrase=passphrase,
-            known_hosts=known_hosts,
-            connect_timeout=connect_timeout,
+            show_port_in_uri=parsed.port is not None,
             show_username_in_uri=parsed.username is not None,
             show_password_in_uri=parsed.password is not None,
         )

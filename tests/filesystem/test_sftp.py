@@ -61,11 +61,19 @@ class TestSftpFileSystem:
 
         assert (
             filesystem.parse_uri("sftp://demo:secret@example.com:2222//data.txt")
-            == "//data.txt"
+            == "/data.txt"
+        )
+        assert (
+            filesystem.build_uri("/data.txt")
+            == "sftp://demo:secret@example.com:2222//data.txt"
         )
         assert (
             filesystem.build_uri("//data.txt")
             == "sftp://demo:secret@example.com:2222//data.txt"
+        )
+        assert (
+            filesystem.parse_uri("sftp://demo:secret@example.com:2222/data.txt")
+            == "data.txt"
         )
 
     async def test_from_uri_build_uri_does_not_leak_env_password(self, monkeypatch):
@@ -76,22 +84,28 @@ class TestSftpFileSystem:
         filesystem = SftpFileSystem.from_uri("sftp://demo@example.com//data.txt")
         assert filesystem._endpoint.username == "demo"
         assert filesystem._endpoint.password == "env-password"
-        assert filesystem.build_uri("//data.txt") == "sftp://demo@example.com//data.txt"
+        assert filesystem.build_uri("/data.txt") == "sftp://demo@example.com//data.txt"
 
         filesystem_no_user = SftpFileSystem.from_uri("sftp://example.com//data.txt")
         assert filesystem_no_user._endpoint.username == "env-user"
         assert (
-            filesystem_no_user.build_uri("//data.txt") == "sftp://example.com//data.txt"
+            filesystem_no_user.build_uri("/data.txt") == "sftp://example.com//data.txt"
         )
+
+    def test_from_uri_uses_env_keepalive_interval(self, monkeypatch):
+        """Test keepalive interval is loaded from environment."""
+        monkeypatch.setenv("SFTP_KEEPALIVE_INTERVAL", "7.5")
+        filesystem = SftpFileSystem.from_uri("sftp://example.com//data.txt")
+        assert filesystem._endpoint.keepalive_interval == pytest.approx(7.5)
 
     async def test_open_read_absolute_and_relative(self, filesystem):
         """Test opening and reading absolute and home-relative files."""
         fs, _ = filesystem
 
-        async with fs.open("//abs.txt", "rb") as reader:
+        async with fs.open("/abs.txt", "rb") as reader:
             assert await reader.read() == b"absolute"
 
-        async with fs.open("/rel.txt", "rb") as reader:
+        async with fs.open("rel.txt", "rb") as reader:
             assert await reader.read() == b"relative"
 
     async def test_open_write_and_append(self, filesystem):
@@ -128,7 +142,7 @@ class TestSftpFileSystem:
             async for entry in scanner:
                 files.append(entry.path)
 
-        assert sorted(files) == ["//dir/a.txt", "//dir/sub/b.txt"]
+        assert sorted(files) == ["/dir/a.txt", "/dir/sub/b.txt"]
 
     async def test_copy_move_remove_and_symlink(self, filesystem):
         """Test copy, move, remove, symlink, and readlink operations."""
@@ -146,7 +160,7 @@ class TestSftpFileSystem:
 
         await fs.symlink("//moved.txt", "//moved.link")
         assert await fs.is_symlink("//moved.link") is True
-        assert await fs.readlink("//moved.link") == "//moved.txt"
+        assert await fs.readlink("//moved.link") == "/moved.txt"
 
         await fs.remove("//moved.txt")
         assert await fs.exists("//moved.txt") is False
@@ -221,9 +235,9 @@ class TestSftpFileSystem:
         await fs.mkdir("//new/dir", parents=True, exist_ok=True)
         assert await fs.is_dir("//new/dir") is True
 
-        assert await fs.absolute("/rel.txt") == "//home/test/rel.txt"
-        assert await fs.is_absolute("//abs.txt") is True
-        assert await fs.is_absolute("/rel.txt") is False
+        assert await fs.absolute("rel.txt") == "/home/test/rel.txt"
+        assert await fs.is_absolute("/abs.txt") is True
+        assert await fs.is_absolute("rel.txt") is False
         assert await fs.samefile("//abs.txt", "//abs.txt") is True
         assert await fs.samefile("//abs.txt", "//notfound.txt") is False
 
@@ -384,6 +398,7 @@ class TestSftpClientCache:
     ):
         """Test `_get_sftp_client` wraps connection creation with file lock."""
         events = []
+        captured_kwargs = {}
 
         class _Client:
             def exit(self) -> None:
@@ -407,7 +422,7 @@ class TestSftpClientCache:
                 return _Client()
 
         async def _fake_connect(**kwargs):
-            _ = kwargs
+            captured_kwargs.update(kwargs)
             events.append("connect")
             return _Connection()
 
@@ -423,7 +438,11 @@ class TestSftpClientCache:
         monkeypatch.setattr(sftp_module.asyncssh, "connect", _fake_connect)
         monkeypatch.setattr(sftp_module, "_sftp_connect_file_lock", _fake_file_lock)
 
-        endpoint = sftp_module._SftpEndpoint(host="locked-host", port=22)
+        endpoint = sftp_module._SftpEndpoint(
+            host="locked-host",
+            port=22,
+            keepalive_interval=7.5,
+        )
         connection, client = await sftp_module._get_sftp_client(endpoint, max_retries=1)
 
         assert connection is not None
@@ -431,6 +450,7 @@ class TestSftpClientCache:
         assert events == [
             "lock_enter",
             "connect",
-            "start_sftp_client",
             "lock_exit",
+            "start_sftp_client",
         ]
+        assert captured_kwargs["keepalive_interval"] == pytest.approx(7.5)
