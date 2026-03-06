@@ -28,6 +28,8 @@ pyre_check:
 	pdm run pyre --version=none --output=json check > pyre-errors.json || echo
 	cat pyre-errors.json | ./scripts/convert_results_to_sarif.py > pyre-sarif.json
 
+pyre-check: pyre_check
+
 doc:
 	PYTHONPATH=. pdm run sphinx-build --fresh-env docs html_doc
 

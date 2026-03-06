@@ -126,7 +126,9 @@ def _acquire_lock_file(lock_path: str):
 
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
     lock_file = open(
-        lock_path, mode=os.O_WRONLY | os.O_CREAT | os.O_TRUNC, encoding="utf-8"
+        lock_path,
+        mode=os.O_WRONLY | os.O_CREAT | os.O_TRUNC,  # type: ignore
+        encoding="utf-8",
     )
     try:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
@@ -700,7 +702,7 @@ class SftpFileSystem(BaseFileSystem):
 
         self._endpoint = _SftpEndpoint(
             host=host,
-            port=port,
+            port=port or SFTP_DEFAULT_PORT,
             username=username,
             password=password,
         )
@@ -843,7 +845,7 @@ class SftpFileSystem(BaseFileSystem):
             previous = previous_values.get(key, 0)
             delta = copied - previous
             if delta > 0:
-                callback(delta)
+                callback(delta)  # pyre-ignore[29]
             previous_values[key] = copied
 
         return _progress_handler
@@ -1578,7 +1580,7 @@ class SftpFileSystem(BaseFileSystem):
             port = SFTP_DEFAULT_PORT
 
         return cls(
-            host=parsed.hostname,
+            host=parsed.hostname,  # pyre-ignore[6]
             port=port,
             username=username,
             password=password,

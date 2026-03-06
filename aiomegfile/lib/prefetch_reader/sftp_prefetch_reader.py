@@ -90,7 +90,6 @@ class AioSftpPrefetchReader(AioBasePrefetchReader):
                 self._path,
             )
         except Exception as error:
-            await self._filesystem._close_client(self._connection, self._client)
             translated = translate_sftp_error(error, self.name)
             raise translated from error
         return await super().__aenter__()
