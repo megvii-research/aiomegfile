@@ -84,10 +84,9 @@ def translate_http_error(error: Exception, url: str) -> Exception:
         status = error.status  # pytype: disable=attribute-error
         if status in HTTP_NOT_FOUND_STATUS_CODES:
             return HttpFileNotFoundError(f"No such file: {url!r}")
-        status = error.status  # pytype: disable=attribute-error
-        if error in HTTP_PERMISSION_STATUS_CODES:
+        if status in HTTP_PERMISSION_STATUS_CODES:
             return HttpPermissionError(f"Permission denied: {url!r}")
-        return HttpUnknownError(f"HTTP error {error.status}: {url!r}")
+        return HttpUnknownError(f"HTTP error {status}: {url!r}")
 
     if isinstance(error, asyncio.TimeoutError):
         return HttpTimeoutError(f"Request timeout: {url!r}")

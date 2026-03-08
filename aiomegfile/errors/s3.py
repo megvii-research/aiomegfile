@@ -214,9 +214,11 @@ def translate_s3_error(s3_error: Exception, s3_url: PathLike) -> Exception:
     if isinstance(s3_error, ClientError):
         code = client_error_code(s3_error)
         if code in ("NoSuchBucket",):
+            response = getattr(s3_error, "response", {})
+            error_data = response.get("Error", {}) if isinstance(response, dict) else {}
             bucket_or_url = (
-                s3_error.response.get("Error", {}).get("BucketName") or s3_url
-            )
+                error_data.get("BucketName") if isinstance(error_data, dict) else None
+            ) or s3_url
             return S3BucketNotFoundError(f"No such bucket: {bucket_or_url!r}")
         if code in ("404", "NoSuchKey"):
             return S3FileNotFoundError("No such file: %r" % s3_url)
@@ -279,7 +281,8 @@ def s3_should_retry(exception: Exception) -> bool:
         logger.debug("Retryable exception encountered: %s", exception)
         return True
     if isinstance(exception, botocore.exceptions.ClientError):
-        error_data = exception.response.get("Error", {})
+        response = getattr(exception, "response", {})
+        error_data = response.get("Error", {}) if isinstance(response, dict) else {}
         error_code = error_data.get("Code") or error_data.get("code", "Unknown")
         if error_code in S3_RETRY_ERROR_CODES:
             logger.debug("Retryable error code encountered: %s", error_code)
