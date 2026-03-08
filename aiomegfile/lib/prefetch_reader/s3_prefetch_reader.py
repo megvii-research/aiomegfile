@@ -14,10 +14,10 @@ from aiomegfile.errors import (
     aioretry,
     raise_s3_error,
 )
+from aiomegfile.errors.s3 import s3_should_retry
 from aiomegfile.lib.prefetch_reader.base_prefetch_reader import (
     AioBasePrefetchReader,
 )
-from aiomegfile.utils.retry.s3 import s3_should_retry
 
 __all__ = [
     "AioS3PrefetchReader",

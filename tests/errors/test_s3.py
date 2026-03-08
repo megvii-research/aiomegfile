@@ -7,12 +7,12 @@ import pytest
 import urllib3.exceptions
 from aiobotocore.retries.standard import AioRetryHandler
 
-from aiomegfile.filesystem.s3 import S3FileSystem
-from aiomegfile.utils.retry.s3 import (
+from aiomegfile.errors.s3 import (
     AioMegfileRetryConditions,
     register_retry_handler,
     s3_should_retry,
 )
+from aiomegfile.filesystem.s3 import S3FileSystem
 
 _aws_access_key_id = "testing"
 _aws_secret_access_key = "testing"

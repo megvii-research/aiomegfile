@@ -14,6 +14,11 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
+from aiomegfile.errors.http import (
+    HTTP_NOT_FOUND_STATUS_CODES,
+    http_retry,
+    translate_http_error,
+)
 from aiomegfile.interfaces import (
     AioReadable,
     AioSeekable,
@@ -27,11 +32,6 @@ from aiomegfile.utils.http import (
     request_headers,
 )
 from aiomegfile.utils.path import PathLike, fspath, split_uri
-from aiomegfile.utils.retry.http import (
-    HTTP_NOT_FOUND_STATUS_CODES,
-    http_retry,
-    translate_http_error,
-)
 
 DEFAULT_HTTP_TIMEOUT = 60.0
 

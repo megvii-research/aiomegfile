@@ -4,7 +4,12 @@ import asyncio
 
 import aiohttp
 
-from aiomegfile.utils.retry.http import (
+from aiomegfile.errors.http import (
+    HttpException,
+    HttpFileNotFoundError,
+    HttpPermissionError,
+    HttpTimeoutError,
+    HttpUnknownError,
     http_retry,
     http_should_retry,
     translate_http_error,
@@ -45,12 +50,18 @@ def test_translate_http_error_response_status():
     """Test response status translation to filesystem-like exceptions."""
     not_found = translate_http_error(_response_error(404), "http://example.com/missing")
     assert isinstance(not_found, FileNotFoundError)
+    assert isinstance(not_found, HttpFileNotFoundError)
+    assert isinstance(not_found, HttpException)
 
     permission = translate_http_error(_response_error(403), "http://example.com/denied")
     assert isinstance(permission, PermissionError)
+    assert isinstance(permission, HttpPermissionError)
+    assert isinstance(permission, HttpException)
 
     unknown = translate_http_error(_response_error(500), "http://example.com/error")
     assert isinstance(unknown, OSError)
+    assert isinstance(unknown, HttpUnknownError)
+    assert isinstance(unknown, HttpException)
 
 
 def test_translate_http_error_transport_error():
@@ -59,6 +70,16 @@ def test_translate_http_error_transport_error():
         aiohttp.ClientConnectionError(), "http://example.com"
     )
     assert isinstance(translated, OSError)
+    assert isinstance(translated, HttpUnknownError)
+    assert isinstance(translated, HttpException)
+
+
+def test_translate_http_error_timeout():
+    """Test timeout error translation to ``HttpTimeoutError``."""
+    translated = translate_http_error(asyncio.TimeoutError(), "http://example.com")
+    assert isinstance(translated, TimeoutError)
+    assert isinstance(translated, HttpTimeoutError)
+    assert isinstance(translated, HttpException)
 
 
 async def test_http_retry_decorator_retries_transient_error():

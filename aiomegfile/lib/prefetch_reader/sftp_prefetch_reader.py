@@ -6,8 +6,8 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
+from aiomegfile.errors.sftp import translate_sftp_error
 from aiomegfile.lib.prefetch_reader.base_prefetch_reader import AioBasePrefetchReader
-from aiomegfile.utils.retry.sftp import translate_sftp_error
 
 if T.TYPE_CHECKING:
     from aiomegfile.filesystem.sftp import SftpFileSystem

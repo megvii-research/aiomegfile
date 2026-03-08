@@ -5,7 +5,14 @@ import asyncio
 import asyncssh
 import pytest
 
-from aiomegfile.utils.retry.sftp import (
+from aiomegfile.errors.sftp import (
+    SftpException,
+    SftpFileExistsError,
+    SftpFileNotFoundError,
+    SftpNotADirectoryError,
+    SftpPermissionError,
+    SftpTimeoutError,
+    SftpUnknownError,
     sftp_retry,
     sftp_should_retry,
     translate_sftp_error,
@@ -132,6 +139,8 @@ def test_translate_sftp_error_no_such_file() -> None:
     uri = "sftp://demo@example.com//missing.txt"
     translated = translate_sftp_error(asyncssh.sftp.SFTPNoSuchFile("missing"), uri)
     assert isinstance(translated, FileNotFoundError)
+    assert isinstance(translated, SftpFileNotFoundError)
+    assert isinstance(translated, SftpException)
     assert "No such file" in str(translated)
     assert uri in str(translated)
 
@@ -141,6 +150,8 @@ def test_translate_sftp_error_permission_denied() -> None:
     uri = "sftp://demo@example.com//denied.txt"
     translated = translate_sftp_error(asyncssh.sftp.SFTPPermissionDenied("denied"), uri)
     assert isinstance(translated, PermissionError)
+    assert isinstance(translated, SftpPermissionError)
+    assert isinstance(translated, SftpException)
     assert "Permission denied" in str(translated)
     assert uri in str(translated)
 
@@ -153,6 +164,8 @@ def test_translate_sftp_error_already_exists() -> None:
         uri,
     )
     assert isinstance(translated, FileExistsError)
+    assert isinstance(translated, SftpFileExistsError)
+    assert isinstance(translated, SftpException)
     assert "File exists" in str(translated)
     assert uri in str(translated)
 
@@ -162,6 +175,8 @@ def test_translate_sftp_error_not_a_directory() -> None:
     uri = "sftp://demo@example.com//file.txt"
     translated = translate_sftp_error(asyncssh.sftp.SFTPNotADirectory("not-dir"), uri)
     assert isinstance(translated, NotADirectoryError)
+    assert isinstance(translated, SftpNotADirectoryError)
+    assert isinstance(translated, SftpException)
     assert "Not a directory" in str(translated)
     assert uri in str(translated)
 
@@ -171,6 +186,8 @@ def test_translate_sftp_error_timeout() -> None:
     uri = "sftp://demo@example.com//timeout.txt"
     translated = translate_sftp_error(TimeoutError("timeout"), uri)
     assert isinstance(translated, TimeoutError)
+    assert isinstance(translated, SftpTimeoutError)
+    assert isinstance(translated, SftpException)
     assert "Operation timed out" in str(translated)
     assert uri in str(translated)
 
@@ -194,6 +211,8 @@ def test_translate_sftp_error_unknown_error_to_oserror() -> None:
     uri = "sftp://demo@example.com//a.txt"
     translated = translate_sftp_error(ValueError("invalid"), uri)
     assert isinstance(translated, OSError)
+    assert isinstance(translated, SftpUnknownError)
+    assert isinstance(translated, SftpException)
     assert "SFTP operation failed" in str(translated)
     assert uri in str(translated)
 
