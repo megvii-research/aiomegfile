@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import io
 import os
 import posixpath
@@ -17,7 +16,6 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from functools import lru_cache
 
 import aiofiles
 
@@ -27,7 +25,7 @@ from aiomegfile.config import (
     READER_MAX_BUFFER_SIZE,
 )
 from aiomegfile.errors.webdav import (
-    WEBDAV_INSTALL_HINT,
+    _ensure_aiodav,
     translate_webdav_error,
     webdav_retry,
 )
@@ -54,7 +52,6 @@ else:
 __all__ = [
     "WEBDAV_DEFAULT_TIMEOUT",
     "WEBDAV_INSECURE_ENV",
-    "WEBDAV_INSTALL_HINT",
     "WEBDAV_PASSWORD_ENV",
     "WEBDAV_TIMEOUT_ENV",
     "WEBDAV_TOKEN_COMMAND_ENV",
@@ -62,11 +59,6 @@ __all__ = [
     "WEBDAV_USERNAME_ENV",
     "clear_webdav_client_cache",
     "get_webdav_client",
-    "import_aiodav_client_class",
-    "load_webdav_insecure",
-    "load_webdav_timeout",
-    "load_webdav_token",
-    "load_webdav_token_from_command",
     "WebdavFileSystem",
     "WebdavsFileSystem",
     "is_webdav",
@@ -86,43 +78,6 @@ _WEBDAV_CLIENT_CACHE: weakref.WeakKeyDictionary[
 ] = weakref.WeakKeyDictionary()
 _WEBDAV_CLIENT_FALLBACK_CACHE: dict[tuple[T.Hashable, ...], T.Any] = {}
 _WEBDAV_CLIENT_CACHE_LOCK = threading.Lock()
-
-
-def _import_aiodav_module(module_name: str):
-    """Import a WebDAV optional module with install hints.
-
-    :param module_name: Target module name under ``aiodav`` package.
-    :return: Imported module object.
-    :rtype: module
-    :raises ImportError: If optional dependency is unavailable.
-    """
-    try:
-        return __import__(module_name, fromlist=["*"])
-    except ImportError as error:
-        raise ImportError(
-            inspect.cleandoc(
-                """
-                Failed to import aiodav, the following steps show you how to install it:
-
-                    pip3 install 'aiomegfile[webdav]' --user
-                """
-            )
-        ) from error
-
-
-@lru_cache(maxsize=1)
-def import_aiodav_client_class():
-    """Import ``aiodav.client.Client`` with install hint.
-
-    :return: Imported ``aiodav.client.Client`` class.
-    :rtype: type
-    :raises ImportError: If ``aiodav`` package is not installed.
-    """
-    module = _import_aiodav_module("aiodav.client")
-    client_class = getattr(module, "Client", None)
-    if not isinstance(client_class, type):
-        raise ImportError("Unable to import aiodav client class")
-    return client_class
 
 
 def _normalize_optional_text(value: T.Optional[str]) -> T.Optional[str]:
@@ -298,7 +253,7 @@ def clear_webdav_client_cache() -> None:
         _WEBDAV_CLIENT_FALLBACK_CACHE.clear()
 
 
-def get_webdav_client(
+async def get_webdav_client(
     hostname: str,
     *,
     username: T.Optional[str] = None,
@@ -324,6 +279,10 @@ def get_webdav_client(
     :rtype: Any
     :raises ModuleNotFoundError: If optional dependency is unavailable.
     """
+    _ensure_aiodav()
+
+    from aiodav.client import Client
+
     resolved_username = (
         username if username is not None else os.getenv(WEBDAV_USERNAME_ENV)
     )
@@ -357,27 +316,15 @@ def get_webdav_client(
         insecure=resolved_insecure,
     )
 
-    try:
-        loop: T.Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
+    loop: T.Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
 
     with _WEBDAV_CLIENT_CACHE_LOCK:
-        if loop is None:
-            cache = _WEBDAV_CLIENT_FALLBACK_CACHE
-        else:
-            cache = _WEBDAV_CLIENT_CACHE.setdefault(loop, {})
-
+        cache = _WEBDAV_CLIENT_CACHE.setdefault(loop, {})
         cached_client = cache.get(cache_key)
         if _is_webdav_client_available(cached_client):
             return cached_client
 
-        try:
-            client_class = import_aiodav_client_class()
-        except ImportError as error:
-            raise ModuleNotFoundError(WEBDAV_INSTALL_HINT) from error
-
-        client = client_class(
+        client = Client(
             hostname=hostname,
             login=resolved_username,
             password=resolved_password,
@@ -589,7 +536,7 @@ class AioWebdavWritableFile(AioWritable[T.AnyStr], AioSeekable[T.AnyStr]):
         :return: Opened writable file.
         :rtype: AioWebdavWritableFile
         """
-        self._client = self._filesystem._create_client()
+        self._client = await self._filesystem._create_client()
         self._owns_client = False
         remote_path = self._filesystem._normalize_remote_path(self._path)
         uri = self.name
@@ -827,7 +774,7 @@ class WebdavFileSystem(BaseFileSystem):
             self._endpoint.token_command,
         )
 
-    def _create_client(self) -> AiodavClient:
+    async def _create_client(self) -> AiodavClient:
         """Get cached aiodav client for current endpoint.
 
         :return: Configured aiodav client.
@@ -835,7 +782,7 @@ class WebdavFileSystem(BaseFileSystem):
         """
         return T.cast(
             AiodavClient,
-            get_webdav_client(
+            await get_webdav_client(
                 hostname=self._endpoint.hostname,
                 username=self._endpoint.username,
                 password=self._endpoint.password,
@@ -849,7 +796,7 @@ class WebdavFileSystem(BaseFileSystem):
     @asynccontextmanager
     async def _session(self):
         """Yield cached WebDAV client for current operation."""
-        yield self._create_client()
+        yield await self._create_client()
 
     async def _ensure_parent_directory(self, client: AiodavClient, path: str) -> None:
         """Create parent directories for a target path when missing.

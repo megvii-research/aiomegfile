@@ -11,7 +11,7 @@ from aiomegfile.config import (
     READER_MAX_BUFFER_SIZE,
 )
 from aiomegfile.errors.webdav import (
-    WEBDAV_INSTALL_HINT,
+    _ensure_aiodav,
     translate_webdav_error,
     webdav_retry,
 )
@@ -38,10 +38,9 @@ def _quote_webdav_urn(path: str) -> str:
     :rtype: str
     :raises ModuleNotFoundError: If WebDAV optional dependency is unavailable.
     """
-    try:
-        from aiodav.urn import Urn
-    except Exception as error:
-        raise ModuleNotFoundError(WEBDAV_INSTALL_HINT) from error
+    _ensure_aiodav()
+    from aiodav.urn import Urn
+
     return Urn(path).quote()
 
 

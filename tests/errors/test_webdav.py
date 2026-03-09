@@ -1,7 +1,10 @@
-"""Tests for WebDAV dependency import and cached client helpers."""
+"""Tests for WebDAV dependency checks and cached client helpers."""
+
+from types import SimpleNamespace
 
 import pytest
 
+from aiomegfile.errors import webdav as webdav_errors_module
 from aiomegfile.filesystem import webdav as webdav_module
 
 
@@ -59,14 +62,22 @@ class _FakeWebdavClient:
 def _reset_webdav_cache():
     """Reset cached helper state between tests."""
     webdav_module.clear_webdav_client_cache()
-    cache_clear = getattr(webdav_module.import_aiodav_client_class, "cache_clear", None)
-    if callable(cache_clear):
-        cache_clear()
+    for cached_function in (
+        webdav_errors_module._import_aiodav_exceptions,
+        webdav_module.import_aiodav_client_class,
+    ):
+        cache_clear = getattr(cached_function, "cache_clear", None)
+        if callable(cache_clear):
+            cache_clear()
     yield
     webdav_module.clear_webdav_client_cache()
-    cache_clear = getattr(webdav_module.import_aiodav_client_class, "cache_clear", None)
-    if callable(cache_clear):
-        cache_clear()
+    for cached_function in (
+        webdav_errors_module._import_aiodav_exceptions,
+        webdav_module.import_aiodav_client_class,
+    ):
+        cache_clear = getattr(cached_function, "cache_clear", None)
+        if callable(cache_clear):
+            cache_clear()
     _FakeWebdavClient.created_kwargs.clear()
 
 
@@ -117,6 +128,42 @@ def test_load_webdav_timeout_and_insecure_from_env(monkeypatch):
 
     monkeypatch.setenv(webdav_module.WEBDAV_TIMEOUT_ENV, "invalid")
     assert webdav_module.load_webdav_timeout() == webdav_module.WEBDAV_DEFAULT_TIMEOUT
+
+
+def test_ensure_aiodav_missing_dependency(monkeypatch):
+    """Test dependency helper raises install hint when ``aiodav`` is missing."""
+
+    def _fake_import_module(module_name: str):
+        if module_name == "aiodav":
+            raise ImportError("No module named aiodav")
+        return object()
+
+    monkeypatch.setattr(
+        webdav_errors_module.importlib,
+        "import_module",
+        _fake_import_module,
+    )
+
+    with pytest.raises(ModuleNotFoundError, match="aiomegfile\\[webdav\\]"):
+        webdav_errors_module._ensure_aiodav()
+
+
+def test_import_aiodav_client_class_checks_dependency(monkeypatch):
+    """Test client import helper validates dependency before loading submodule."""
+    calls = {"ensure": 0}
+
+    def _fake_ensure_aiodav() -> None:
+        calls["ensure"] += 1
+
+    def _fake_import_module(module_name: str) -> SimpleNamespace:
+        assert module_name == "aiodav.client"
+        return SimpleNamespace(Client=_FakeWebdavClient)
+
+    monkeypatch.setattr(webdav_module, "_ensure_aiodav", _fake_ensure_aiodav)
+    monkeypatch.setattr(webdav_module.importlib, "import_module", _fake_import_module)
+
+    assert webdav_module.import_aiodav_client_class() is _FakeWebdavClient
+    assert calls["ensure"] == 1
 
 
 async def test_get_webdav_client_cache_hit(monkeypatch):

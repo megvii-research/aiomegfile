@@ -3,24 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import inspect
-from functools import lru_cache
 
 import aiohttp
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
 from aiomegfile.errors.core import aioretry
+from aiomegfile.errors.http import http_should_retry
 
 WEBDAV_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 WEBDAV_NOT_FOUND_STATUS_CODES = {404}
 WEBDAV_PERMISSION_STATUS_CODES = {401, 403}
-WEBDAV_INSTALL_HINT = (
-    "WebDAV support requires optional dependency 'aiodav'. "
-    "Install it with: pip install 'aiomegfile[webdav]'"
-)
 
 __all__ = [
-    "WEBDAV_INSTALL_HINT",
     "WEBDAV_NOT_FOUND_STATUS_CODES",
     "WEBDAV_PERMISSION_STATUS_CODES",
     "WEBDAV_RETRYABLE_STATUS_CODES",
@@ -35,68 +31,25 @@ __all__ = [
 ]
 
 
-def _import_aiodav_module(module_name: str):
-    """Import a WebDAV optional module with install hints.
+def _ensure_aiodav() -> None:
+    """Ensure the optional ``aiodav`` dependency is importable.
 
-    :param module_name: Target module name under ``aiodav`` package.
-    :return: Imported module object.
-    :rtype: module
-    :raises ImportError: If optional dependency is unavailable.
+    :return: None
+    :rtype: None
+    :raises ModuleNotFoundError: If WebDAV optional dependency is unavailable.
     """
     try:
-        return __import__(module_name, fromlist=["*"])
+        importlib.import_module("aiodav")
     except ImportError as error:
         raise ImportError(
             inspect.cleandoc(
                 """
                 Failed to import aiodav, the following steps show you how to install it:
 
-                    pip3 install 'aiomegfile[webdav]' --user
+                    pip3 install 'aiomegfile[webdav]'
                 """
             )
         ) from error
-
-
-@lru_cache(maxsize=1)
-def _import_aiodav_exceptions():
-    """Import ``aiodav.exceptions`` with install hint.
-
-    :return: Imported ``aiodav.exceptions`` module.
-    :rtype: module
-    :raises ImportError: If optional dependency is unavailable.
-    """
-    return _import_aiodav_module("aiodav.exceptions")
-
-
-def _get_aiodav_exception_class(name: str):
-    """Return exception class by name from ``aiodav.exceptions``.
-
-    :param name: Exception class name.
-    :return: Exception class, or ``None`` if missing.
-    """
-    try:
-        module = _import_aiodav_exceptions()
-    except ImportError:
-        return None
-    cls = getattr(module, name, None)
-    if isinstance(cls, type) and issubclass(cls, Exception):
-        return cls
-    return None
-
-
-def _is_aiodav_exception(error: Exception, *names: str) -> bool:
-    """Return whether error is one of named ``aiodav`` exception types.
-
-    :param error: Exception instance.
-    :param names: Candidate exception class names.
-    :return: True when matched.
-    :rtype: bool
-    """
-    for name in names:
-        cls = _get_aiodav_exception_class(name)
-        if cls is not None and isinstance(error, cls):
-            return True
-    return False
 
 
 class WebdavException(Exception):
@@ -126,18 +79,27 @@ def webdav_should_retry(error: Exception) -> bool:
     :return: True if operation should be retried.
     :rtype: bool
     """
-    if _is_aiodav_exception(error, "ResponseErrorCode"):
+    _ensure_aiodav()
+    from aiodav.exceptions import (
+        ConnectionException,
+        NoConnection,
+        ResponseErrorCode,
+    )
+
+    if isinstance(error, ResponseErrorCode):
         status = int(getattr(error, "code", 0))
         return status in WEBDAV_RETRYABLE_STATUS_CODES
     if isinstance(error, asyncio.TimeoutError):
         return True
-    if _is_aiodav_exception(error, "NoConnection", "ConnectionException"):
+    if isinstance(error, (NoConnection, ConnectionException)):
         return True
     if isinstance(error, aiohttp.ClientConnectionError):
         return True
     if isinstance(error, aiohttp.ServerDisconnectedError):
         return True
     if isinstance(error, aiohttp.ClientPayloadError):
+        return True
+    if http_should_retry(error):
         return True
     return False
 
@@ -150,8 +112,15 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
     :return: Translated exception.
     :rtype: Exception
     """
-    if isinstance(error, ImportError) and "aiodav" in str(error):
-        return ModuleNotFoundError(WEBDAV_INSTALL_HINT)
+    _ensure_aiodav()
+    from aiodav.exceptions import (
+        ConnectionException,
+        NoConnection,
+        RemoteParentNotFound,
+        RemoteResourceNotFound,
+        ResponseErrorCode,
+        WebDavException,
+    )
 
     if isinstance(error, WebdavException):
         return error
@@ -159,10 +128,10 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
     if isinstance(error, (FileNotFoundError, PermissionError)):
         return error
 
-    if _is_aiodav_exception(error, "RemoteResourceNotFound", "RemoteParentNotFound"):
+    if isinstance(error, (RemoteResourceNotFound, RemoteParentNotFound)):
         return WebdavFileNotFoundError(f"No such file: {uri!r}")
 
-    if _is_aiodav_exception(error, "ResponseErrorCode"):
+    if isinstance(error, ResponseErrorCode):
         status = int(getattr(error, "code", 0))
         if status in WEBDAV_NOT_FOUND_STATUS_CODES:
             return WebdavFileNotFoundError(f"No such file: {uri!r}")
@@ -173,13 +142,13 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
     if isinstance(error, (asyncio.TimeoutError, TimeoutError)):
         return WebdavTimeoutError(f"Request timeout: {uri!r}")
 
-    if _is_aiodav_exception(error, "NoConnection", "ConnectionException"):
+    if isinstance(error, (NoConnection, ConnectionException)):
         return WebdavUnknownError(f"Unable to access {uri!r}: {error}")
 
     if isinstance(error, aiohttp.ClientError):
         return WebdavUnknownError(f"Unable to access {uri!r}: {error}")
 
-    if _is_aiodav_exception(error, "WebDavException"):
+    if isinstance(error, WebDavException):
         return WebdavUnknownError(f"WebDAV operation failed on {uri!r}: {error}")
 
     if isinstance(error, OSError):

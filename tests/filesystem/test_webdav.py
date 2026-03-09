@@ -305,7 +305,11 @@ class TestWebdavFileSystem:
 
         def _raise_missing_dependency(**kwargs):
             _ = kwargs
-            raise ModuleNotFoundError(webdav_module.WEBDAV_INSTALL_HINT)
+            raise ModuleNotFoundError("""
+                Failed to import aiodav, the following steps show you how to install it:
+
+                    pip3 install 'aiomegfile[webdav]'
+                """)
 
         monkeypatch.setattr(
             webdav_module,
