@@ -4,7 +4,7 @@ import os
 import typing as T
 from collections import deque
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS
+from aiomegfile.config import DEFAULT_COPY_BUFFER_SIZE, GLOBAL_MAX_WORKERS
 from aiomegfile.interfaces import Access, FileEntry, StatResult
 from aiomegfile.lib.cacher import NullCacher, SmartCacher
 from aiomegfile.lib.combine_reader import AioCombineReader
@@ -573,7 +573,7 @@ async def smart_save_as(file_object: T.BinaryIO, path: PathLike) -> None:
     """
     async with smart_open(path, "wb") as f:
         while True:
-            chunk = file_object.read(16 * 1024)
+            chunk = file_object.read(DEFAULT_COPY_BUFFER_SIZE)
             if not chunk:
                 break
             await f.write(chunk)

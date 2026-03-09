@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.errors.core import aioretry
+from aiomegfile.errors.core import UnknownError, aioretry
 
 HTTP_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 HTTP_NOT_FOUND_STATUS_CODES = {404}
@@ -44,7 +44,7 @@ class HttpTimeoutError(HttpException, TimeoutError):
     """Raised when HTTP request times out."""
 
 
-class HttpUnknownError(HttpException, OSError):
+class HttpUnknownError(HttpException, UnknownError):
     """Raised for unmapped HTTP failures."""
 
 

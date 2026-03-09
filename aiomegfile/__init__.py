@@ -7,6 +7,8 @@ from aiomegfile.filesystem import (
     S3FileSystem,
     SftpFileSystem,
     StdioFileSystem,
+    WebdavFileSystem,
+    WebdavsFileSystem,
 )
 from aiomegfile.smart import (
     SmartCacher,
@@ -62,6 +64,8 @@ __all__ = [
     "S3FileSystem",
     "SftpFileSystem",
     "StdioFileSystem",
+    "WebdavFileSystem",
+    "WebdavsFileSystem",
     "is_stdio",
     "smart_abspath",
     "smart_cache",

@@ -53,6 +53,19 @@ from aiomegfile.errors.sftp import (
     sftp_should_retry,
     translate_sftp_error,
 )
+from aiomegfile.errors.webdav import (
+    WEBDAV_NOT_FOUND_STATUS_CODES,
+    WEBDAV_PERMISSION_STATUS_CODES,
+    WEBDAV_RETRYABLE_STATUS_CODES,
+    WebdavException,
+    WebdavFileNotFoundError,
+    WebdavPermissionError,
+    WebdavTimeoutError,
+    WebdavUnknownError,
+    translate_webdav_error,
+    webdav_retry,
+    webdav_should_retry,
+)
 
 __all__ = [
     "AioMegfileRetryConditions",
@@ -85,6 +98,14 @@ __all__ = [
     "SftpPermissionError",
     "SftpTimeoutError",
     "SftpUnknownError",
+    "WEBDAV_NOT_FOUND_STATUS_CODES",
+    "WEBDAV_PERMISSION_STATUS_CODES",
+    "WEBDAV_RETRYABLE_STATUS_CODES",
+    "WebdavException",
+    "WebdavFileNotFoundError",
+    "WebdavPermissionError",
+    "WebdavTimeoutError",
+    "WebdavUnknownError",
     "SameFileError",
     "UnknownError",
     "aioretry",
@@ -100,4 +121,7 @@ __all__ = [
     "translate_http_error",
     "translate_s3_error",
     "translate_sftp_error",
+    "translate_webdav_error",
+    "webdav_retry",
+    "webdav_should_retry",
 ]

@@ -7,7 +7,7 @@ import asyncio
 import asyncssh
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.errors.core import aioretry
+from aiomegfile.errors.core import UnknownError, aioretry
 
 __all__ = [
     "SftpException",
@@ -47,7 +47,7 @@ class SftpTimeoutError(SftpException, TimeoutError):
     """Raised when SFTP operation times out."""
 
 
-class SftpUnknownError(SftpException, OSError):
+class SftpUnknownError(SftpException, UnknownError):
     """Raised for unmapped SFTP failures."""
 
 

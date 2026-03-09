@@ -7,7 +7,11 @@ import typing as T
 from collections.abc import Sequence
 from functools import cached_property
 
-from aiomegfile.config import GLOBAL_MAX_WORKERS, READER_BLOCK_SIZE
+from aiomegfile.config import (
+    DEFAULT_COPY_BUFFER_SIZE,
+    DEFAULT_HASH_BUFFER_SIZE,
+    GLOBAL_MAX_WORKERS,
+)
 from aiomegfile.interfaces import Access, FileEntry, StatResult, get_filesystem_by_uri
 from aiomegfile.lib.fnmatch import fnmatch, fnmatchcase
 from aiomegfile.lib.glob import FSFunc, iglob
@@ -418,7 +422,7 @@ class SmartPath(os.PathLike):
         """
         async with self.open("wb") as f:
             while True:
-                chunk = file_object.read(16 * 1024)
+                chunk = file_object.read(DEFAULT_COPY_BUFFER_SIZE)
                 if not chunk:
                     break
                 await f.write(chunk)
@@ -743,7 +747,7 @@ class SmartPath(os.PathLike):
         hash_md5 = hashlib.md5()  # nosec
         async with self.open("rb") as fileobj:
             while True:
-                chunk = await fileobj.read(READER_BLOCK_SIZE)
+                chunk = await fileobj.read(DEFAULT_HASH_BUFFER_SIZE)
                 if not chunk:
                     break
                 hash_md5.update(chunk)
@@ -1185,7 +1189,7 @@ class SmartPath(os.PathLike):
         async with self.open("rb") as src_file:
             async with target_path.open("wb") as dst_file:
                 while True:
-                    chunk = await src_file.read(16 * 1024)  # 16KB, same as shutil
+                    chunk = await src_file.read(DEFAULT_COPY_BUFFER_SIZE)
                     if not chunk:
                         break
                     await dst_file.write(chunk)
