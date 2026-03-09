@@ -1,9 +1,13 @@
+"""HTTP protocol retry and error translation helpers."""
+
+from __future__ import annotations
+
 import asyncio
 
 import aiohttp
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.errors import aioretry
+from aiomegfile.errors.core import aioretry
 
 HTTP_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 HTTP_NOT_FOUND_STATUS_CODES = {404}
@@ -13,10 +17,35 @@ __all__ = [
     "HTTP_NOT_FOUND_STATUS_CODES",
     "HTTP_PERMISSION_STATUS_CODES",
     "HTTP_RETRYABLE_STATUS_CODES",
+    "HttpException",
+    "HttpFileNotFoundError",
+    "HttpPermissionError",
+    "HttpTimeoutError",
+    "HttpUnknownError",
     "http_retry",
     "http_should_retry",
     "translate_http_error",
 ]
+
+
+class HttpException(Exception):
+    """Base type for HTTP-specific errors."""
+
+
+class HttpFileNotFoundError(HttpException, FileNotFoundError):
+    """Raised when HTTP resource does not exist."""
+
+
+class HttpPermissionError(HttpException, PermissionError):
+    """Raised when HTTP access is denied."""
+
+
+class HttpTimeoutError(HttpException, TimeoutError):
+    """Raised when HTTP request times out."""
+
+
+class HttpUnknownError(HttpException, OSError):
+    """Raised for unmapped HTTP failures."""
 
 
 def http_should_retry(error: Exception) -> bool:
@@ -27,7 +56,8 @@ def http_should_retry(error: Exception) -> bool:
     :rtype: bool
     """
     if isinstance(error, aiohttp.ClientResponseError):
-        return error.status in HTTP_RETRYABLE_STATUS_CODES  # type: ignore
+        status = error.status  # pytype: disable=attribute-error
+        return status in HTTP_RETRYABLE_STATUS_CODES
     if isinstance(error, asyncio.TimeoutError):
         return True
     if isinstance(error, aiohttp.ClientConnectionError):
@@ -47,18 +77,22 @@ def translate_http_error(error: Exception, url: str) -> Exception:
     :return: Translated exception.
     :rtype: Exception
     """
+    if isinstance(error, HttpException):
+        return error
+
     if isinstance(error, aiohttp.ClientResponseError):
-        if error.status in HTTP_NOT_FOUND_STATUS_CODES:  # type: ignore
-            return FileNotFoundError(f"No such file: {url!r}")
-        if error.status in HTTP_PERMISSION_STATUS_CODES:  # type: ignore
-            return PermissionError(f"Permission denied: {url!r}")
-        return OSError(f"HTTP error {error.status}: {url!r}")  # type: ignore
+        status = error.status  # pytype: disable=attribute-error
+        if status in HTTP_NOT_FOUND_STATUS_CODES:
+            return HttpFileNotFoundError(f"No such file: {url!r}")
+        if status in HTTP_PERMISSION_STATUS_CODES:
+            return HttpPermissionError(f"Permission denied: {url!r}")
+        return HttpUnknownError(f"HTTP error {status}: {url!r}")
 
     if isinstance(error, asyncio.TimeoutError):
-        return TimeoutError(f"Request timeout: {url!r}")
+        return HttpTimeoutError(f"Request timeout: {url!r}")
 
     if isinstance(error, aiohttp.ClientError):
-        return OSError(f"Unable to access {url!r}: {error}")
+        return HttpUnknownError(f"Unable to access {url!r}: {error}")
 
     return error
 

@@ -36,6 +36,7 @@ from aiomegfile.errors import (
     raise_s3_error,
     translate_s3_error,
 )
+from aiomegfile.errors.s3 import register_retry_handler
 from aiomegfile.interfaces import (
     Access,
     AioClosable,
@@ -50,7 +51,6 @@ from aiomegfile.lib.glob import has_magic, has_magic_ignore_brace, ungloblize
 from aiomegfile.lib.prefetch_reader.s3_prefetch_reader import AioS3PrefetchReader
 from aiomegfile.lib.s3_buffered_writer import AioS3BufferedWriter
 from aiomegfile.utils.path import PathLike, fspath, split_uri
-from aiomegfile.utils.retry.s3 import register_retry_handler
 
 if T.TYPE_CHECKING:
     from types_aiobotocore_s3 import S3Client  # pyre-ignore[21]
@@ -355,7 +355,7 @@ async def _get_s3_client(
     kwargs = {"client": client}
     if max_attempts is not None:
         kwargs["max_attempts"] = max_attempts
-    register_retry_handler(**kwargs)
+    register_retry_handler(**kwargs)  # pyre-ignore[6]
     _register_add_md5_header(client)
     return client
 

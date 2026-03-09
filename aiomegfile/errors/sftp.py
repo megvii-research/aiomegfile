@@ -1,15 +1,54 @@
+"""SFTP protocol retry and error translation helpers."""
+
+from __future__ import annotations
+
 import asyncio
 
 import asyncssh
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.errors import aioretry
+from aiomegfile.errors.core import aioretry
 
 __all__ = [
+    "SftpException",
+    "SftpFileExistsError",
+    "SftpFileNotFoundError",
+    "SftpNotADirectoryError",
+    "SftpPermissionError",
+    "SftpTimeoutError",
+    "SftpUnknownError",
     "sftp_retry",
     "sftp_should_retry",
     "translate_sftp_error",
 ]
+
+
+class SftpException(Exception):
+    """Base type for SFTP-specific errors."""
+
+
+class SftpFileNotFoundError(SftpException, FileNotFoundError):
+    """Raised when SFTP resource does not exist."""
+
+
+class SftpFileExistsError(SftpException, FileExistsError):
+    """Raised when creating an SFTP resource that already exists."""
+
+
+class SftpPermissionError(SftpException, PermissionError):
+    """Raised when SFTP access is denied."""
+
+
+class SftpNotADirectoryError(SftpException, NotADirectoryError):
+    """Raised when path is not a directory on SFTP server."""
+
+
+class SftpTimeoutError(SftpException, TimeoutError):
+    """Raised when SFTP operation times out."""
+
+
+class SftpUnknownError(SftpException, OSError):
+    """Raised for unmapped SFTP failures."""
 
 
 def sftp_should_retry(error: Exception) -> bool:
@@ -64,25 +103,28 @@ def translate_sftp_error(error: Exception, uri: str) -> Exception:
     :return: Translated exception.
     :rtype: Exception
     """
+    if isinstance(error, SftpException):
+        return error
+
     if isinstance(error, (FileNotFoundError, FileExistsError, PermissionError)):
         return error
 
     if isinstance(error, asyncssh.sftp.SFTPNoSuchFile):
-        return FileNotFoundError(f"No such file: {uri!r}")
+        return SftpFileNotFoundError(f"No such file: {uri!r}")
     if isinstance(error, asyncssh.sftp.SFTPFileAlreadyExists):
-        return FileExistsError(f"File exists: {uri!r}")
+        return SftpFileExistsError(f"File exists: {uri!r}")
     if isinstance(error, asyncssh.sftp.SFTPPermissionDenied):
-        return PermissionError(f"Permission denied: {uri!r}")
+        return SftpPermissionError(f"Permission denied: {uri!r}")
     if isinstance(error, asyncssh.sftp.SFTPNotADirectory):
-        return NotADirectoryError(f"Not a directory: {uri!r}")
+        return SftpNotADirectoryError(f"Not a directory: {uri!r}")
 
     if isinstance(error, TimeoutError):
-        return TimeoutError(f"Operation timed out: {uri!r}")
+        return SftpTimeoutError(f"Operation timed out: {uri!r}")
 
     if isinstance(error, OSError):
         return error
 
-    return OSError(f"SFTP operation failed on {uri!r}: {error}")
+    return SftpUnknownError(f"SFTP operation failed on {uri!r}: {error}")
 
 
 def sftp_retry(max_retries: int = DEFAULT_MAX_RETRY_TIMES):

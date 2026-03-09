@@ -19,6 +19,7 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
+from aiomegfile.errors.sftp import sftp_retry, translate_sftp_error
 from aiomegfile.interfaces import (
     Access,
     AioScannableManager,
@@ -30,7 +31,6 @@ from aiomegfile.interfaces import (
 )
 from aiomegfile.lib.prefetch_reader.sftp_prefetch_reader import AioSftpPrefetchReader
 from aiomegfile.utils.path import PathLike, fspath
-from aiomegfile.utils.retry.sftp import sftp_retry, translate_sftp_error
 
 logger = logging.getLogger(__name__)
 
