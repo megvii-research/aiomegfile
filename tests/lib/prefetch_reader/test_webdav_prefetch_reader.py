@@ -22,7 +22,12 @@ def fake_filesystem(monkeypatch):
     client.files["/dir/sample.txt"] = b"line1\nline2\nline3\n"
 
     filesystem = WebdavFileSystem(host="example.com", username="demo", password="pwd")
-    monkeypatch.setattr(filesystem, "_create_client", lambda: client)
+
+    async def _fake_create_client():
+        """Return fixture client through async filesystem factory."""
+        return client
+
+    monkeypatch.setattr(filesystem, "_create_client", _fake_create_client)
     return filesystem, client
 
 

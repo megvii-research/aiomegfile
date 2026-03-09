@@ -122,7 +122,7 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
         :rtype: AioWebdavPrefetchReader
         """
         if self._client is None:
-            self._client = self._filesystem._create_client()
+            self._client = await self._filesystem._create_client()
             self._owns_client = False
         return await super().__aenter__()
 

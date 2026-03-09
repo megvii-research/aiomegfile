@@ -37,7 +37,12 @@ def filesystem(monkeypatch):
         username="demo",
         password="secret",
     )
-    monkeypatch.setattr(filesystem, "_create_client", lambda: client)
+
+    async def _fake_create_client():
+        """Return fixture client through async filesystem factory."""
+        return client
+
+    monkeypatch.setattr(filesystem, "_create_client", _fake_create_client)
     return filesystem, client
 
 
@@ -107,13 +112,13 @@ class TestWebdavFileSystem:
         fake_client = object()
         captured: dict[str, object] = {}
 
-        def _fake_get_webdav_client(**kwargs):
+        async def _fake_get_webdav_client(**kwargs):
             captured.update(kwargs)
             return fake_client
 
         monkeypatch.setattr(webdav_module, "get_webdav_client", _fake_get_webdav_client)
 
-        assert filesystem._create_client() is fake_client
+        assert await filesystem._create_client() is fake_client
         assert captured["hostname"] == "http://example.com"
         assert captured["username"] == "demo"
         assert captured["password"] == "secret"

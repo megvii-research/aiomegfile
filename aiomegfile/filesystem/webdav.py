@@ -12,7 +12,7 @@ import threading
 import typing as T
 import urllib.parse
 import weakref
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -76,7 +76,6 @@ _WEBDAV_CLIENT_CACHE: weakref.WeakKeyDictionary[
     asyncio.AbstractEventLoop,
     dict[tuple[T.Hashable, ...], T.Any],
 ] = weakref.WeakKeyDictionary()
-_WEBDAV_CLIENT_FALLBACK_CACHE: dict[tuple[T.Hashable, ...], T.Any] = {}
 _WEBDAV_CLIENT_CACHE_LOCK = threading.Lock()
 
 
@@ -250,7 +249,6 @@ def clear_webdav_client_cache() -> None:
     """Clear WebDAV client caches for all event loops."""
     with _WEBDAV_CLIENT_CACHE_LOCK:
         _WEBDAV_CLIENT_CACHE.clear()
-        _WEBDAV_CLIENT_FALLBACK_CACHE.clear()
 
 
 async def get_webdav_client(
@@ -793,11 +791,6 @@ class WebdavFileSystem(BaseFileSystem):
             ),
         )
 
-    @asynccontextmanager
-    async def _session(self):
-        """Yield cached WebDAV client for current operation."""
-        yield await self._create_client()
-
     async def _ensure_parent_directory(self, client: AiodavClient, path: str) -> None:
         """Create parent directories for a target path when missing.
 
@@ -901,25 +894,25 @@ class WebdavFileSystem(BaseFileSystem):
         _ = followlinks
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
-        async with self._session() as client:
-            exists = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.exists(remote_path),
-                ),
-            )
-            if not exists:
-                return False
-            return T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.is_directory(remote_path),
-                ),
-            )
+        client = await self._create_client()
+        exists = T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.exists(remote_path),
+            ),
+        )
+        if not exists:
+            return False
+        return T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.is_directory(remote_path),
+            ),
+        )
 
     async def is_file(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file.
@@ -931,26 +924,26 @@ class WebdavFileSystem(BaseFileSystem):
         _ = followlinks
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
-        async with self._session() as client:
-            exists = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.exists(remote_path),
-                ),
-            )
-            if not exists:
-                return False
-            is_dir = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.is_directory(remote_path),
-                ),
-            )
-            return not is_dir
+        client = await self._create_client()
+        exists = T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.exists(remote_path),
+            ),
+        )
+        if not exists:
+            return False
+        is_dir = T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.is_directory(remote_path),
+            ),
+        )
+        return not is_dir
 
     async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing resource.
@@ -962,15 +955,15 @@ class WebdavFileSystem(BaseFileSystem):
         _ = followlinks
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
-        async with self._session() as client:
-            return T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.exists(remote_path),
-                ),
-            )
+        client = await self._create_client()
+        return T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.exists(remote_path),
+            ),
+        )
 
     async def stat(self, path: str, followlinks: bool = False) -> StatResult:
         """Get metadata status for the path.
@@ -983,24 +976,24 @@ class WebdavFileSystem(BaseFileSystem):
         _ = followlinks
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
-        async with self._session() as client:
-            info = T.cast(
-                dict[str, T.Any],
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.info(remote_path),
-                ),
-            )
-            is_dir = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.is_directory(remote_path),
-                ),
-            )
-            return _make_stat_result(info, isdir=is_dir)
+        client = await self._create_client()
+        info = T.cast(
+            dict[str, T.Any],
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.info(remote_path),
+            ),
+        )
+        is_dir = T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.is_directory(remote_path),
+            ),
+        )
+        return _make_stat_result(info, isdir=is_dir)
 
     async def remove(self, path: str, missing_ok: bool = False) -> None:
         """Remove (delete) file or directory recursively.
@@ -1010,25 +1003,25 @@ class WebdavFileSystem(BaseFileSystem):
         """
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
-        async with self._session() as client:
-            exists = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.exists(remote_path),
-                ),
-            )
-            if not exists:
-                if missing_ok:
-                    return
-                raise FileNotFoundError(f"No such file: {uri!r}")
-
+        client = await self._create_client()
+        exists = T.cast(
+            bool,
             await _call_webdav(
                 uri,
                 self.max_retries,
-                lambda: client.delete(remote_path),
-            )
+                lambda: client.exists(remote_path),
+            ),
+        )
+        if not exists:
+            if missing_ok:
+                return
+            raise FileNotFoundError(f"No such file: {uri!r}")
+
+        await _call_webdav(
+            uri,
+            self.max_retries,
+            lambda: client.delete(remote_path),
+        )
 
     async def mkdir(
         self,
@@ -1048,38 +1041,38 @@ class WebdavFileSystem(BaseFileSystem):
         _ = mode
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
-        async with self._session() as client:
-            if remote_path == "/":
-                return
+        client = await self._create_client()
+        if remote_path == "/":
+            return
 
-            exists = T.cast(
+        exists = T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.exists(remote_path),
+            ),
+        )
+        if exists:
+            is_dir = T.cast(
                 bool,
                 await _call_webdav(
                     uri,
                     self.max_retries,
-                    lambda: client.exists(remote_path),
+                    lambda: client.is_directory(remote_path),
                 ),
             )
-            if exists:
-                is_dir = T.cast(
-                    bool,
-                    await _call_webdav(
-                        uri,
-                        self.max_retries,
-                        lambda: client.is_directory(remote_path),
-                    ),
-                )
-                if is_dir and exist_ok:
-                    return
-                raise FileExistsError(f"File exists: {uri!r}")
+            if is_dir and exist_ok:
+                return
+            raise FileExistsError(f"File exists: {uri!r}")
 
-            if parents:
-                await self._ensure_parent_directory(client, remote_path)
-            await _call_webdav(
-                uri,
-                self.max_retries,
-                lambda: client.create_directory(remote_path),
-            )
+        if parents:
+            await self._ensure_parent_directory(client, remote_path)
+        await _call_webdav(
+            uri,
+            self.max_retries,
+            lambda: client.create_directory(remote_path),
+        )
 
     def open(
         self,
@@ -1159,49 +1152,49 @@ class WebdavFileSystem(BaseFileSystem):
         uri = self.build_uri(remote_path)
 
         async def aiterator() -> T.AsyncIterator[FileEntry]:
-            async with self._session() as client:
-                exists = T.cast(
-                    bool,
-                    await _call_webdav(
-                        uri,
-                        self.max_retries,
-                        lambda: client.exists(remote_path),
-                    ),
-                )
-                if not exists:
-                    raise FileNotFoundError(f"No such file or directory: {uri!r}")
+            client = await self._create_client()
+            exists = T.cast(
+                bool,
+                await _call_webdav(
+                    uri,
+                    self.max_retries,
+                    lambda: client.exists(remote_path),
+                ),
+            )
+            if not exists:
+                raise FileNotFoundError(f"No such file or directory: {uri!r}")
 
-                is_dir = T.cast(
-                    bool,
-                    await _call_webdav(
-                        uri,
-                        self.max_retries,
-                        lambda: client.is_directory(remote_path),
-                    ),
-                )
-                if not is_dir:
-                    raise NotADirectoryError(f"Not a directory: {uri!r}")
+            is_dir = T.cast(
+                bool,
+                await _call_webdav(
+                    uri,
+                    self.max_retries,
+                    lambda: client.is_directory(remote_path),
+                ),
+            )
+            if not is_dir:
+                raise NotADirectoryError(f"Not a directory: {uri!r}")
 
-                infos = T.cast(
-                    list[dict[str, T.Any]],
-                    await _call_webdav(
-                        uri,
-                        self.max_retries,
-                        lambda: client.list(remote_path, get_info=True),
-                    ),
-                )
+            infos = T.cast(
+                list[dict[str, T.Any]],
+                await _call_webdav(
+                    uri,
+                    self.max_retries,
+                    lambda: client.list(remote_path, get_info=True),
+                ),
+            )
 
-                for info in sorted(infos, key=_entry_name_from_info):
-                    name = _entry_name_from_info(info)
-                    if name in ("", ".", ".."):
-                        continue
-                    entry_path = self._join_uri_path(remote_path, name)
-                    is_child_dir = bool(info.get("isdir"))
-                    yield FileEntry(
-                        name=name,
-                        path=entry_path,
-                        stat=_make_stat_result(info, isdir=is_child_dir),
-                    )
+            for info in sorted(infos, key=_entry_name_from_info):
+                name = _entry_name_from_info(info)
+                if name in ("", ".", ".."):
+                    continue
+                entry_path = self._join_uri_path(remote_path, name)
+                is_child_dir = bool(info.get("isdir"))
+                yield FileEntry(
+                    name=name,
+                    path=entry_path,
+                    stat=_make_stat_result(info, isdir=is_child_dir),
+                )
 
         iterator = aiterator()
 
@@ -1280,20 +1273,20 @@ class WebdavFileSystem(BaseFileSystem):
                     )
 
         async def aiterator() -> T.AsyncIterator[FileEntry]:
-            async with self._session() as client:
-                exists = T.cast(
-                    bool,
-                    await _call_webdav(
-                        uri,
-                        self.max_retries,
-                        lambda: client.exists(remote_path),
-                    ),
-                )
-                if not exists:
-                    raise FileNotFoundError(f"No such file or directory: {uri!r}")
+            client = await self._create_client()
+            exists = T.cast(
+                bool,
+                await _call_webdav(
+                    uri,
+                    self.max_retries,
+                    lambda: client.exists(remote_path),
+                ),
+            )
+            if not exists:
+                raise FileNotFoundError(f"No such file or directory: {uri!r}")
 
-                async for file_entry in _iter_files(client, remote_path):
-                    yield file_entry
+            async for file_entry in _iter_files(client, remote_path):
+                yield file_entry
 
         iterator = aiterator()
 
@@ -1325,20 +1318,20 @@ class WebdavFileSystem(BaseFileSystem):
         size = os.path.getsize(src_path)
         progress = self._build_progress_handler(callback)
 
-        async with self._session() as client:
-            await self._ensure_parent_directory(client, remote_path)
-            async with aiofiles.open(src_path, "rb") as file_obj:
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.upload_to(
-                        path=remote_path,
-                        buffer=file_obj,
-                        buffer_size=size,
-                        overwrite=True,
-                        progress=progress,
-                    ),
-                )
+        client = await self._create_client()
+        await self._ensure_parent_directory(client, remote_path)
+        async with aiofiles.open(src_path, "rb") as file_obj:
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.upload_to(
+                    path=remote_path,
+                    buffer=file_obj,
+                    buffer_size=size,
+                    overwrite=True,
+                    progress=progress,
+                ),
+            )
 
     async def download(
         self,
@@ -1356,32 +1349,32 @@ class WebdavFileSystem(BaseFileSystem):
         uri = self.build_uri(remote_path)
         progress = self._build_progress_handler(callback)
 
-        async with self._session() as client:
-            is_dir = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.is_directory(remote_path),
+        client = await self._create_client()
+        is_dir = T.cast(
+            bool,
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.is_directory(remote_path),
+            ),
+        )
+        if is_dir:
+            raise IsADirectoryError(f"Is a directory: {uri!r}")
+
+        parent_dir = os.path.dirname(dst_path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+
+        async with aiofiles.open(dst_path, "wb") as file_obj:
+            await _call_webdav(
+                uri,
+                self.max_retries,
+                lambda: client.download_to(
+                    path=remote_path,
+                    buffer=file_obj,
+                    progress=progress,
                 ),
             )
-            if is_dir:
-                raise IsADirectoryError(f"Is a directory: {uri!r}")
-
-            parent_dir = os.path.dirname(dst_path)
-            if parent_dir:
-                os.makedirs(parent_dir, exist_ok=True)
-
-            async with aiofiles.open(dst_path, "wb") as file_obj:
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.download_to(
-                        path=remote_path,
-                        buffer=file_obj,
-                        progress=progress,
-                    ),
-                )
 
     async def copy(
         self,
@@ -1405,34 +1398,34 @@ class WebdavFileSystem(BaseFileSystem):
         if src_remote == dst_remote:
             raise OSError(f"'{src_uri}' and '{dst_uri}' are the same file")
 
-        async with self._session() as client:
-            src_is_dir = T.cast(
-                bool,
-                await _call_webdav(
-                    src_uri,
-                    self.max_retries,
-                    lambda: client.is_directory(src_remote),
-                ),
-            )
-            if src_is_dir:
-                raise IsADirectoryError(f"Is a directory: {src_uri!r}")
-
-            await self._ensure_parent_directory(client, dst_remote)
-            src_info = T.cast(
-                dict[str, T.Any],
-                await _call_webdav(
-                    src_uri,
-                    self.max_retries,
-                    lambda: client.info(src_remote),
-                ),
-            )
+        client = await self._create_client()
+        src_is_dir = T.cast(
+            bool,
             await _call_webdav(
-                dst_uri,
+                src_uri,
                 self.max_retries,
-                lambda: client.copy(src_remote, dst_remote, depth=1),
-            )
-            if callback is not None:
-                callback(int(src_info.get("size") or 0))
+                lambda: client.is_directory(src_remote),
+            ),
+        )
+        if src_is_dir:
+            raise IsADirectoryError(f"Is a directory: {src_uri!r}")
+
+        await self._ensure_parent_directory(client, dst_remote)
+        src_info = T.cast(
+            dict[str, T.Any],
+            await _call_webdav(
+                src_uri,
+                self.max_retries,
+                lambda: client.info(src_remote),
+            ),
+        )
+        await _call_webdav(
+            dst_uri,
+            self.max_retries,
+            lambda: client.copy(src_remote, dst_remote, depth=1),
+        )
+        if callback is not None:
+            callback(int(src_info.get("size") or 0))
 
         return dst_path
 
@@ -1454,41 +1447,41 @@ class WebdavFileSystem(BaseFileSystem):
         if src_remote == dst_remote:
             return dst_path
 
-        async with self._session() as client:
-            src_exists = T.cast(
-                bool,
-                await _call_webdav(
-                    src_uri,
-                    self.max_retries,
-                    lambda: client.exists(src_remote),
-                ),
-            )
-            if not src_exists:
-                raise FileNotFoundError(f"No such file: {src_uri!r}")
-
-            dst_exists = T.cast(
-                bool,
-                await _call_webdav(
-                    dst_uri,
-                    self.max_retries,
-                    lambda: client.exists(dst_remote),
-                ),
-            )
-            if dst_exists and not overwrite:
-                raise FileExistsError(f"File exists: {dst_uri!r}")
-            if dst_exists and overwrite:
-                await _call_webdav(
-                    dst_uri,
-                    self.max_retries,
-                    lambda: client.delete(dst_remote),
-                )
-
-            await self._ensure_parent_directory(client, dst_remote)
+        client = await self._create_client()
+        src_exists = T.cast(
+            bool,
             await _call_webdav(
                 src_uri,
                 self.max_retries,
-                lambda: client.move(src_remote, dst_remote, overwrite=overwrite),
+                lambda: client.exists(src_remote),
+            ),
+        )
+        if not src_exists:
+            raise FileNotFoundError(f"No such file: {src_uri!r}")
+
+        dst_exists = T.cast(
+            bool,
+            await _call_webdav(
+                dst_uri,
+                self.max_retries,
+                lambda: client.exists(dst_remote),
+            ),
+        )
+        if dst_exists and not overwrite:
+            raise FileExistsError(f"File exists: {dst_uri!r}")
+        if dst_exists and overwrite:
+            await _call_webdav(
+                dst_uri,
+                self.max_retries,
+                lambda: client.delete(dst_remote),
             )
+
+        await self._ensure_parent_directory(client, dst_remote)
+        await _call_webdav(
+            src_uri,
+            self.max_retries,
+            lambda: client.move(src_remote, dst_remote, overwrite=overwrite),
+        )
 
         return dst_path
 
