@@ -120,9 +120,8 @@ class AioHttpPrefetchReader(AioBasePrefetchReader):
         :raises RuntimeError: If provided external session is already closed.
         """
         if self._session is not None:
-            if self._session.closed:
-                raise RuntimeError("HTTP session is closed")
-            return self._session
+            if not self._session.closed:
+                return self._session
 
         timeout = aiohttp.ClientTimeout(total=self._timeout)
         self._session = aiohttp.ClientSession(timeout=timeout)

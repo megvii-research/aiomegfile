@@ -12,6 +12,7 @@ from aiomegfile.filesystem.webdav import (
     is_webdav,
 )
 from aiomegfile.interfaces import Access, get_filesystem_by_uri
+from aiomegfile.lib.cacher import AioFileCacher
 from aiomegfile.lib.prefetch_reader.webdav_prefetch_reader import (
     AioWebdavPrefetchReader,
 )
@@ -162,6 +163,7 @@ class TestWebdavFileSystem:
             assert await file_obj.write("abc") == 3
 
         async with fs.open("/data/new.txt", "ab") as file_obj:
+            assert isinstance(file_obj, AioFileCacher)
             assert await file_obj.write(b"123") == 3
 
         async with fs.open("/data/new.txt", "rb") as file_obj:

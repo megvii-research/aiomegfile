@@ -538,7 +538,7 @@ class BaseFileSystem(ABC):
         :param other_path: Path to compare.
         :return: True if both represent the same file.
         """
-        raise NotImplementedError(f"'samefile' is unsupported on '{type(self)}'")
+        return path == other_path
 
     @abstractmethod
     def same_endpoint(self, other_filesystem: "BaseFileSystem") -> bool:

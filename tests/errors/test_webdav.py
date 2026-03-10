@@ -1,6 +1,10 @@
 """Tests for WebDAV dependency checks and cached client helpers."""
 
-from types import SimpleNamespace
+from __future__ import annotations
+
+import asyncio
+import sys
+from types import ModuleType
 
 import pytest
 
@@ -20,6 +24,16 @@ class _FakeSession:
         :param closed: Whether the session is closed.
         """
         self.closed = closed
+        self.close_calls = 0
+
+    async def close(self) -> None:
+        """Mark fake session as closed.
+
+        :return: ``None``.
+        :rtype: None
+        """
+        self.close_calls += 1
+        self.closed = True
 
 
 class _FakeWebdavClient:
@@ -33,18 +47,26 @@ class _FakeWebdavClient:
     :param insecure: Optional insecure mode.
     """
 
-    created_kwargs: list[dict] = []
+    created_kwargs: list[dict[str, object]] = []
 
     def __init__(
         self,
         hostname: str,
-        login=None,
-        password=None,
-        token=None,
-        timeout=None,
-        insecure=None,
+        login: object = None,
+        password: object = None,
+        token: object = None,
+        timeout: object = None,
+        insecure: object = None,
     ) -> None:
-        """Capture constructor parameters for assertions."""
+        """Capture constructor parameters for assertions.
+
+        :param hostname: WebDAV endpoint.
+        :param login: Optional username.
+        :param password: Optional password.
+        :param token: Optional bearer token.
+        :param timeout: Optional timeout.
+        :param insecure: Optional insecure mode.
+        """
         kwargs = {
             "hostname": hostname,
             "login": login,
@@ -58,30 +80,43 @@ class _FakeWebdavClient:
         self.session = _FakeSession(closed=False)
 
 
+def _install_fake_aiodav_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Install fake ``aiodav.client`` module for import-based tests.
+
+    :param monkeypatch: Pytest monkeypatch fixture.
+    :return: ``None``.
+    :rtype: None
+    """
+    aiodav_module = ModuleType("aiodav")
+    aiodav_module.__path__ = []  # type: ignore[attr-defined]
+    client_module = ModuleType("aiodav.client")
+    client_module.Client = _FakeWebdavClient  # type: ignore[attr-defined]
+    aiodav_module.client = client_module  # type: ignore[attr-defined]
+
+    monkeypatch.setitem(sys.modules, "aiodav", aiodav_module)
+    monkeypatch.setitem(sys.modules, "aiodav.client", client_module)
+
+
+def _clear_webdav_client_cache():
+    from aiomegfile.filesystem.webdav import (
+        _WEBDAV_CLIENT_CACHE,
+        _WEBDAV_CLIENT_CACHE_LOCK,
+    )
+
+    with _WEBDAV_CLIENT_CACHE_LOCK:
+        _WEBDAV_CLIENT_CACHE.clear()
+
+
 @pytest.fixture(autouse=True)
 def _reset_webdav_cache():
     """Reset cached helper state between tests."""
-    webdav_module.clear_webdav_client_cache()
-    for cached_function in (
-        webdav_errors_module._import_aiodav_exceptions,
-        webdav_module.import_aiodav_client_class,
-    ):
-        cache_clear = getattr(cached_function, "cache_clear", None)
-        if callable(cache_clear):
-            cache_clear()
+    _clear_webdav_client_cache()
     yield
-    webdav_module.clear_webdav_client_cache()
-    for cached_function in (
-        webdav_errors_module._import_aiodav_exceptions,
-        webdav_module.import_aiodav_client_class,
-    ):
-        cache_clear = getattr(cached_function, "cache_clear", None)
-        if callable(cache_clear):
-            cache_clear()
+    _clear_webdav_client_cache()
     _FakeWebdavClient.created_kwargs.clear()
 
 
-def test_load_webdav_token_from_command(monkeypatch):
+def test__load_webdav_token_from_command(monkeypatch):
     """Test token command output is decoded and stripped."""
     commands: list[list[str]] = []
 
@@ -91,43 +126,53 @@ def test_load_webdav_token_from_command(monkeypatch):
         return b"token-from-command\n"
 
     monkeypatch.setattr(webdav_module.subprocess, "check_output", _fake_check_output)
-    token = webdav_module.load_webdav_token_from_command("echo token")
+
+    token = webdav_module._load_webdav_token_from_command("echo token")
 
     assert token == "token-from-command"
     assert commands == [["echo", "token"]]
 
 
-def test_load_webdav_token_prefers_token_command(monkeypatch):
-    """Test token resolution prioritizes ``WEBDAV_TOKEN_COMMAND`` over token."""
+def test__load_webdav_token_prefers_argument_then_env_then_command(monkeypatch):
+    """Test token resolution order for WebDAV authentication."""
     monkeypatch.setenv(webdav_module.WEBDAV_TOKEN_ENV, "token-from-env")
     monkeypatch.setenv(webdav_module.WEBDAV_TOKEN_COMMAND_ENV, "echo command-token")
 
-    called = {"command": None}
+    called = {"command": None, "count": 0}
 
     def _fake_load_token_from_command(token_command: str) -> str:
         called["command"] = token_command
+        called["count"] += 1
         return "token-from-command"
 
     monkeypatch.setattr(
         webdav_module,
-        "load_webdav_token_from_command",
+        "_load_webdav_token_from_command",
         _fake_load_token_from_command,
     )
 
-    assert webdav_module.load_webdav_token() == "token-from-command"
+    assert webdav_module._load_webdav_token(token="token-from-arg") == "token-from-arg"
+    assert called["count"] == 0
+
+    assert webdav_module._load_webdav_token() == "token-from-env"
+    assert called["count"] == 0
+
+    monkeypatch.delenv(webdav_module.WEBDAV_TOKEN_ENV)
+    assert webdav_module._load_webdav_token() == "token-from-command"
     assert called["command"] == "echo command-token"
+    assert called["count"] == 1
 
 
-def test_load_webdav_timeout_and_insecure_from_env(monkeypatch):
-    """Test timeout/insecure helpers parse environment values."""
+def test__load_webdav_timeout_and_insecure_from_env(monkeypatch):
+    """Test timeout and insecure helpers parse environment values."""
     monkeypatch.setenv(webdav_module.WEBDAV_TIMEOUT_ENV, "15")
     monkeypatch.setenv(webdav_module.WEBDAV_INSECURE_ENV, "true")
 
-    assert webdav_module.load_webdav_timeout() == 15.0
-    assert webdav_module.load_webdav_insecure() is True
+    assert webdav_module._load_webdav_timeout() == 15.0
+    assert webdav_module._load_webdav_insecure() is True
 
     monkeypatch.setenv(webdav_module.WEBDAV_TIMEOUT_ENV, "invalid")
-    assert webdav_module.load_webdav_timeout() == webdav_module.WEBDAV_DEFAULT_TIMEOUT
+    assert webdav_module._load_webdav_timeout() == webdav_module.WEBDAV_DEFAULT_TIMEOUT
 
 
 def test_ensure_aiodav_missing_dependency(monkeypatch):
@@ -144,43 +189,21 @@ def test_ensure_aiodav_missing_dependency(monkeypatch):
         _fake_import_module,
     )
 
-    with pytest.raises(ModuleNotFoundError, match="aiomegfile\\[webdav\\]"):
+    with pytest.raises(ImportError, match="aiomegfile\\[webdav\\]"):
         webdav_errors_module._ensure_aiodav()
-
-
-def test_import_aiodav_client_class_checks_dependency(monkeypatch):
-    """Test client import helper validates dependency before loading submodule."""
-    calls = {"ensure": 0}
-
-    def _fake_ensure_aiodav() -> None:
-        calls["ensure"] += 1
-
-    def _fake_import_module(module_name: str) -> SimpleNamespace:
-        assert module_name == "aiodav.client"
-        return SimpleNamespace(Client=_FakeWebdavClient)
-
-    monkeypatch.setattr(webdav_module, "_ensure_aiodav", _fake_ensure_aiodav)
-    monkeypatch.setattr(webdav_module.importlib, "import_module", _fake_import_module)
-
-    assert webdav_module.import_aiodav_client_class() is _FakeWebdavClient
-    assert calls["ensure"] == 1
 
 
 async def test_get_webdav_client_cache_hit(monkeypatch):
     """Test same parameters return cached client instance."""
-    _FakeWebdavClient.created_kwargs.clear()
-    monkeypatch.setattr(
-        webdav_module,
-        "import_aiodav_client_class",
-        lambda: _FakeWebdavClient,
-    )
+    _install_fake_aiodav_client(monkeypatch)
+    monkeypatch.setattr(webdav_module, "_ensure_aiodav", lambda: None)
 
-    client1 = webdav_module.get_webdav_client(
+    client1 = await webdav_module.get_webdav_client(
         "http://example.com",
         username="demo",
         password="secret",
     )
-    client2 = webdav_module.get_webdav_client(
+    client2 = await webdav_module.get_webdav_client(
         "http://example.com",
         username="demo",
         password="secret",
@@ -192,21 +215,17 @@ async def test_get_webdav_client_cache_hit(monkeypatch):
 
 async def test_get_webdav_client_recreate_when_cached_client_closed(monkeypatch):
     """Test closed cached client is replaced by a new one."""
-    _FakeWebdavClient.created_kwargs.clear()
-    monkeypatch.setattr(
-        webdav_module,
-        "import_aiodav_client_class",
-        lambda: _FakeWebdavClient,
-    )
+    _install_fake_aiodav_client(monkeypatch)
+    monkeypatch.setattr(webdav_module, "_ensure_aiodav", lambda: None)
 
-    client1 = webdav_module.get_webdav_client(
+    client1 = await webdav_module.get_webdav_client(
         "http://example.com",
         username="demo",
         password="secret",
     )
     client1.session.closed = True
 
-    client2 = webdav_module.get_webdav_client(
+    client2 = await webdav_module.get_webdav_client(
         "http://example.com",
         username="demo",
         password="secret",
@@ -216,34 +235,92 @@ async def test_get_webdav_client_recreate_when_cached_client_closed(monkeypatch)
     assert len(_FakeWebdavClient.created_kwargs) == 2
 
 
-async def test_get_webdav_client_with_token_command(monkeypatch):
-    """Test token command is applied and takes precedence over username/password."""
-    _FakeWebdavClient.created_kwargs.clear()
+async def test_finalize_webdav_client_session_uses_bound_loop() -> None:
+    """Test finalizer closes session on the original running loop."""
+    loop = asyncio.get_running_loop()
+    session = _FakeSession(closed=False)
+
+    webdav_module._finalize_webdav_client_session(loop, session)
+    await asyncio.sleep(0)
+
+    assert session.closed is True
+    assert session.close_calls == 1
+
+
+def test_finalize_webdav_client_session_skips_closed_loop() -> None:
+    """Test finalizer quietly skips cleanup when loop is already closed."""
+    loop = asyncio.new_event_loop()
+    session = _FakeSession(closed=False)
+
+    loop.close()
+    webdav_module._finalize_webdav_client_session(loop, session)
+
+    assert session.closed is False
+    assert session.close_calls == 0
+
+
+async def test_get_webdav_client_prefers_explicit_token_over_command(monkeypatch):
+    """Test explicit token bypasses token command loading."""
+    _install_fake_aiodav_client(monkeypatch)
+    monkeypatch.setattr(webdav_module, "_ensure_aiodav", lambda: None)
+
+    called = {"count": 0}
+
+    def _fake_load_token_from_command(token_command: str) -> str:
+        _ = token_command
+        called["count"] += 1
+        return "token-from-command"
+
     monkeypatch.setattr(
         webdav_module,
-        "import_aiodav_client_class",
-        lambda: _FakeWebdavClient,
+        "_load_webdav_token_from_command",
+        _fake_load_token_from_command,
     )
 
-    tokens = iter(["token-1", "token-2"])
-    monkeypatch.setattr(
-        webdav_module,
-        "load_webdav_token_from_command",
-        lambda token_command: next(tokens),
-    )
-
-    client1 = webdav_module.get_webdav_client(
+    client1 = await webdav_module.get_webdav_client(
         "http://example.com",
         username="demo",
         password="secret",
         token="token-from-arg",
         token_command="echo get-token",
     )
-    client2 = webdav_module.get_webdav_client(
+    client2 = await webdav_module.get_webdav_client(
         "http://example.com",
         username="demo",
         password="secret",
         token="token-from-arg",
+        token_command="echo get-token",
+    )
+
+    assert client1 is client2
+    assert _FakeWebdavClient.created_kwargs[0]["token"] == "token-from-arg"
+    assert _FakeWebdavClient.created_kwargs[0]["login"] is None
+    assert _FakeWebdavClient.created_kwargs[0]["password"] is None
+    assert called["count"] == 0
+
+
+async def test_get_webdav_client_falls_back_to_token_command(monkeypatch):
+    """Test token command is used when no direct token is available."""
+    _install_fake_aiodav_client(monkeypatch)
+    monkeypatch.setattr(webdav_module, "_ensure_aiodav", lambda: None)
+
+    tokens = iter(["token-1", "token-2"])
+    monkeypatch.setattr(
+        webdav_module,
+        "_load_webdav_token_from_command",
+        lambda token_command: next(tokens),
+    )
+
+    client1 = await webdav_module.get_webdav_client(
+        "http://example.com",
+        username="demo",
+        password="secret",
+        token_command="echo get-token",
+    )
+    client2 = await webdav_module.get_webdav_client(
+        "http://example.com",
+        username="demo",
+        password="secret",
         token_command="echo get-token",
     )
 
@@ -254,17 +331,13 @@ async def test_get_webdav_client_with_token_command(monkeypatch):
     assert _FakeWebdavClient.created_kwargs[0]["password"] is None
 
 
-def test_get_webdav_client_missing_dependency(monkeypatch):
-    """Test missing optional dependency is converted to install hint."""
+async def test_get_webdav_client_missing_dependency(monkeypatch):
+    """Test missing optional dependency is surfaced from helper setup."""
 
-    def _raise_import_error():
-        raise ImportError("No module named aiodav")
+    def _raise_missing_dependency() -> None:
+        raise ImportError("Failed to import aiodav")
 
-    monkeypatch.setattr(
-        webdav_module,
-        "import_aiodav_client_class",
-        _raise_import_error,
-    )
+    monkeypatch.setattr(webdav_module, "_ensure_aiodav", _raise_missing_dependency)
 
-    with pytest.raises(ModuleNotFoundError, match="aiomegfile\\[webdav\\]"):
-        webdav_module.get_webdav_client("http://example.com")
+    with pytest.raises(ImportError, match="Failed to import aiodav"):
+        await webdav_module.get_webdav_client("http://example.com")

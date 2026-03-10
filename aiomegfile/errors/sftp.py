@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import typing as T
 
 import asyncssh
 
@@ -127,7 +128,12 @@ def translate_sftp_error(error: Exception, uri: str) -> Exception:
     return SftpUnknownError(f"SFTP operation failed on {uri!r}: {error}")
 
 
-def sftp_retry(max_retries: int = DEFAULT_MAX_RETRY_TIMES):
+def sftp_retry(
+    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
+    after_callback: T.Optional[T.Callable[..., T.Awaitable[T.Any]]] = None,
+    retry_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
+):
     """Return retry decorator configured for SFTP operations.
 
     :param max_retries: Maximum retry attempts.
@@ -136,4 +142,7 @@ def sftp_retry(max_retries: int = DEFAULT_MAX_RETRY_TIMES):
     return aioretry(
         should_retry=sftp_should_retry,
         max_retries=max_retries,
+        before_callback=before_callback,
+        after_callback=after_callback,
+        retry_callback=retry_callback,
     )

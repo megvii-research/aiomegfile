@@ -323,16 +323,6 @@ class StdioFileSystem(BaseFileSystem):
         """
         return path
 
-    async def samefile(self, path: str, other_path: str) -> bool:
-        """Return whether two stdio stream paths are equal.
-
-        :param path: First path without protocol.
-        :param other_path: Second path without protocol.
-        :return: True when two paths are exactly the same.
-        :rtype: bool
-        """
-        return path == other_path
-
     def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
         """Return whether filesystem points to same stdio endpoint.
 

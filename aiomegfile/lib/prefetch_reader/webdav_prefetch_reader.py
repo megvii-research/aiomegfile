@@ -65,7 +65,6 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
         path: str,
         *,
         filesystem: "WebdavFileSystem",
-        client: T.Optional[AiodavClient] = None,
         mode: str = "rb",
         encoding: T.Optional[str] = None,
         errors: T.Optional[str] = None,
@@ -79,7 +78,6 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
 
         :param path: WebDAV path without protocol for current filesystem.
         :param filesystem: WebDAV filesystem instance.
-        :param client: Optional existing aiodav client.
         :param mode: File mode, either ``r``/``rt`` or ``rb``.
         :param encoding: Text encoding for text mode.
         :param errors: Error handling for text decoding.
@@ -91,8 +89,7 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
         """
         self._path = path
         self._filesystem = filesystem
-        self._client = client
-        self._owns_client = client is None
+        self._client = None
         self._supports_range = False
 
         super().__init__(
@@ -123,7 +120,6 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
         """
         if self._client is None:
             self._client = await self._filesystem._create_client()
-            self._owns_client = False
         return await super().__aenter__()
 
     async def _execute_download(
@@ -275,7 +271,5 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
 
     async def close(self) -> None:
         """Close reader and release WebDAV client when owned."""
-        if self._owns_client and self._client is not None:
-            await self._client.close()
         self._client = None
         await super().close()

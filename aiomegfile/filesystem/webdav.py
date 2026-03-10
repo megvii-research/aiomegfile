@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-import io
+import logging
 import os
 import posixpath
 import shlex
 import subprocess
 import threading
+import time
 import typing as T
 import urllib.parse
 import weakref
@@ -20,24 +21,28 @@ from email.utils import parsedate_to_datetime
 import aiofiles
 
 from aiomegfile.config import (
+    DEFAULT_COPY_BUFFER_SIZE,
     DEFAULT_MAX_RETRY_TIMES,
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
 from aiomegfile.errors.webdav import (
+    WebdavFileExistsError,
+    WebdavFileNotFoundError,
+    WebdavIsADirectoryError,
+    WebdavNotADirectoryError,
+    WebdavSameFileError,
     _ensure_aiodav,
     translate_webdav_error,
     webdav_retry,
 )
 from aiomegfile.interfaces import (
-    Access,
     AioScannableManager,
-    AioSeekable,
-    AioWritable,
     BaseFileSystem,
     FileEntry,
     StatResult,
 )
+from aiomegfile.lib.cacher import AioFileCacher
 from aiomegfile.lib.prefetch_reader.webdav_prefetch_reader import (
     AioWebdavPrefetchReader,
 )
@@ -49,6 +54,8 @@ if T.TYPE_CHECKING:
 else:
     AiodavClient = T.Any
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "WEBDAV_DEFAULT_TIMEOUT",
     "WEBDAV_INSECURE_ENV",
@@ -57,7 +64,6 @@ __all__ = [
     "WEBDAV_TOKEN_COMMAND_ENV",
     "WEBDAV_TOKEN_ENV",
     "WEBDAV_USERNAME_ENV",
-    "clear_webdav_client_cache",
     "get_webdav_client",
     "WebdavFileSystem",
     "WebdavsFileSystem",
@@ -92,7 +98,7 @@ def _normalize_optional_text(value: T.Optional[str]) -> T.Optional[str]:
     return stripped or None
 
 
-def load_webdav_timeout(timeout: T.Optional[float] = None) -> float:
+def _load_webdav_timeout(timeout: T.Optional[float] = None) -> float:
     """Return WebDAV timeout from argument/environment with fallback.
 
     :param timeout: Explicit timeout value.
@@ -111,7 +117,7 @@ def load_webdav_timeout(timeout: T.Optional[float] = None) -> float:
     return parsed_timeout if parsed_timeout > 0 else WEBDAV_DEFAULT_TIMEOUT
 
 
-def load_webdav_insecure(insecure: T.Optional[bool] = None) -> bool:
+def _load_webdav_insecure(insecure: T.Optional[bool] = None) -> bool:
     """Return WebDAV insecure mode from argument/environment.
 
     :param insecure: Explicit insecure flag.
@@ -123,7 +129,7 @@ def load_webdav_insecure(insecure: T.Optional[bool] = None) -> bool:
     return parse_boolean(os.getenv(WEBDAV_INSECURE_ENV), default=False)
 
 
-def load_webdav_token_from_command(token_command: str) -> str:
+def _load_webdav_token_from_command(token_command: str) -> str:
     """Run command and return stripped WebDAV token.
 
     :param token_command: Command text to fetch token.
@@ -168,30 +174,35 @@ def load_webdav_token_from_command(token_command: str) -> str:
     return token
 
 
-def load_webdav_token(
+def _load_webdav_token(
     *,
     token: T.Optional[str] = None,
     token_command: T.Optional[str] = None,
 ) -> T.Optional[str]:
-    """Resolve WebDAV token with ``token_command`` priority.
+    """Resolve WebDAV token from explicit token, environment, then command.
 
     :param token: Explicit token value.
     :param token_command: Explicit token command value.
     :return: Resolved token text or ``None``.
     :rtype: T.Optional[str]
     """
+    resolved_token = _normalize_optional_text(token)
+    if resolved_token is not None:
+        return resolved_token
+
+    resolved_token = _normalize_optional_text(os.getenv(WEBDAV_TOKEN_ENV))
+    if resolved_token is not None:
+        return resolved_token
+
     resolved_token_command = _normalize_optional_text(token_command)
     if resolved_token_command is None:
         resolved_token_command = _normalize_optional_text(
             os.getenv(WEBDAV_TOKEN_COMMAND_ENV)
         )
-    if resolved_token_command is not None:
-        return load_webdav_token_from_command(resolved_token_command)
+    if resolved_token_command is None:
+        return None
 
-    resolved_token = _normalize_optional_text(token)
-    if resolved_token is None:
-        resolved_token = _normalize_optional_text(os.getenv(WEBDAV_TOKEN_ENV))
-    return resolved_token
+    return _load_webdav_token_from_command(resolved_token_command)
 
 
 def _is_webdav_client_available(client: T.Any) -> bool:
@@ -210,6 +221,55 @@ def _is_webdav_client_available(client: T.Any) -> bool:
         with suppress(Exception):
             return not bool(session.closed)
     return True
+
+
+def _finalize_webdav_client_session(
+    loop: asyncio.AbstractEventLoop,
+    session: T.Any,
+) -> None:
+    """Schedule session close on the event loop that created the client.
+
+    :param loop: Event loop associated with the client.
+    :param session: Session object to close.
+    :return: ``None``.
+    :rtype: None
+    """
+    if session is None:
+        return
+    if loop.is_closed():
+        logger.debug(
+            "Skip closing WebDAV session during finalization "
+            "because the event loop is closed"
+        )
+        return
+
+    try:
+        running_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        running_loop = None
+
+    try:
+        if running_loop is loop:
+            future = loop.create_task(session.close())
+        else:
+            future = asyncio.run_coroutine_threadsafe(session.close(), loop)
+    except Exception as error:
+        logger.debug(
+            "Failed to schedule WebDAV session close during finalization: %s",
+            error,
+        )
+        return
+
+    def _log_close_result(close_future: T.Any) -> None:
+        try:
+            close_future.result()
+        except Exception as error:
+            logger.debug(
+                "Failed to close WebDAV session during finalization: %s",
+                error,
+            )
+
+    future.add_done_callback(_log_close_result)
 
 
 def _build_webdav_client_cache_key(
@@ -245,12 +305,6 @@ def _build_webdav_client_cache_key(
     )
 
 
-def clear_webdav_client_cache() -> None:
-    """Clear WebDAV client caches for all event loops."""
-    with _WEBDAV_CLIENT_CACHE_LOCK:
-        _WEBDAV_CLIENT_CACHE.clear()
-
-
 async def get_webdav_client(
     hostname: str,
     *,
@@ -263,8 +317,8 @@ async def get_webdav_client(
 ):
     """Get cached WebDAV client bound to current event loop.
 
-    ``token_command`` has higher priority than ``token``, following megfile
-    semantics. If token is resolved, username/password will be ignored.
+    Explicit token and ``WEBDAV_TOKEN`` are resolved before ``token_command``.
+    If token is resolved, username/password will be ignored.
 
     :param hostname: WebDAV host url with scheme.
     :param username: Optional username.
@@ -287,23 +341,19 @@ async def get_webdav_client(
     resolved_password = (
         password if password is not None else os.getenv(WEBDAV_PASSWORD_ENV)
     )
-    resolved_token_command = (
-        token_command
-        if token_command is not None
-        else os.getenv(WEBDAV_TOKEN_COMMAND_ENV)
-    )
-    resolved_token_command = _normalize_optional_text(resolved_token_command)
-    resolved_token = load_webdav_token(
+    resolved_token_command = _normalize_optional_text(token_command)
+    if resolved_token_command is None:
+        resolved_token_command = _normalize_optional_text(
+            os.getenv(WEBDAV_TOKEN_COMMAND_ENV)
+        )
+
+    resolved_token = _load_webdav_token(
         token=token,
         token_command=resolved_token_command,
     )
 
-    if resolved_token is not None:
-        resolved_username = None
-        resolved_password = None
-
-    resolved_timeout = load_webdav_timeout(timeout)
-    resolved_insecure = load_webdav_insecure(insecure)
+    resolved_timeout = _load_webdav_timeout(timeout)
+    resolved_insecure = _load_webdav_insecure(insecure)
     cache_key = _build_webdav_client_cache_key(
         hostname,
         username=resolved_username,
@@ -330,7 +380,17 @@ async def get_webdav_client(
             timeout=resolved_timeout,
             insecure=resolved_insecure,
         )
+        client._token_command = resolved_token_command
+        client._token_command_last_call = 0
         cache[cache_key] = client
+
+        weakref.finalize(
+            client,
+            _finalize_webdav_client_session,
+            loop,
+            client.session,
+        )
+
         return client
 
 
@@ -450,6 +510,7 @@ async def _call_webdav(
     uri: str,
     max_retries: int,
     operation: T.Callable[[], T.Awaitable[T.Any]],
+    client: T.Optional[AiodavClient],
 ) -> T.Any:
     """Execute WebDAV operation with retry and translated exceptions.
 
@@ -459,7 +520,34 @@ async def _call_webdav(
     :return: Operation result.
     """
 
-    @webdav_retry(max_retries=max_retries)
+    async def retry_callback(error: Exception, *args, **kwargs) -> T.Awaitable[None]:
+        """Optional callback executed before each retry.
+
+        :param error: Caught exception triggering the retry.
+        :param args: Positional arguments passed to the operation.
+        :param kwargs: Keyword arguments passed to the operation.
+        :return: None.
+        :rtype: T.Awaitable[None]
+        """
+        _ensure_aiodav()
+        from aiodav.exceptions import ResponseErrorCode
+
+        if isinstance(error, ResponseErrorCode):
+            status = int(getattr(error, "code", 0))
+            if status == 401:
+                token_command = client._token_command  # pyre-ignore[16]
+                last_call = client._token_command_last_call  # pyre-ignore[16]
+                if token_command is not None and time.time() - last_call > 5:
+                    client._token_command_last_call = time.time()
+                    client._token = _load_webdav_token_from_command(
+                        client._token_command
+                    )
+                    logger.debug(
+                        "update webdav token by command: %s", client._token_command
+                    )
+                    return True
+
+    @webdav_retry(max_retries=max_retries, retry_callback=retry_callback)
     async def _execute():
         return await operation()
 
@@ -470,217 +558,14 @@ async def _call_webdav(
         raise translated from error
 
 
-class AioWebdavWritableFile(AioWritable[T.AnyStr], AioSeekable[T.AnyStr]):
-    """Async writable WebDAV file wrapper.
-
-    :param filesystem: Owning WebDAV filesystem.
-    :param path: Path without protocol.
-    :param mode: File mode.
-    :param encoding: Text encoding in text mode.
-    :param errors: Text error handling mode.
-    """
-
-    def __init__(
-        self,
-        filesystem: "WebdavFileSystem",
-        path: str,
-        mode: str,
-        encoding: T.Optional[str],
-        errors: T.Optional[str],
-    ) -> None:
-        """Initialize writable WebDAV file adapter.
-
-        :param filesystem: Owning filesystem instance.
-        :param path: Path without protocol.
-        :param mode: File mode.
-        :param encoding: Text encoding in text mode.
-        :param errors: Text error handling mode.
-        """
-        self._filesystem = filesystem
-        self._path = path
-        self._mode = mode
-        self._encoding = encoding or "utf-8"
-        self._errors = errors or "strict"
-
-        self._client: T.Optional[AiodavClient] = None
-        self._owns_client = False
-        self._buffer: T.Union[io.BytesIO, io.StringIO]
-        if "b" in mode:
-            self._buffer = io.BytesIO()
-        else:
-            self._buffer = io.StringIO()
-
-    @property
-    def name(self) -> str:
-        """Return full URI of the opened file.
-
-        :return: Full URI.
-        :rtype: str
-        """
-        return self._filesystem.build_uri(self._path)
-
-    @property
-    def mode(self) -> str:
-        """Return open mode.
-
-        :return: File mode.
-        :rtype: str
-        """
-        return self._mode
-
-    async def __aenter__(self):
-        """Enter async context and initialize write buffer.
-
-        :return: Opened writable file.
-        :rtype: AioWebdavWritableFile
-        """
-        self._client = await self._filesystem._create_client()
-        self._owns_client = False
-        remote_path = self._filesystem._normalize_remote_path(self._path)
-        uri = self.name
-
-        await _call_webdav(
-            uri,
-            self._filesystem.max_retries,
-            lambda: self._filesystem._ensure_parent_directory(
-                self._client,
-                remote_path,
-            ),
-        )
-
-        exists = T.cast(
-            bool,
-            await _call_webdav(
-                uri,
-                self._filesystem.max_retries,
-                lambda: self._client.exists(remote_path),  # pyre-ignore[16]
-            ),
-        )
-
-        if exists:
-            is_dir = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self._filesystem.max_retries,
-                    lambda: self._client.is_directory(remote_path),  # pyre-ignore[16]
-                ),
-            )
-            if is_dir:
-                raise IsADirectoryError(f"Is a directory: {uri!r}")
-
-        if "x" in self._mode and exists:
-            raise FileExistsError(f"File exists: {uri!r}")
-
-        if "a" in self._mode and exists:
-            downloaded = io.BytesIO()
-            await _call_webdav(
-                uri,
-                self._filesystem.max_retries,
-                lambda: self._client.download_to(  # pyre-ignore[16]
-                    remote_path,
-                    downloaded,
-                ),
-            )
-            data = downloaded.getvalue()
-            if "b" in self._mode:
-                self._buffer = io.BytesIO(data)
-            else:
-                self._buffer = io.StringIO(
-                    data.decode(self._encoding, errors=self._errors)
-                )
-            self._buffer.seek(0, os.SEEK_END)
-
-        return self
-
-    def _ensure_open(self) -> None:
-        """Validate file is still open.
-
-        :raises IOError: If file has been closed.
-        """
-        if self.closed:
-            raise IOError(f"file already closed: {self.name!r}")
-        if self._client is None:
-            raise IOError(f"file not open: {self.name!r}")
-
-    async def write(self, data: T.AnyStr) -> int:
-        """Write data into local upload buffer.
-
-        :param data: Data to write.
-        :return: Number of written bytes/chars.
-        :rtype: int
-        """
-        self._ensure_open()
-
-        if "b" in self._mode:
-            if isinstance(data, (bytes, bytearray)):
-                raw_data = bytes(data)
-            else:
-                raise TypeError("a bytes-like object is required, not 'str'")
-            return T.cast(io.BytesIO, self._buffer).write(raw_data)
-
-        if not isinstance(data, str):
-            raise TypeError("write() argument must be str in text mode")
-        return T.cast(io.StringIO, self._buffer).write(data)
-
-    async def flush(self) -> None:
-        """Flush pending writes.
-
-        :return: None.
-        :rtype: None
-        """
-        self._ensure_open()
-        return None
-
-    async def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
-        """Seek stream position.
-
-        :param offset: Offset value.
-        :param whence: Seek origin.
-        :return: New absolute position.
-        :rtype: int
-        """
-        self._ensure_open()
-        return int(self._buffer.seek(offset, whence))
-
-    async def tell(self) -> int:
-        """Return current stream position.
-
-        :return: Stream position.
-        :rtype: int
-        """
-        self._ensure_open()
-        return int(self._buffer.tell())
-
-    async def close(self) -> None:
-        """Upload buffered content and close writable handle."""
-        if self._client is None:
-            return
-
-        remote_path = self._filesystem._normalize_remote_path(self._path)
-        if "b" in self._mode:
-            payload = T.cast(io.BytesIO, self._buffer).getvalue()
-        else:
-            text_content = T.cast(io.StringIO, self._buffer).getvalue()
-            payload = text_content.encode(self._encoding, errors=self._errors)
-
-        data_buffer = io.BytesIO(payload)
-        await _call_webdav(
-            self.name,
-            self._filesystem.max_retries,
-            lambda: self._client.upload_to(
-                path=remote_path,
-                buffer=data_buffer,
-                buffer_size=len(payload),
-                overwrite=True,
-            ),  # pyre-ignore[16]
-        )
-
-        self._client = None
-
-
 class WebdavFileSystem(BaseFileSystem):
-    """Filesystem adapter for ``webdav://`` URIs using ``aiodav``."""
+    """
+    Filesystem adapter for ``webdav://`` URIs using ``aiodav``.
+
+    uri format:
+        - webdav://[username[:password]@]hostname[:port]/file_path
+        - webdavs://[username[:password]@]hostname[:port]/file_path
+    """
 
     protocol = "webdav"
 
@@ -735,10 +620,11 @@ class WebdavFileSystem(BaseFileSystem):
             password=password,
             token=token,
             token_command=token_command,
-            timeout=load_webdav_timeout(timeout),
-            insecure=load_webdav_insecure(insecure),
+            timeout=timeout,
+            insecure=insecure,
         )
         self.max_retries = int(max_retries)
+        self._client = None
 
     @staticmethod
     def _normalize_remote_path(path: str) -> str:
@@ -778,9 +664,8 @@ class WebdavFileSystem(BaseFileSystem):
         :return: Configured aiodav client.
         :rtype: AiodavClient
         """
-        return T.cast(
-            AiodavClient,
-            await get_webdav_client(
+        if not self._client:
+            self._client = await get_webdav_client(
                 hostname=self._endpoint.hostname,
                 username=self._endpoint.username,
                 password=self._endpoint.password,
@@ -788,8 +673,8 @@ class WebdavFileSystem(BaseFileSystem):
                 token_command=self._endpoint.token_command,
                 timeout=self._endpoint.timeout,
                 insecure=self._endpoint.insecure,
-            ),
-        )
+            )
+        return self._client
 
     async def _ensure_parent_directory(self, client: AiodavClient, path: str) -> None:
         """Create parent directories for a target path when missing.
@@ -824,7 +709,7 @@ class WebdavFileSystem(BaseFileSystem):
                     ),
                 )
                 if not is_dir:
-                    raise FileExistsError(f"File exists: {uri!r}")
+                    raise WebdavFileExistsError(f"File exists: {uri!r}")
                 continue
 
             try:
@@ -895,24 +780,14 @@ class WebdavFileSystem(BaseFileSystem):
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
         client = await self._create_client()
-        exists = T.cast(
-            bool,
-            await _call_webdav(
-                uri,
-                self.max_retries,
-                lambda: client.exists(remote_path),
-            ),
-        )
-        if not exists:
-            return False
-        return T.cast(
-            bool,
-            await _call_webdav(
+        try:
+            return await _call_webdav(
                 uri,
                 self.max_retries,
                 lambda: client.is_directory(remote_path),
-            ),
-        )
+            )
+        except WebdavFileNotFoundError:
+            return False
 
     async def is_file(self, path: str, followlinks: bool = False) -> bool:
         """Return True if the path points to a regular file.
@@ -925,25 +800,14 @@ class WebdavFileSystem(BaseFileSystem):
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
         client = await self._create_client()
-        exists = T.cast(
-            bool,
-            await _call_webdav(
-                uri,
-                self.max_retries,
-                lambda: client.exists(remote_path),
-            ),
-        )
-        if not exists:
-            return False
-        is_dir = T.cast(
-            bool,
-            await _call_webdav(
+        try:
+            return not await _call_webdav(
                 uri,
                 self.max_retries,
                 lambda: client.is_directory(remote_path),
-            ),
-        )
-        return not is_dir
+            )
+        except WebdavFileNotFoundError:
+            return False
 
     async def exists(self, path: str, followlinks: bool = False) -> bool:
         """Return whether the path points to an existing resource.
@@ -1004,24 +868,17 @@ class WebdavFileSystem(BaseFileSystem):
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
         client = await self._create_client()
-        exists = T.cast(
-            bool,
+
+        try:
             await _call_webdav(
                 uri,
                 self.max_retries,
-                lambda: client.exists(remote_path),
-            ),
-        )
-        if not exists:
+                lambda: client.delete(remote_path),
+            )
+        except WebdavFileNotFoundError:
             if missing_ok:
                 return
-            raise FileNotFoundError(f"No such file: {uri!r}")
-
-        await _call_webdav(
-            uri,
-            self.max_retries,
-            lambda: client.delete(remote_path),
-        )
+            raise
 
     async def mkdir(
         self,
@@ -1045,26 +902,20 @@ class WebdavFileSystem(BaseFileSystem):
         if remote_path == "/":
             return
 
-        exists = T.cast(
-            bool,
-            await _call_webdav(
+        exists = True
+        try:
+            is_dir = await _call_webdav(
                 uri,
                 self.max_retries,
-                lambda: client.exists(remote_path),
-            ),
-        )
-        if exists:
-            is_dir = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.is_directory(remote_path),
-                ),
+                lambda: client.is_directory(remote_path),
             )
+        except WebdavFileNotFoundError:
+            exists = is_dir = False
+
+        if exists:
             if is_dir and exist_ok:
                 return
-            raise FileExistsError(f"File exists: {uri!r}")
+            raise WebdavFileExistsError(f"File exists: {uri!r}")
 
         if parents:
             await self._ensure_parent_directory(client, remote_path)
@@ -1086,7 +937,8 @@ class WebdavFileSystem(BaseFileSystem):
     ) -> T.AsyncContextManager:
         """Open path as async reader or writer.
 
-        Read mode uses ``AioWebdavPrefetchReader``.
+        Read mode uses ``AioWebdavPrefetchReader``. Append mode uses
+        ``AioFileCacher`` to preserve local append semantics.
 
         :param path: Path without protocol.
         :param mode: File open mode.
@@ -1101,10 +953,8 @@ class WebdavFileSystem(BaseFileSystem):
         _ = buffering, newline
 
         normalized_mode = mode.replace("t", "")
-        if "+" in normalized_mode:
-            raise ValueError(f"unsupported mode: {mode!r}")
-        if normalized_mode not in {"r", "rb", "w", "wb", "a", "ab", "x", "xb"}:
-            raise ValueError(f"unacceptable mode: {mode!r}")
+        if "x" in normalized_mode:
+            raise ValueError("unacceptable 'x' mode: %r" % mode)
 
         if normalized_mode in {"r", "rb"}:
             block_size = kwargs.get("block_size")
@@ -1120,25 +970,23 @@ class WebdavFileSystem(BaseFileSystem):
                 errors=errors,
                 newline=newline,
                 block_size=(
-                    int(block_size) if block_size is not None else READER_BLOCK_SIZE
+                    block_size if block_size is not None else READER_BLOCK_SIZE
                 ),
                 max_buffer_size=(
-                    int(max_buffer_size)
+                    max_buffer_size
                     if max_buffer_size is not None
                     else READER_MAX_BUFFER_SIZE
                 ),
-                block_forward=int(block_forward) if block_forward is not None else None,
+                block_forward=(block_forward if block_forward is not None else None),
                 max_retries=(
-                    int(max_retries) if max_retries is not None else self.max_retries
+                    max_retries if max_retries is not None else self.max_retries
                 ),
             )
-
-        return AioWebdavWritableFile(
-            self,
+        return AioFileCacher(
             path,
             normalized_mode,
-            encoding=encoding,
-            errors=errors,
+            download_fileobj=self._download_fileobj,
+            upload_fileobj=self._upload_fileobj,
         )
 
     def scandir(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
@@ -1153,16 +1001,6 @@ class WebdavFileSystem(BaseFileSystem):
 
         async def aiterator() -> T.AsyncIterator[FileEntry]:
             client = await self._create_client()
-            exists = T.cast(
-                bool,
-                await _call_webdav(
-                    uri,
-                    self.max_retries,
-                    lambda: client.exists(remote_path),
-                ),
-            )
-            if not exists:
-                raise FileNotFoundError(f"No such file or directory: {uri!r}")
 
             is_dir = T.cast(
                 bool,
@@ -1173,7 +1011,7 @@ class WebdavFileSystem(BaseFileSystem):
                 ),
             )
             if not is_dir:
-                raise NotADirectoryError(f"Not a directory: {uri!r}")
+                raise WebdavNotADirectoryError(f"Not a directory: {uri!r}")
 
             infos = T.cast(
                 list[dict[str, T.Any]],
@@ -1189,20 +1027,14 @@ class WebdavFileSystem(BaseFileSystem):
                 if name in ("", ".", ".."):
                     continue
                 entry_path = self._join_uri_path(remote_path, name)
-                is_child_dir = bool(info.get("isdir"))
+                is_child_dir = bool(info["isdir"])
                 yield FileEntry(
                     name=name,
                     path=entry_path,
                     stat=_make_stat_result(info, isdir=is_child_dir),
                 )
 
-        iterator = aiterator()
-
-        async def aexit(exc_type, exc_value, traceback) -> None:
-            with suppress(Exception):
-                await iterator.aclose()
-
-        return AioScannableManager(iterator, aexit)
+        return AioScannableManager(aiterator())
 
     def scanfile(
         self,
@@ -1222,14 +1054,6 @@ class WebdavFileSystem(BaseFileSystem):
             current_path: str,
         ) -> T.AsyncIterator[FileEntry]:
             current_uri = self.build_uri(current_path)
-            current_info = T.cast(
-                dict[str, T.Any],
-                await _call_webdav(
-                    current_uri,
-                    self.max_retries,
-                    lambda: client.info(current_path),
-                ),
-            )
             current_is_dir = T.cast(
                 bool,
                 await _call_webdav(
@@ -1241,6 +1065,14 @@ class WebdavFileSystem(BaseFileSystem):
 
             if not current_is_dir:
                 name = posixpath.basename(current_path.rstrip("/")) or ""
+                current_info = T.cast(
+                    dict[str, T.Any],
+                    await _call_webdav(
+                        current_uri,
+                        self.max_retries,
+                        lambda: client.info(current_path),
+                    ),
+                )
                 yield FileEntry(
                     name=name,
                     path=current_path,
@@ -1261,7 +1093,7 @@ class WebdavFileSystem(BaseFileSystem):
                 if name in ("", ".", ".."):
                     continue
                 child_path = self._join_uri_path(current_path, name)
-                child_is_dir = bool(info.get("isdir"))
+                child_is_dir = bool(info["isdir"])
                 if child_is_dir:
                     async for nested_entry in _iter_files(client, child_path):
                         yield nested_entry
@@ -1283,18 +1115,12 @@ class WebdavFileSystem(BaseFileSystem):
                 ),
             )
             if not exists:
-                raise FileNotFoundError(f"No such file or directory: {uri!r}")
+                raise WebdavFileNotFoundError(f"No such file or directory: {uri!r}")
 
             async for file_entry in _iter_files(client, remote_path):
                 yield file_entry
 
-        iterator = aiterator()
-
-        async def aexit(exc_type, exc_value, traceback) -> None:
-            with suppress(Exception):
-                await iterator.aclose()
-
-        return AioScannableManager(iterator, aexit)
+        return AioScannableManager(aiterator())
 
     async def upload(
         self,
@@ -1309,9 +1135,9 @@ class WebdavFileSystem(BaseFileSystem):
         :param callback: Optional progress callback receiving byte deltas.
         """
         if os.path.isdir(src_path):
-            raise IsADirectoryError(f"Is a directory: {src_path!r}")
+            raise WebdavIsADirectoryError(f"Is a directory: {src_path!r}")
         if not os.path.exists(src_path):
-            raise FileNotFoundError(f"No such file: {src_path!r}")
+            raise WebdavFileNotFoundError(f"No such file: {src_path!r}")
 
         remote_path = self._normalize_remote_path(dst_path)
         uri = self.build_uri(remote_path)
@@ -1332,6 +1158,63 @@ class WebdavFileSystem(BaseFileSystem):
                     progress=progress,
                 ),
             )
+
+    async def _download_fileobj(
+        self,
+        src_path: str,
+        fileobj: T.Any,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
+        """Download a WebDAV file into a file-like object.
+
+        :param src_path: Remote source path without protocol.
+        :param fileobj: Destination file-like object.
+        :param callback: Optional progress callback receiving chunk sizes.
+        :return: ``None``.
+        :rtype: None
+        """
+        file_mode = getattr(fileobj, "mode", "")
+        mode = "rb" if "b" in file_mode else "r"
+
+        async with self.open(src_path, mode=mode) as webdav_file:
+            while True:
+                chunk = await webdav_file.read(DEFAULT_COPY_BUFFER_SIZE)
+                if not chunk:
+                    break
+                await fileobj.write(chunk)
+                if callback is not None:
+                    callback(len(chunk))
+
+    async def _upload_fileobj(
+        self,
+        fileobj: T.Any,
+        dst_path: str,
+        callback: T.Optional[T.Callable[[int], None]] = None,
+    ) -> None:
+        """Upload a file-like object to WebDAV.
+
+        :param fileobj: Source file-like object.
+        :param dst_path: Remote destination path without protocol.
+        :param callback: Optional progress callback receiving chunk sizes.
+        :return: ``None``.
+        :rtype: None
+        """
+        file_mode = getattr(fileobj, "mode", "")
+        mode = "wb" if "b" in file_mode else "w"
+
+        async with self.open(
+            dst_path,
+            mode,
+            encoding=getattr(fileobj, "encoding", None),
+            errors=getattr(fileobj, "errors", None),
+        ) as webdav_file:
+            while True:
+                chunk = await fileobj.read(DEFAULT_COPY_BUFFER_SIZE)
+                if not chunk:
+                    break
+                await webdav_file.write(chunk)
+                if callback is not None:
+                    callback(len(chunk))
 
     async def download(
         self,
@@ -1359,7 +1242,7 @@ class WebdavFileSystem(BaseFileSystem):
             ),
         )
         if is_dir:
-            raise IsADirectoryError(f"Is a directory: {uri!r}")
+            raise WebdavIsADirectoryError(f"Is a directory: {uri!r}")
 
         parent_dir = os.path.dirname(dst_path)
         if parent_dir:
@@ -1396,7 +1279,7 @@ class WebdavFileSystem(BaseFileSystem):
         dst_uri = self.build_uri(dst_remote)
 
         if src_remote == dst_remote:
-            raise OSError(f"'{src_uri}' and '{dst_uri}' are the same file")
+            raise WebdavSameFileError(f"'{src_uri}' and '{dst_uri}' are the same file")
 
         client = await self._create_client()
         src_is_dir = T.cast(
@@ -1408,23 +1291,23 @@ class WebdavFileSystem(BaseFileSystem):
             ),
         )
         if src_is_dir:
-            raise IsADirectoryError(f"Is a directory: {src_uri!r}")
+            raise WebdavIsADirectoryError(f"Is a directory: {src_uri!r}")
 
         await self._ensure_parent_directory(client, dst_remote)
-        src_info = T.cast(
-            dict[str, T.Any],
-            await _call_webdav(
-                src_uri,
-                self.max_retries,
-                lambda: client.info(src_remote),
-            ),
-        )
         await _call_webdav(
             dst_uri,
             self.max_retries,
             lambda: client.copy(src_remote, dst_remote, depth=1),
         )
         if callback is not None:
+            src_info = T.cast(
+                dict[str, T.Any],
+                await _call_webdav(
+                    src_uri,
+                    self.max_retries,
+                    lambda: client.info(src_remote),
+                ),
+            )
             callback(int(src_info.get("size") or 0))
 
         return dst_path
@@ -1457,7 +1340,7 @@ class WebdavFileSystem(BaseFileSystem):
             ),
         )
         if not src_exists:
-            raise FileNotFoundError(f"No such file: {src_uri!r}")
+            raise WebdavFileNotFoundError(f"No such file: {src_uri!r}")
 
         dst_exists = T.cast(
             bool,
@@ -1468,13 +1351,7 @@ class WebdavFileSystem(BaseFileSystem):
             ),
         )
         if dst_exists and not overwrite:
-            raise FileExistsError(f"File exists: {dst_uri!r}")
-        if dst_exists and overwrite:
-            await _call_webdav(
-                dst_uri,
-                self.max_retries,
-                lambda: client.delete(dst_remote),
-            )
+            raise WebdavFileExistsError(f"File exists: {dst_uri!r}")
 
         await self._ensure_parent_directory(client, dst_remote)
         await _call_webdav(
@@ -1516,33 +1393,8 @@ class WebdavFileSystem(BaseFileSystem):
         """
         normalized_path = self._normalize_remote_path(path)
         normalized_other = self._normalize_remote_path(other_path)
-        if normalized_path != normalized_other:
-            return False
-        return await self.exists(normalized_path)
-
-    async def access(self, path: str, mode: Access = Access.READ) -> bool:
-        """Test if path has access permission described by mode.
-
-        :param path: Path without protocol.
-        :param mode: Access mode.
-        :return: True if path is accessible by requested mode.
-        :rtype: bool
-        """
-        if not isinstance(mode, Access):
-            raise TypeError("Unsupported mode: %r" % (mode,))
-
-        if mode == Access.READ:
-            return await self.exists(path)
-
-        if mode == Access.WRITE:
-            remote_path = self._normalize_remote_path(path)
-            if await self.exists(remote_path):
-                return not await self.is_dir(remote_path)
-            parent = posixpath.dirname(remote_path)
-            if parent in ("", "."):
-                parent = "/"
-            return await self.exists(parent)
-
+        if normalized_path == normalized_other:
+            return True
         return False
 
     async def is_absolute(self, path: str) -> bool:
@@ -1619,25 +1471,21 @@ class WebdavFileSystem(BaseFileSystem):
         username = (
             urllib.parse.unquote(parsed.username)
             if parsed.username is not None
-            else os.getenv(WEBDAV_USERNAME_ENV)
+            else None
         )
         password = (
             urllib.parse.unquote(parsed.password)
             if parsed.password is not None
-            else os.getenv(WEBDAV_PASSWORD_ENV)
+            else None
         )
-        token = os.getenv(WEBDAV_TOKEN_ENV)
-        token_command = os.getenv(WEBDAV_TOKEN_COMMAND_ENV)
 
         return cls(
             host=parsed.hostname,  # pyre-ignore[6]
             port=parsed.port,
             username=username,
             password=password,
-            token=token,
-            token_command=token_command,
-            timeout=load_webdav_timeout(),
-            insecure=load_webdav_insecure(),
+            timeout=_load_webdav_timeout(),
+            insecure=_load_webdav_insecure(),
             show_port_in_uri=parsed.port is not None,
             show_username_in_uri=parsed.username is not None,
             show_password_in_uri=parsed.password is not None,
