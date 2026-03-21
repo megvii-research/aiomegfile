@@ -1,6 +1,7 @@
 import aiomegfile.config  # noqa: F401 # make sure env config is loaded
 from aiomegfile.__version__ import __version__  # noqa: F401
 from aiomegfile.filesystem import (
+    HdfsFileSystem,
     HttpFileSystem,
     HttpsFileSystem,
     LocalFileSystem,
@@ -58,6 +59,7 @@ from aiomegfile.stdio import is_stdio, stdio_open
 
 __all__ = [
     "SmartPath",
+    "HdfsFileSystem",
     "HttpFileSystem",
     "HttpsFileSystem",
     "LocalFileSystem",

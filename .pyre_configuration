@@ -15,6 +15,9 @@
     },
     {
       "site-package": "aiodav"
+    },
+    {
+      "site-package": "hdfs"
     }
   ],
   "source_directories": [
