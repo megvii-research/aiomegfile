@@ -11,7 +11,7 @@ from aiomegfile.config import (
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
-from aiomegfile.errors.hdfs import translate_hdfs_error
+from aiomegfile.errors.hdfs import HdfsIsADirectoryError, translate_hdfs_error
 from aiomegfile.lib.prefetch_reader.base_prefetch_reader import AioBasePrefetchReader
 
 if T.TYPE_CHECKING:
@@ -109,7 +109,7 @@ class AioHdfsPrefetchReader(AioBasePrefetchReader):
             raise translated from error
 
         if str(stat_data.get("type", "")).upper() == "DIRECTORY":
-            raise IsADirectoryError(f"Is a directory: {self.name!r}")
+            raise HdfsIsADirectoryError(f"Is a directory: {self.name!r}")
         return int(stat_data.get("length", 0) or 0)
 
     async def _fetch_response(

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import io
+
 import pytest
 
+from aiomegfile.errors.hdfs import HdfsIsADirectoryError
 from aiomegfile.filesystem.hdfs import HdfsFileSystem
 from aiomegfile.lib.prefetch_reader.hdfs_prefetch_reader import AioHdfsPrefetchReader
 from tests.utils.fake_hdfs import FakeHdfsClient
@@ -88,3 +91,72 @@ class TestAioHdfsPrefetchReader:
                 max_buffer_size=16,
             ):
                 pass
+
+    async def test_name_empty_file_and_empty_range(self, fake_filesystem) -> None:
+        """Test helper branches for name and empty responses.
+
+        :param fake_filesystem: Fake filesystem fixture.
+        """
+        filesystem, client = fake_filesystem
+        client._store_file("empty.txt", b"")
+
+        async with AioHdfsPrefetchReader(
+            "empty.txt",
+            filesystem=filesystem,
+            mode="rb",
+            block_size=4,
+            max_buffer_size=16,
+        ) as reader:
+            assert reader.name == "hdfs://empty.txt"
+            assert await reader.read() == b""
+            response = await reader._fetch_response(start=2, end=1)
+            assert response["ContentLength"] == 0
+            assert response["Body"].read() == b""
+
+    async def test_directory_and_text_response_branches(
+        self,
+        fake_filesystem,
+        monkeypatch,
+    ) -> None:
+        """Test directory errors and string-to-bytes conversion.
+
+        :param fake_filesystem: Fake filesystem fixture.
+        :param monkeypatch: Pytest monkeypatch fixture.
+        """
+        filesystem, client = fake_filesystem
+        client.makedirs("dir-only")
+
+        with pytest.raises(HdfsIsADirectoryError):
+            async with AioHdfsPrefetchReader(
+                "dir-only",
+                filesystem=filesystem,
+                mode="rb",
+                block_size=4,
+                max_buffer_size=16,
+            ):
+                pass
+
+        class TextReadContext:
+            """Context manager returning text content."""
+
+            def __enter__(self) -> io.StringIO:
+                """Return text buffer.
+
+                :return: Text buffer.
+                :rtype: io.StringIO
+                """
+                return io.StringIO("abc")
+
+            def __exit__(self, exc_type, exc_value, traceback) -> None:
+                """No-op context exit."""
+
+        monkeypatch.setattr(client, "read", lambda *args, **kwargs: TextReadContext())
+        async with AioHdfsPrefetchReader(
+            "sample.txt",
+            filesystem=filesystem,
+            mode="rb",
+            block_size=4,
+            max_buffer_size=16,
+        ) as reader:
+            response = await reader._fetch_response(start=0, end=2)
+            assert response["Body"].read() == b"abc"

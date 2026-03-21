@@ -12,6 +12,7 @@ from aiomegfile.errors.hdfs import (
     HdfsFileNotFoundError,
     HdfsInvalidError,
     HdfsIsADirectoryError,
+    HdfsNotADirectoryError,
     HdfsSameFileError,
     HdfsUnsupportedError,
 )
@@ -130,6 +131,24 @@ class TestHdfsHelpers:
             "token": None,
         }
 
+    def test_get_hdfs_config_profile_and_error(self, tmp_path, monkeypatch) -> None:
+        """Test profile-based config loading and missing-config error branch.
+
+        :param tmp_path: Pytest temporary path fixture.
+        :param monkeypatch: Pytest monkeypatch fixture.
+        """
+        config_path = tmp_path / "hdfscli.cfg"
+        monkeypatch.setenv("HDFS_CONFIG_PATH", str(config_path))
+
+        monkeypatch.setenv("DEMO__HDFS_URL", "http://localhost:9870")
+        monkeypatch.setenv("DEMO__HDFS_ROOT", "/profile")
+        assert get_hdfs_config("demo")["root"] == "/profile"
+
+        monkeypatch.delenv("DEMO__HDFS_URL")
+        monkeypatch.delenv("DEMO__HDFS_ROOT")
+        with pytest.raises(HdfsConfigError):
+            get_hdfs_config("demo")
+
     def test_get_hdfs_client(self, monkeypatch, fake_hdfs_api) -> None:
         """Test HDFS client selection from config.
 
@@ -185,6 +204,8 @@ class TestHdfsFileSystem:
         with pytest.raises(HdfsInvalidError):
             HdfsFileSystem.from_uri("file:///tmp/file.txt")
 
+        assert filesystem.parse_uri("relative/file.txt") == "relative/file.txt"
+
     async def test_open_read_and_scandir(self, filesystem) -> None:
         """Test opening and reading content plus directory scanning.
 
@@ -227,6 +248,24 @@ class TestHdfsFileSystem:
             "/workspace/docs/sub/a.txt",
         ]
 
+    async def test_scanfile_single_file_and_scandir_errors(self, filesystem) -> None:
+        """Test single-file scan and directory validation errors.
+
+        :param filesystem: Fake HDFS filesystem fixture.
+        """
+        fs, _client = filesystem
+
+        entries = []
+        async with fs.scanfile("docs/readme.txt") as scanner:
+            async for entry in scanner:
+                entries.append(entry.path)
+        assert entries == ["docs/readme.txt"]
+
+        with pytest.raises(HdfsNotADirectoryError):
+            async with fs.scandir("docs/readme.txt") as scanner:
+                async for _ in scanner:
+                    pass
+
     async def test_copy_move_remove(self, filesystem) -> None:
         """Test copy, move, and remove operations.
 
@@ -245,6 +284,20 @@ class TestHdfsFileSystem:
 
         await fs.remove("archive/moved.txt")
         assert await fs.exists("archive/moved.txt") is False
+
+    async def test_remove_missing_and_samefile_fallback(self, filesystem) -> None:
+        """Test missing_ok removal and samefile on missing targets.
+
+        :param filesystem: Fake HDFS filesystem fixture.
+        """
+        fs, _client = filesystem
+
+        await fs.remove("docs/not-found.txt", missing_ok=True)
+        with pytest.raises(HdfsFileNotFoundError):
+            await fs.remove("docs/not-found.txt", missing_ok=False)
+
+        assert await fs.samefile("docs/readme.txt", "docs/not-found.txt") is False
+        assert await fs.is_symlink("docs/readme.txt") is False
 
     async def test_hdfs_specific_errors(self, filesystem) -> None:
         """Test HDFS operations raise HDFS-specific exception types.
@@ -265,6 +318,9 @@ class TestHdfsFileSystem:
 
         with pytest.raises(HdfsFileExistsError):
             await fs.mkdir("docs", exist_ok=False)
+
+        with pytest.raises(HdfsFileExistsError):
+            await fs.move("docs/readme.txt", "docs/data.json", overwrite=False)
 
     async def test_upload_download_and_misc(self, filesystem, tmp_path) -> None:
         """Test upload/download and helper methods.
@@ -287,6 +343,9 @@ class TestHdfsFileSystem:
         assert target.read_bytes() == b"payload"
         assert sum(downloaded) == len(b"payload")
 
+        with pytest.raises(HdfsIsADirectoryError):
+            await fs.download("docs", str(tmp_path / "dir.bin"))
+
         await fs.mkdir("nested/dir", parents=True, exist_ok=True)
         assert await fs.is_dir("nested/dir") is True
         assert await fs.absolute("docs/readme.txt") == "/workspace/docs/readme.txt"
@@ -295,10 +354,85 @@ class TestHdfsFileSystem:
         assert (
             await fs.samefile("docs/readme.txt", "/workspace/docs/readme.txt") is True
         )
+        assert await fs.is_dir("docs/not-found.txt") is False
+        assert await fs.is_file("docs/not-found.txt") is False
+        assert await fs.md5("docs") == "8d37b2ee0fc0641c66c735b778084765"
         assert await fs.md5("uploads/local.bin") == "321c3cf486ed509164edec1e1981fec8"
         assert await fs.access("uploads/local.bin", mode=Access.READ) is True
         with pytest.raises(HdfsInvalidError):
             await fs.access("uploads/local.bin", mode="bad")  # type: ignore[arg-type]
+
+    async def test_open_text_and_writer_helpers(self, filesystem) -> None:
+        """Test text writer helpers and edge branches.
+
+        :param filesystem: Fake HDFS filesystem fixture.
+        """
+        fs, client = filesystem
+
+        writer = await fs.open("docs/text.txt", "w").__aenter__()
+        assert writer.name == "hdfs://docs/text.txt"
+        assert writer.mode == "w"
+        assert await writer.write("abc") == 3
+        await writer.flush()
+        assert await writer.tell() == 3
+        await writer.close()
+        assert client.files["/workspace/docs/text.txt"] == b"abc"
+
+        writer = await fs.open("docs/bin.txt", "wb").__aenter__()
+        with pytest.raises(HdfsInvalidError):
+            await writer.write("bad")  # type: ignore[arg-type]
+
+        class DummyBinaryWriter:
+            """Dummy writer object for edge-case branches."""
+
+            def write(self, data: bytes) -> None:
+                """Pretend to write data and return ``None``.
+
+                :param data: Bytes to write.
+                """
+                _ = data
+                return None
+
+        writer._file = DummyBinaryWriter()
+        assert await writer.write(b"xy") == 2
+        writer._file = object()
+        assert await writer.flush() is None
+        assert await writer.tell() == 2
+        await writer.close()
+
+        writer = fs.open("docs/closed.txt", "wb")
+        with pytest.raises(IOError):
+            await writer.write(b"x")
+
+    def test_same_endpoint_branches(self, monkeypatch) -> None:
+        """Test HDFS endpoint comparison branches.
+
+        :param monkeypatch: Pytest monkeypatch fixture.
+        """
+        assert HdfsFileSystem("demo").same_endpoint(HdfsFileSystem("demo")) is True
+        assert HdfsFileSystem("demo").same_endpoint(object()) is False
+
+        fs1 = HdfsFileSystem("a")
+        fs2 = HdfsFileSystem("b")
+        monkeypatch.setattr(
+            "aiomegfile.filesystem.hdfs.get_hdfs_config",
+            lambda profile_name=None: {"url": f"http://{profile_name}"},
+        )
+        assert fs1.same_endpoint(fs2) is False
+
+        monkeypatch.setattr(
+            "aiomegfile.filesystem.hdfs.get_hdfs_config",
+            lambda profile_name=None: {"url": "http://same"},
+        )
+        assert fs1.same_endpoint(fs2) is True
+
+        def _raise(*args, **kwargs):
+            """Raise an error for suppressed branch coverage."""
+            _ = args, kwargs
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr("aiomegfile.filesystem.hdfs.get_hdfs_config", _raise)
+        assert fs1.same_endpoint(fs2) is False
 
     async def test_open_invalid_mode_raises(self, filesystem) -> None:
         """Test invalid open mode raises ``HdfsInvalidError``.
