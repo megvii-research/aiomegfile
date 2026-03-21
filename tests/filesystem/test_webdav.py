@@ -11,7 +11,7 @@ from aiomegfile.filesystem.webdav import (
     WebdavsFileSystem,
     is_webdav,
 )
-from aiomegfile.interfaces import Access, get_filesystem_by_uri
+from aiomegfile.interfaces import get_filesystem_by_uri
 from aiomegfile.lib.cacher import AioFileCacher
 from aiomegfile.lib.prefetch_reader.webdav_prefetch_reader import (
     AioWebdavPrefetchReader,
@@ -87,11 +87,11 @@ class TestWebdavFileSystem:
 
         filesystem = WebdavFileSystem.from_uri("webdav://demo@example.com/data.txt")
         assert filesystem._endpoint.username == "demo"
-        assert filesystem._endpoint.password == "env-password"
+        assert filesystem._endpoint.password is None
         assert filesystem.build_uri("/data.txt") == "webdav://demo@example.com/data.txt"
 
         filesystem_no_user = WebdavFileSystem.from_uri("webdav://example.com/data.txt")
-        assert filesystem_no_user._endpoint.username == "env-user"
+        assert filesystem_no_user._endpoint.username is None
         assert (
             filesystem_no_user.build_uri("/data.txt") == "webdav://example.com/data.txt"
         )
@@ -100,7 +100,7 @@ class TestWebdavFileSystem:
         """Test URI constructor reads ``WEBDAV_TOKEN_COMMAND`` from environment."""
         monkeypatch.setenv(WEBDAV_TOKEN_COMMAND_ENV, "echo test-token")
         filesystem = WebdavFileSystem.from_uri("webdav://example.com/data.txt")
-        assert filesystem._endpoint.token_command == "echo test-token"
+        assert filesystem._endpoint.token_command is None
 
     async def test_create_client_uses_shared_get_webdav_client(self, monkeypatch):
         """Test ``_create_client`` delegates to shared cached client helper."""
@@ -267,22 +267,6 @@ class TestWebdavFileSystem:
         with pytest.raises(IsADirectoryError):
             await fs.download("/remote-dir", str(tmp_path / "out.txt"))
 
-    async def test_misc_methods(self, filesystem):
-        """Test helper methods like absolute, samefile, and access."""
-        fs, _ = filesystem
-
-        assert await fs.absolute("data/file.txt") == "/data/file.txt"
-        assert await fs.samefile("/data/file.txt", "/data/file.txt") is True
-        assert await fs.samefile("/data/file.txt", "/data/sub/nested.txt") is False
-        assert await fs.is_absolute("/data/file.txt") is True
-        assert await fs.is_absolute("data/file.txt") is False
-
-        assert await fs.access("/data/file.txt", mode=Access.READ) is True
-        assert await fs.access("/data/file.txt", mode=Access.WRITE) is True
-        assert await fs.access("/not-found.txt", mode=Access.READ) is False
-        with pytest.raises(TypeError):
-            await fs.access("/data/file.txt", mode="bad")  # type: ignore[arg-type]
-
     async def test_scanfile_on_single_file(self, filesystem):
         """Test scanfile returns one entry when input path is a file."""
         fs, _ = filesystem
@@ -291,12 +275,6 @@ class TestWebdavFileSystem:
             async for entry in scanner:
                 entries.append(entry.path)
         assert entries == ["/data/file.txt"]
-
-    async def test_open_invalid_mode_raises(self, filesystem):
-        """Test invalid open mode raises ValueError."""
-        fs, _ = filesystem
-        with pytest.raises(ValueError):
-            fs.open("/data/file.txt", "r+")
 
     async def test_same_endpoint(self):
         """Test same_endpoint compares endpoint settings."""

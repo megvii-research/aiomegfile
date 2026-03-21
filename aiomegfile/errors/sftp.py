@@ -125,7 +125,7 @@ def translate_sftp_error(error: Exception, uri: str) -> Exception:
     if isinstance(error, OSError):
         return error
 
-    return SftpUnknownError(f"SFTP operation failed on {uri!r}: {error}")
+    return SftpUnknownError(error, uri, extra="SFTP operation failed")
 
 
 def sftp_retry(

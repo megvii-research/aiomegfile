@@ -10,7 +10,7 @@ import typing as T
 import aiohttp
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.errors.core import aioretry
+from aiomegfile.errors.core import UnknownError, aioretry
 from aiomegfile.errors.http import http_should_retry
 
 WEBDAV_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
@@ -81,7 +81,7 @@ class WebdavTimeoutError(WebdavException, TimeoutError):
     """Raised when WebDAV request times out."""
 
 
-class WebdavUnknownError(WebdavException, OSError):
+class WebdavUnknownError(WebdavException, UnknownError):
     """Raised for unmapped WebDAV failures."""
 
 
@@ -139,8 +139,11 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
     if isinstance(error, WebdavException):
         return error
 
-    if isinstance(error, (FileNotFoundError, PermissionError)):
-        return error
+    if isinstance(error, FileNotFoundError):
+        return WebdavFileNotFoundError(f"No such file: {uri!r}")
+
+    if isinstance(error, PermissionError):
+        return WebdavPermissionError(f"Permission denied: {uri!r}")
 
     if isinstance(error, (RemoteResourceNotFound, RemoteParentNotFound)):
         return WebdavFileNotFoundError(f"No such file: {uri!r}")
@@ -153,24 +156,24 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
             return True
         elif status == 403:
             return WebdavPermissionError(f"Permission denied: {uri!r}")
-        return WebdavUnknownError(f"WebDAV error {status}: {uri!r}")
+        return WebdavUnknownError(error, uri, extra=f"WebDAV error {status}")
 
     if isinstance(error, (asyncio.TimeoutError, TimeoutError)):
         return WebdavTimeoutError(f"Request timeout: {uri!r}")
 
     if isinstance(error, (NoConnection, ConnectionException)):
-        return WebdavUnknownError(f"Unable to access {uri!r}: {error}")
+        return WebdavUnknownError(error, uri, extra="Unable to access resource")
 
     if isinstance(error, aiohttp.ClientError):
-        return WebdavUnknownError(f"Unable to access {uri!r}: {error}")
+        return WebdavUnknownError(error, uri, extra="Unable to access resource")
 
     if isinstance(error, WebDavException):
-        return WebdavUnknownError(f"WebDAV operation failed on {uri!r}: {error}")
+        return WebdavUnknownError(error, uri, extra="WebDAV operation failed")
 
     if isinstance(error, OSError):
         return error
 
-    return WebdavUnknownError(f"WebDAV operation failed on {uri!r}: {error}")
+    return WebdavUnknownError(error, uri, extra="WebDAV operation failed")
 
 
 def webdav_retry(

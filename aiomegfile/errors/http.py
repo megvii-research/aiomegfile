@@ -87,13 +87,13 @@ def translate_http_error(error: Exception, url: str) -> Exception:
             return HttpFileNotFoundError(f"No such file: {url!r}")
         if status in HTTP_PERMISSION_STATUS_CODES:
             return HttpPermissionError(f"Permission denied: {url!r}")
-        return HttpUnknownError(f"HTTP error {status}: {url!r}")
+        return HttpUnknownError(error, url, extra=f"HTTP error {status}")
 
     if isinstance(error, asyncio.TimeoutError):
         return HttpTimeoutError(f"Request timeout: {url!r}")
 
     if isinstance(error, aiohttp.ClientError):
-        return HttpUnknownError(f"Unable to access {url!r}: {error}")
+        return HttpUnknownError(error, url, extra="Unable to access resource")
 
     return error
 

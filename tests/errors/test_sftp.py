@@ -210,7 +210,6 @@ def test_translate_sftp_error_unknown_error_to_oserror() -> None:
     """Verify unknown non-OSError becomes wrapped ``OSError``."""
     uri = "sftp://demo@example.com//a.txt"
     translated = translate_sftp_error(ValueError("invalid"), uri)
-    assert isinstance(translated, OSError)
     assert isinstance(translated, SftpUnknownError)
     assert isinstance(translated, SftpException)
     assert "SFTP operation failed" in str(translated)
