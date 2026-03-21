@@ -52,8 +52,6 @@ from aiomegfile.utils.path import PathLike, fspath
 
 if T.TYPE_CHECKING:
     from aiodav.client import Client as AiodavClient
-else:
-    AiodavClient = T.Any
 
 logger = logging.getLogger(__name__)
 
@@ -515,7 +513,7 @@ async def _call_webdav(
     uri: str,
     max_retries: int,
     operation: T.Callable[[], T.Awaitable[T.Any]],
-    client: T.Optional[AiodavClient],
+    client: T.Optional["AiodavClient"],  # pyre-ignore[21]
 ) -> T.Any:
     """Execute WebDAV operation with retry and translated exceptions.
 
@@ -535,7 +533,7 @@ async def _call_webdav(
         :rtype: T.Awaitable[None]
         """
         _ensure_aiodav()
-        from aiodav.exceptions import ResponseErrorCode
+        from aiodav.exceptions import ResponseErrorCode  # pyre-ignore[21]
 
         if isinstance(error, ResponseErrorCode):
             status = int(getattr(error, "code", 0))
@@ -665,7 +663,7 @@ class WebdavFileSystem(BaseFileSystem):
             self._endpoint.insecure,
         )
 
-    async def _create_client(self) -> AiodavClient:
+    async def _create_client(self) -> "AiodavClient":
         """Get cached aiodav client for current endpoint.
 
         :return: Configured aiodav client.
@@ -683,7 +681,7 @@ class WebdavFileSystem(BaseFileSystem):
             )
         return self._client
 
-    async def _ensure_parent_directory(self, client: AiodavClient, path: str) -> None:
+    async def _ensure_parent_directory(self, client: "AiodavClient", path: str) -> None:
         """Create parent directories for a target path when missing.
 
         :param client: Active aiodav client.
@@ -761,7 +759,7 @@ class WebdavFileSystem(BaseFileSystem):
             _ = total, args
             delta = int(current) - int(state["current"])
             if delta > 0:
-                callback(delta)
+                callback(delta)  # pyre-ignore[29]
             state["current"] = int(current)
 
         return _progress
@@ -1104,7 +1102,7 @@ class WebdavFileSystem(BaseFileSystem):
         uri = self.build_uri(remote_path)
 
         async def _iter_files(
-            client: AiodavClient,
+            client: "AiodavClient",
             current_path: str,
         ) -> T.AsyncIterator[FileEntry]:
             current_uri = self.build_uri(current_path)
@@ -1565,7 +1563,7 @@ class WebdavFileSystem(BaseFileSystem):
         )
 
         return cls(
-            host=parsed.hostname,  # pyre-ignore[6]
+            host=parsed.hostname,
             port=parsed.port,
             username=username,
             password=password,

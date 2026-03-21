@@ -3,6 +3,18 @@
   "search_path": [
     {
       "site-package": "aiofiles"
+    },
+    {
+      "site-package": "aiohttp"
+    },
+    {
+      "site-package": "aiobotocore"
+    },
+    {
+      "site-package": "asyncssh"
+    },
+    {
+      "site-package": "aiodav"
     }
   ],
   "source_directories": [

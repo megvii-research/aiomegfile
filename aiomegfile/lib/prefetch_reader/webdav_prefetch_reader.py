@@ -19,11 +19,7 @@ from aiomegfile.lib.prefetch_reader.base_prefetch_reader import AioBasePrefetchR
 from aiomegfile.utils.http import parse_content_length
 
 if T.TYPE_CHECKING:
-    from aiodav.client import Client as AiodavClient
-
     from aiomegfile.filesystem.webdav import WebdavFileSystem
-else:
-    AiodavClient = T.Any
 
 __all__ = [
     "AioWebdavPrefetchReader",
@@ -39,7 +35,7 @@ def _quote_webdav_urn(path: str) -> str:
     :raises ModuleNotFoundError: If WebDAV optional dependency is unavailable.
     """
     _ensure_aiodav()
-    from aiodav.urn import Urn
+    from aiodav.urn import Urn  # pyre-ignore[21]
 
     return Urn(path).quote()
 

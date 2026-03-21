@@ -153,7 +153,7 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
         if status in WEBDAV_NOT_FOUND_STATUS_CODES:
             return WebdavFileNotFoundError(f"No such file: {uri!r}")
         if status == 401:
-            return True
+            return WebdavPermissionError(f"Unauthorized access: {uri!r}")
         elif status == 403:
             return WebdavPermissionError(f"Permission denied: {uri!r}")
         return WebdavUnknownError(error, uri, extra=f"WebDAV error {status}")
