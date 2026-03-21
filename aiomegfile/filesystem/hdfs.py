@@ -630,14 +630,7 @@ class HdfsFileSystem(BaseFileSystem):
                     stat=_make_stat_result(stat_data),
                 )
 
-        iterator = aiterator()
-
-        async def aexit(exc_type, exc_value, traceback) -> None:
-            """Close the async iterator if supported."""
-            with suppress(Exception):
-                await iterator.aclose()
-
-        return AioScannableManager(iterator, aexit)
+        return AioScannableManager(aiterator())
 
     def scanfile(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Iteratively traverse only files under the given path.
