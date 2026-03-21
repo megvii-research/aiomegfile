@@ -374,6 +374,34 @@ class FakeWebdavClient:
 
         self.files[remote_path] = bytes(payload)
 
+    async def upload_file(
+        self,
+        remote_path: str,
+        local_path: str,
+        progress: T.Optional[T.Callable[..., T.Any]] = None,
+        progress_args: tuple = (),
+    ) -> None:
+        """Upload a local filesystem path into fake WebDAV storage.
+
+        :param remote_path: Destination file path on fake WebDAV storage.
+        :param local_path: Source path on local filesystem.
+        :param progress: Optional progress callback.
+        :param progress_args: Additional callback arguments.
+        :return: ``None``.
+        :rtype: None
+        """
+        with open(local_path, "rb") as fileobj:
+            fileobj.seek(0, 2)
+            buffer_size = fileobj.tell()
+            fileobj.seek(0)
+            await self.upload_to(
+                remote_path,
+                fileobj,
+                buffer_size=buffer_size,
+                progress=progress,
+                progress_args=progress_args,
+            )
+
     async def download_to(
         self,
         path: str,

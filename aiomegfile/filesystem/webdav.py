@@ -18,8 +18,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
-import aiofiles
-
 from aiomegfile.config import (
     DEFAULT_COPY_BUFFER_SIZE,
     DEFAULT_MAX_RETRY_TIMES,
@@ -1199,24 +1197,20 @@ class WebdavFileSystem(BaseFileSystem):
 
         remote_path = self._normalize_remote_path(dst_path)
         uri = self.build_uri(remote_path)
-        size = os.path.getsize(src_path)
         progress = self._build_progress_handler(callback)
 
         client = await self._create_client()
         await self._ensure_parent_directory(client, remote_path)
-        async with aiofiles.open(src_path, "rb") as file_obj:
-            await _call_webdav(
-                uri,
-                self.max_retries,
-                lambda: client.upload_to(
-                    path=remote_path,
-                    buffer=file_obj,  # pyre-ignore[6]
-                    buffer_size=size,
-                    overwrite=True,
-                    progress=progress,
-                ),
-                client,
-            )
+        await _call_webdav(
+            uri,
+            self.max_retries,
+            lambda: client.upload_file(
+                remote_path=remote_path,
+                local_path=src_path,
+                progress=progress,
+            ),
+            client,
+        )
 
     async def _download_fileobj(
         self,
