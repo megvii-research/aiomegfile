@@ -14,6 +14,8 @@ from aiobotocore.config import AioConfig
 from botocore.utils import calculate_md5 as botocore_calculate_md5
 
 from aiomegfile.config import (
+    DEFAULT_COPY_BUFFER_SIZE,
+    DEFAULT_HASH_BUFFER_SIZE,
     DEFAULT_WRITER_BLOCK_AUTOSCALE,
     GLOBAL_MAX_WORKERS,
     READER_BLOCK_SIZE,
@@ -639,7 +641,7 @@ class S3FileSystem(BaseFileSystem):
             hash_md5 = hashlib.md5()  # nosec
             async with self.open(target_path, "rb") as fileobj:
                 while True:
-                    chunk = await fileobj.read(READER_BLOCK_SIZE)
+                    chunk = await fileobj.read(DEFAULT_HASH_BUFFER_SIZE)
                     if not chunk:
                         break
                     hash_md5.update(chunk)
@@ -1429,7 +1431,7 @@ class S3FileSystem(BaseFileSystem):
                 mode=mode,
             ) as s3_file:
                 while True:
-                    chunk = await s3_file.read(1024 * 1024)
+                    chunk = await s3_file.read(DEFAULT_COPY_BUFFER_SIZE)
                     if not chunk:
                         break
                     await fileobj.write(chunk)
@@ -1462,7 +1464,7 @@ class S3FileSystem(BaseFileSystem):
                 mode=mode,
             ) as s3_file:
                 while True:
-                    chunk = await fileobj.read(1024 * 1024)
+                    chunk = await fileobj.read(DEFAULT_COPY_BUFFER_SIZE)
                     if not chunk:
                         break
                     await s3_file.write(chunk)  # pytype: disable=attribute-error

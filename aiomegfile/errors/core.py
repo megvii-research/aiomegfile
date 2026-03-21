@@ -41,7 +41,11 @@ def full_error_message(error: Exception) -> str:
     :return: Rendered error text.
     :rtype: str
     """
-    return "%s(%r)" % (full_class_name(error), str(error))
+    try:
+        message = str(error)
+    except Exception:
+        message = repr(error)
+    return "%s(%r)" % (full_class_name(error), message)
 
 
 class ProtocolNotFoundError(Exception):

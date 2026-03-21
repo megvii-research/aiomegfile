@@ -59,7 +59,6 @@ def test_translate_http_error_response_status():
     assert isinstance(permission, HttpException)
 
     unknown = translate_http_error(_response_error(500), "http://example.com/error")
-    assert isinstance(unknown, OSError)
     assert isinstance(unknown, HttpUnknownError)
     assert isinstance(unknown, HttpException)
 
@@ -69,7 +68,6 @@ def test_translate_http_error_transport_error():
     translated = translate_http_error(
         aiohttp.ClientConnectionError(), "http://example.com"
     )
-    assert isinstance(translated, OSError)
     assert isinstance(translated, HttpUnknownError)
     assert isinstance(translated, HttpException)
 

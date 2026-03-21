@@ -8,9 +8,6 @@ from aiomegfile.errors.core import (
     full_error_message,
 )
 from aiomegfile.errors.http import (
-    HTTP_NOT_FOUND_STATUS_CODES,
-    HTTP_PERMISSION_STATUS_CODES,
-    HTTP_RETRYABLE_STATUS_CODES,
     HttpException,
     HttpFileNotFoundError,
     HttpPermissionError,
@@ -53,12 +50,19 @@ from aiomegfile.errors.sftp import (
     sftp_should_retry,
     translate_sftp_error,
 )
+from aiomegfile.errors.webdav import (
+    WebdavException,
+    WebdavFileNotFoundError,
+    WebdavPermissionError,
+    WebdavTimeoutError,
+    WebdavUnknownError,
+    translate_webdav_error,
+    webdav_retry,
+    webdav_should_retry,
+)
 
 __all__ = [
     "AioMegfileRetryConditions",
-    "HTTP_NOT_FOUND_STATUS_CODES",
-    "HTTP_PERMISSION_STATUS_CODES",
-    "HTTP_RETRYABLE_STATUS_CODES",
     "HttpException",
     "HttpFileNotFoundError",
     "HttpPermissionError",
@@ -85,6 +89,11 @@ __all__ = [
     "SftpPermissionError",
     "SftpTimeoutError",
     "SftpUnknownError",
+    "WebdavException",
+    "WebdavFileNotFoundError",
+    "WebdavPermissionError",
+    "WebdavTimeoutError",
+    "WebdavUnknownError",
     "SameFileError",
     "UnknownError",
     "aioretry",
@@ -100,4 +109,7 @@ __all__ = [
     "translate_http_error",
     "translate_s3_error",
     "translate_sftp_error",
+    "translate_webdav_error",
+    "webdav_retry",
+    "webdav_should_retry",
 ]

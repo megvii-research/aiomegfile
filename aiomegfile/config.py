@@ -46,6 +46,8 @@ S3_MAX_RETRY_TIMES = int(
     os.getenv("AIOMEGFILE_S3_MAX_RETRY_TIMES") or DEFAULT_MAX_RETRY_TIMES
 )
 
+DEFAULT_COPY_BUFFER_SIZE = 16 * 1024  # 16KB, same as shutil.copyfileobj
+DEFAULT_HASH_BUFFER_SIZE = 4 * 1024  # 4KB for hash calculations
 
 CONFIG_PATH = "~/.config/megfile/megfile.conf"
 

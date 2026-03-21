@@ -35,6 +35,9 @@ dependencies = [
 cli = [
     "click>=8.1.7",
 ]
+webdav = [
+    "aiodav",
+]
 doc = [
     "Sphinx>=7.3.7; python_version >= '3.10'",
     "Sphinx; python_version < '3.10'",
@@ -66,7 +69,7 @@ typecheck = [
     "bandit-sarif-formatter",
 ]
 dev = [
-    "aiomegfile[cli,doc,test,lint,typecheck]",
+    "aiomegfile[cli,webdav,doc,test,lint,typecheck]",
 ]
 
 [build-system]

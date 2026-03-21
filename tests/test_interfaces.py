@@ -139,8 +139,6 @@ async def test_basefilesystem_default_methods_raise(filesystem_registry_snapshot
         await fs.is_symlink("a")
     with pytest.raises(NotImplementedError):
         await fs.absolute("a")
-    with pytest.raises(NotImplementedError):
-        await fs.samefile("a", "b")
 
 
 def test_get_filesystem_by_uri_protocol_not_found():

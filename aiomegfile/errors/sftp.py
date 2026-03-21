@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import typing as T
 
 import asyncssh
 
 from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
-from aiomegfile.errors.core import aioretry
+from aiomegfile.errors.core import UnknownError, aioretry
 
 __all__ = [
     "SftpException",
@@ -47,7 +48,7 @@ class SftpTimeoutError(SftpException, TimeoutError):
     """Raised when SFTP operation times out."""
 
 
-class SftpUnknownError(SftpException, OSError):
+class SftpUnknownError(SftpException, UnknownError):
     """Raised for unmapped SFTP failures."""
 
 
@@ -124,10 +125,15 @@ def translate_sftp_error(error: Exception, uri: str) -> Exception:
     if isinstance(error, OSError):
         return error
 
-    return SftpUnknownError(f"SFTP operation failed on {uri!r}: {error}")
+    return SftpUnknownError(error, uri, extra="SFTP operation failed")
 
 
-def sftp_retry(max_retries: int = DEFAULT_MAX_RETRY_TIMES):
+def sftp_retry(
+    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
+    after_callback: T.Optional[T.Callable[..., T.Awaitable[T.Any]]] = None,
+    retry_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
+):
     """Return retry decorator configured for SFTP operations.
 
     :param max_retries: Maximum retry attempts.
@@ -136,4 +142,7 @@ def sftp_retry(max_retries: int = DEFAULT_MAX_RETRY_TIMES):
     return aioretry(
         should_retry=sftp_should_retry,
         max_retries=max_retries,
+        before_callback=before_callback,
+        after_callback=after_callback,
+        retry_callback=retry_callback,
     )
