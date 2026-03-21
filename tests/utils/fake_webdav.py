@@ -409,6 +409,30 @@ class FakeWebdavClient:
 
         return self._entry_info(remote_path)
 
+    async def download_file(
+        self,
+        remote_path: str,
+        local_path: str,
+        progress: T.Optional[T.Callable[..., T.Any]] = None,
+        progress_args: tuple = (),
+    ) -> dict[str, T.Any]:
+        """Download remote file into a local filesystem path.
+
+        :param remote_path: Source file path on fake WebDAV storage.
+        :param local_path: Destination path on local filesystem.
+        :param progress: Optional progress callback.
+        :param progress_args: Additional callback arguments.
+        :return: Metadata dictionary for downloaded file.
+        :rtype: dict[str, T.Any]
+        """
+        with open(local_path, "wb") as fileobj:
+            return await self.download_to(
+                remote_path,
+                fileobj,
+                progress=progress,
+                progress_args=progress_args,
+            )
+
     async def _execute_request(
         self,
         action: str,

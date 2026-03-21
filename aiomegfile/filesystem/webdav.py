@@ -69,7 +69,7 @@ __all__ = [
     "is_webdav",
 ]
 
-WEBDAV_DEFAULT_TIMEOUT = 30.0
+WEBDAV_DEFAULT_TIMEOUT = 30
 WEBDAV_USERNAME_ENV = "WEBDAV_USERNAME"
 WEBDAV_PASSWORD_ENV = "WEBDAV_PASSWORD"  # nosec B105
 WEBDAV_TOKEN_ENV = "WEBDAV_TOKEN"
@@ -97,12 +97,12 @@ def _normalize_optional_text(value: T.Optional[str]) -> T.Optional[str]:
     return stripped or None
 
 
-def _load_webdav_timeout(timeout: T.Optional[float] = None) -> float:
+def _load_webdav_timeout(timeout: T.Optional[float] = None) -> int:
     """Return WebDAV timeout from argument/environment with fallback.
 
     :param timeout: Explicit timeout value.
     :return: Timeout in seconds.
-    :rtype: float
+    :rtype: int
     """
     raw_value: T.Union[str, float] = (
         timeout if timeout is not None else os.getenv(WEBDAV_TIMEOUT_ENV, "")
@@ -113,7 +113,7 @@ def _load_webdav_timeout(timeout: T.Optional[float] = None) -> float:
         parsed_timeout = float(raw_value)
     except (TypeError, ValueError):
         return WEBDAV_DEFAULT_TIMEOUT
-    return parsed_timeout if parsed_timeout > 0 else WEBDAV_DEFAULT_TIMEOUT
+    return int(parsed_timeout) if parsed_timeout > 0 else WEBDAV_DEFAULT_TIMEOUT
 
 
 def _load_webdav_insecure(insecure: T.Optional[bool] = None) -> bool:
@@ -383,8 +383,8 @@ async def get_webdav_client(
             timeout=resolved_timeout,
             insecure=resolved_insecure,
         )
-        client._token_command = resolved_token_command
-        client._token_command_last_call = 0
+        client._token_command = resolved_token_command  # pyre-ignore[16]
+        client._token_command_last_call = 0  # pyre-ignore[16]
         cache[cache_key] = client
 
         weakref.finalize(
@@ -513,7 +513,7 @@ async def _call_webdav(
     uri: str,
     max_retries: int,
     operation: T.Callable[[], T.Awaitable[T.Any]],
-    client: T.Optional["AiodavClient"],  # pyre-ignore[21]
+    client: T.Optional["AiodavClient"],
 ) -> T.Any:
     """Execute WebDAV operation with retry and translated exceptions.
 
@@ -533,7 +533,7 @@ async def _call_webdav(
         :rtype: T.Awaitable[None]
         """
         _ensure_aiodav()
-        from aiodav.exceptions import ResponseErrorCode  # pyre-ignore[21]
+        from aiodav.exceptions import ResponseErrorCode
 
         if isinstance(error, ResponseErrorCode):
             status = int(getattr(error, "code", 0))
@@ -541,8 +541,10 @@ async def _call_webdav(
                 token_command = getattr(client, "_token_command", None)
                 last_call = getattr(client, "_token_command_last_call", 0)
                 if token_command is not None and time.time() - last_call > 5:
-                    client._token_command_last_call = time.time()
-                    client._token = _load_webdav_token_from_command(token_command)
+                    client._token_command_last_call = time.time()  # pyre-ignore[16]
+                    client._token = _load_webdav_token_from_command(  # pyre-ignore[16]
+                        token_command
+                    )
                     logger.debug(
                         "update webdav token by command: %s",
                         token_command,
@@ -1208,7 +1210,7 @@ class WebdavFileSystem(BaseFileSystem):
                 self.max_retries,
                 lambda: client.upload_to(
                     path=remote_path,
-                    buffer=file_obj,
+                    buffer=file_obj,  # pyre-ignore[6]
                     buffer_size=size,
                     overwrite=True,
                     progress=progress,
@@ -1324,17 +1326,16 @@ class WebdavFileSystem(BaseFileSystem):
         if parent_dir:
             os.makedirs(parent_dir, exist_ok=True)
 
-        async with aiofiles.open(dst_path, "wb") as file_obj:
-            await _call_webdav(
-                uri,
-                self.max_retries,
-                lambda: client.download_to(
-                    path=remote_path,
-                    buffer=file_obj,
-                    progress=progress,
-                ),
-                client,
-            )
+        await _call_webdav(
+            uri,
+            self.max_retries,
+            lambda: client.download_file(
+                remote_path,
+                dst_path,
+                progress=progress,
+            ),
+            client,
+        )
 
     async def copy(
         self,

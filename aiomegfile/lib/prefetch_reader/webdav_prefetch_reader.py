@@ -35,7 +35,7 @@ def _quote_webdav_urn(path: str) -> str:
     :raises ModuleNotFoundError: If WebDAV optional dependency is unavailable.
     """
     _ensure_aiodav()
-    from aiodav.urn import Urn  # pyre-ignore[21]
+    from aiodav.urn import Urn
 
     return Urn(path).quote()
 
@@ -135,7 +135,7 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
 
         @webdav_retry(max_retries=self._max_retries)
         async def _request():
-            return await self._client._execute_request(  # pyre-ignore[16]
+            return await self._client._execute_request(
                 action="download",
                 path=_quote_webdav_urn(remote_path),
                 headers_ext=headers,
@@ -162,7 +162,7 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
 
         @webdav_retry(max_retries=self._max_retries)
         async def _fetch_info() -> dict[str, T.Any]:
-            return await self._client.info(remote_path)  # pyre-ignore[16]
+            return await self._client.info(remote_path)
 
         try:
             info = await _fetch_info()
