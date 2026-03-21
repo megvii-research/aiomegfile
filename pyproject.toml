@@ -69,7 +69,7 @@ typecheck = [
     "bandit-sarif-formatter",
 ]
 dev = [
-    "aiomegfile[cli,doc,test,lint,typecheck]",
+    "aiomegfile[cli,webdav,doc,test,lint,typecheck]",
 ]
 
 [build-system]
