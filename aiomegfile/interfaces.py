@@ -424,12 +424,15 @@ class BaseFileSystem(ABC):
 
     def scanfile(
         self,
-        path,
+        path: str,
+        sort: bool = False,
     ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """
         Iteratively traverse only files in given directory.
         Every iteration on generator yields FileEntry object.
 
+        :param path: Directory or file path to traverse.
+        :param sort: Whether to request sorted traversal when supported.
         :returns: Async context manager yielding an async iterator of FileEntry objects.
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """

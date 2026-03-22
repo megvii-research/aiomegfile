@@ -1091,13 +1091,16 @@ class WebdavFileSystem(BaseFileSystem):
     def scanfile(
         self,
         path: str,
+        sort: bool = False,
     ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Return async iterator over files recursively.
 
         :param path: Root path without protocol.
+        :param sort: Compatibility flag for protocol-aligned scanfile APIs.
         :return: Async context manager yielding file ``FileEntry`` values.
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
+        _ = sort
         remote_path = self._normalize_remote_path(path)
         uri = self.build_uri(remote_path)
 

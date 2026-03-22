@@ -305,13 +305,16 @@ class StdioFileSystem(BaseFileSystem):
     def scanfile(
         self,
         path: str,
+        sort: bool = False,
     ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """File scan is unsupported for stdio stream.
 
         :param path: Path without protocol.
+        :param sort: Compatibility flag for protocol-aligned scanfile APIs.
         :raises NotADirectoryError: Always raised.
         """
         _ = path
+        _ = sort
         raise NotADirectoryError("stdio path is not a directory")
 
     async def absolute(self, path: str) -> str:
