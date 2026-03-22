@@ -19,17 +19,6 @@ from aiomegfile.utils.alias import resolve_alias
 from aiomegfile.utils.path import PathLike, fspath
 
 
-async def _async_iter(items: T.Iterable[T.Any]) -> T.AsyncIterator[T.Any]:
-    """Yield items from a synchronous iterable as an async iterator.
-
-    :param items: Iterable of items to yield.
-    :return: Async iterator over ``items``.
-    :rtype: T.AsyncIterator[T.Any]
-    """
-    for item in items:
-        yield item
-
-
 class URIPathParents(Sequence):
     def __init__(self, path: "SmartPath"):
         # We don't store the instance to avoid reference cycles
@@ -984,12 +973,8 @@ class SmartPath(os.PathLike):
         """
 
         async def _iter_entries() -> T.AsyncIterator[FileEntry]:
-            try:
-                async_cm = self.filesystem.scanfile(self._path, sort=sort)
-            except TypeError:
-                async_cm = self.filesystem.scanfile(self._path)
 
-            async with async_cm as iterator:
+            async with self.filesystem.scanfile(self._path, sort=sort) as iterator:
                 async for entry in iterator:
                     if followlinks and entry.is_symlink():
                         resolved_path = await self.filesystem.readlink(entry.path)
@@ -1024,7 +1009,11 @@ class SmartPath(os.PathLike):
             yield entry
 
     async def iglob(
-        self, pattern: str, recursive: bool = True, missing_ok: bool = True
+        self,
+        pattern: str,
+        recursive: bool = True,
+        missing_ok: bool = True,
+        sort: bool = False,
     ) -> T.AsyncIterator["SmartPath"]:
         """Return an iterator of files whose paths match the glob pattern.
 
@@ -1032,6 +1021,8 @@ class SmartPath(os.PathLike):
         :param recursive: If False, `**` will not search directory recursively.
         :param missing_ok: If False and target path doesn't match any file,
             raise FileNotFoundError.
+        :param sort: Whether to request sorted traversal when supported by the
+            filesystem.
         :return: Async iterator of matching SmartPath objects.
         """
 
@@ -1040,6 +1031,7 @@ class SmartPath(os.PathLike):
                 os.path.join(self._path, pattern),
                 recursive=recursive,
                 missing_ok=missing_ok,
+                sort=sort,
             )
             matched = False
             async for file_entry in iterator:
@@ -1096,20 +1088,12 @@ class SmartPath(os.PathLike):
             glob_path = self._path
             if pattern:
                 glob_path = os.path.join(self._path, pattern)
-            try:
-                iterator = self.filesystem.glob_stat(
-                    glob_path,
-                    recursive=recursive,
-                    missing_ok=missing_ok,
-                    sort=sort,
-                )
-            except TypeError:
-                iterator = self.filesystem.glob_stat(
-                    glob_path,
-                    recursive=recursive,
-                    missing_ok=missing_ok,
-                )
-            async for file_entry in iterator:
+            async for file_entry in self.filesystem.glob_stat(
+                glob_path,
+                recursive=recursive,
+                missing_ok=missing_ok,
+                sort=sort,
+            ):
                 entry_path = file_entry.path
                 if "://" not in entry_path:
                     entry_path = self.filesystem.build_uri(entry_path)
@@ -1121,11 +1105,7 @@ class SmartPath(os.PathLike):
             return
 
         async def _iter_entries() -> T.AsyncIterator[FileEntry]:
-            path_iter = self.iglob(pattern=pattern, recursive=recursive)
-            if sort:
-                path_list = [path_obj async for path_obj in path_iter]
-                path_list.sort(key=lambda path_obj: fspath(path_obj))
-                path_iter = _async_iter(path_list)
+            path_iter = self.iglob(pattern=pattern, recursive=recursive, sort=sort)
 
             async for path_obj in path_iter:
                 stat_result = await path_obj.lstat()
@@ -1156,7 +1136,11 @@ class SmartPath(os.PathLike):
             yield entry
 
     async def glob(
-        self, pattern: str, recursive: bool = True, missing_ok: bool = True
+        self,
+        pattern: str,
+        recursive: bool = True,
+        missing_ok: bool = True,
+        sort: bool = False,
     ) -> T.List["SmartPath"]:
         """Return files whose paths match the glob pattern.
 
@@ -1164,6 +1148,8 @@ class SmartPath(os.PathLike):
         :param recursive: If False, `**` will not search directory recursively.
         :param missing_ok: If False and target path doesn't match any file,
             raise FileNotFoundError.
+        :param sort: Whether to request sorted traversal when supported by the
+            filesystem.
         :return: List of matching SmartPath instances.
         """
         result = []
@@ -1171,17 +1157,22 @@ class SmartPath(os.PathLike):
             pattern=pattern,
             recursive=recursive,
             missing_ok=missing_ok,
+            sort=sort,
         ):
             result.append(item)
         return result
 
-    async def rglob(self, pattern: str, recursive: bool = True) -> T.List["SmartPath"]:
+    async def rglob(
+        self, pattern: str, recursive: bool = True, sort: bool = False
+    ) -> T.List["SmartPath"]:
         """
         This is like calling ``Path.glob()`` with ``**/`` added in front of
         the given relative pattern
 
         :param pattern: Glob pattern to match recursively.
         :param recursive: If False, `**` will not search directory recursively.
+        :param sort: Whether to request sorted traversal when supported by the
+            filesystem.
         :return: List of matching SmartPath instances.
         """
         if not pattern:
