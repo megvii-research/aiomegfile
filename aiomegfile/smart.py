@@ -319,7 +319,11 @@ async def smart_listdir(path: PathLike) -> T.List[str]:
 
 
 async def smart_scan(
-    path: PathLike, *, missing_ok: bool = True, followlinks: bool = False
+    path: PathLike,
+    *,
+    missing_ok: bool = True,
+    followlinks: bool = False,
+    sort: bool = False,
 ) -> T.AsyncIterator[str]:
     """Iteratively traverse only files in the given path.
 
@@ -328,18 +332,25 @@ async def smart_scan(
     :param path: Given path.
     :param missing_ok: If False and the path is missing, raise FileNotFoundError.
     :param followlinks: Whether to follow symbolic links.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator of file paths.
     :rtype: T.AsyncIterator[str]
     """
     async for file_path in SmartPath(path).scan(
         missing_ok=missing_ok,
         followlinks=followlinks,
+        sort=sort,
     ):
         yield file_path
 
 
 async def smart_scan_stat(
-    path: PathLike, *, missing_ok: bool = True, followlinks: bool = False
+    path: PathLike,
+    *,
+    missing_ok: bool = True,
+    followlinks: bool = False,
+    sort: bool = False,
 ) -> T.AsyncIterator[FileEntry]:
     """Iteratively traverse only files in the given path with stats.
 
@@ -348,6 +359,8 @@ async def smart_scan_stat(
     :param path: Given path.
     :param missing_ok: If False and the path is missing, raise FileNotFoundError.
     :param followlinks: Whether to follow symbolic links.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator of FileEntry objects.
     :rtype: T.AsyncIterator[FileEntry]
     :raises FileNotFoundError: If no matches and missing_ok is False.
@@ -355,6 +368,7 @@ async def smart_scan_stat(
     async for entry in SmartPath(path).scan_stat(
         missing_ok=missing_ok,
         followlinks=followlinks,
+        sort=sort,
     ):
         yield entry
 
@@ -512,7 +526,11 @@ async def smart_glob(
 
 
 async def smart_glob_stat(
-    pathname: PathLike, recursive: bool = True, missing_ok: bool = True
+    pathname: PathLike,
+    recursive: bool = True,
+    missing_ok: bool = True,
+    *,
+    sort: bool = False,
 ) -> T.AsyncIterator[FileEntry]:
     """Return entries whose paths match the glob pattern.
 
@@ -520,6 +538,8 @@ async def smart_glob_stat(
     :param recursive: If False, ``**`` will not search directory recursively.
     :param missing_ok: If False and target path doesn't match any file,
         raise FileNotFoundError.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator of FileEntry objects.
     :rtype: T.AsyncIterator[FileEntry]
     :raises FileNotFoundError: If no matches and missing_ok is False.
@@ -528,6 +548,7 @@ async def smart_glob_stat(
         pattern="",
         recursive=recursive,
         missing_ok=missing_ok,
+        sort=sort,
     ):
         yield entry
 
@@ -673,17 +694,45 @@ async def smart_readlink(path: PathLike) -> str:
     return str(result)
 
 
+def _get_sync_root_path(src_path: PathLike) -> str:
+    """Return the root path used to compute relative sync destinations.
+
+    :param src_path: Source path or glob pattern.
+    :return: Root path for sync path calculations.
+    :rtype: str
+    """
+    src_path_str = fspath(src_path)
+    if has_magic(src_path_str):
+        return str(SmartPath(get_non_glob_dir(src_path_str)))
+    return str(SmartPath(src_path))
+
+
+def _can_use_fast_sync(src_protocol: str, dst_protocol: str) -> bool:
+    """Return whether fast merge-based sync is supported for both ends.
+
+    :param src_protocol: Source filesystem protocol.
+    :param dst_protocol: Destination filesystem protocol.
+    :return: True when both protocols support fast sync.
+    :rtype: bool
+    """
+    supported_protocols = {"file", "s3"}
+    return src_protocol in supported_protocols and dst_protocol in supported_protocols
+
+
 async def _iter_file_stats(
     path: PathLike,
     *,
     missing_ok: bool = True,
     followlinks: bool = False,
+    sort: bool = False,
 ) -> T.AsyncIterator[FileEntry]:
     """Iterate file entries with stats under the given path.
 
     :param path: Root path to scan.
     :param missing_ok: If False and path is missing, raise FileNotFoundError.
     :param followlinks: Whether to follow symbolic links.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator of FileEntry objects.
     :rtype: T.AsyncIterator[FileEntry]
     :raises FileNotFoundError: If missing_ok is False and path is absent.
@@ -699,7 +748,7 @@ async def _iter_file_stats(
         except OSError:
             pass
 
-    async with smart_path.filesystem.scanfile(smart_path._path) as iterator:
+    async with smart_path.filesystem.scanfile(smart_path._path, sort=sort) as iterator:
         max_workers = max(GLOBAL_MAX_WORKERS, 1)
         semaphore = asyncio.Semaphore(max_workers)
         max_in_flight = max_workers * 2
@@ -759,16 +808,24 @@ async def _iter_sync_entries(
     path: PathLike,
     *,
     followlinks: bool = False,
+    sort: bool = False,
 ) -> T.AsyncIterator[T.Tuple[str, FileEntry]]:
     """Iterate file entries with comparison keys for sync.
 
     :param path: Root path to scan.
     :param followlinks: Whether to follow symbolic links.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator yielding ``(key, FileEntry)`` tuples.
     :rtype: T.AsyncIterator[T.Tuple[str, FileEntry]]
     """
 
-    async for entry in _iter_file_stats(path, missing_ok=True, followlinks=followlinks):
+    async for entry in _iter_file_stats(
+        path,
+        missing_ok=True,
+        followlinks=followlinks,
+        sort=sort,
+    ):
         if not entry.name:
             continue
         content_path = await smart_relpath(entry.path, start=path)
@@ -805,15 +862,23 @@ async def _iter_glob_file_stats(
     pattern: PathLike,
     *,
     followlinks: bool = False,
+    sort: bool = False,
 ) -> T.AsyncIterator[FileEntry]:
     """Iterate file entries that match a glob pattern.
 
     :param pattern: Glob pattern for source files.
     :param followlinks: Whether to follow symbolic links.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator yielding FileEntry objects.
     :rtype: T.AsyncIterator[FileEntry]
     """
-    async for entry in smart_glob_stat(pattern, recursive=True, missing_ok=False):
+    async for entry in smart_glob_stat(
+        pattern,
+        recursive=True,
+        missing_ok=False,
+        sort=sort,
+    ):
         if followlinks and entry.is_symlink():
             resolved_stat: T.Optional[StatResult] = None
             try:
@@ -824,7 +889,9 @@ async def _iter_glob_file_stats(
             if resolved is not None and resolved_stat is not None:
                 if resolved_stat.is_dir():
                     async for child in smart_scan_stat(
-                        str(resolved), followlinks=followlinks
+                        str(resolved),
+                        followlinks=followlinks,
+                        sort=sort,
                     ):
                         yield child
                     continue
@@ -836,7 +903,11 @@ async def _iter_glob_file_stats(
         if entry.is_file():
             yield entry
             continue
-        async for child in smart_scan_stat(entry.path, followlinks=followlinks):
+        async for child in smart_scan_stat(
+            entry.path,
+            followlinks=followlinks,
+            sort=sort,
+        ):
             yield child
 
 
@@ -844,6 +915,7 @@ def _get_sync_source(
     src_path: PathLike,
     *,
     followlinks: bool = False,
+    sort: bool = False,
     on_entry: T.Optional[T.Callable[[FileEntry], None]] = None,
     on_done: T.Optional[T.Callable[[], None]] = None,
 ) -> T.Tuple[str, T.AsyncIterator[T.Tuple[str, FileEntry]]]:
@@ -851,19 +923,27 @@ def _get_sync_source(
 
     :param src_path: Source path or glob pattern.
     :param followlinks: Whether to follow symbolic links.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :param on_entry: Optional callback invoked for each FileEntry.
     :param on_done: Optional callback invoked when iteration completes.
     :return: Tuple of root path and async iterator of ``(key, FileEntry)``.
     :rtype: T.Tuple[str, T.AsyncIterator[T.Tuple[str, FileEntry]]]
     """
     src_path_str = fspath(src_path)
+    src_root_path = _get_sync_root_path(src_path)
     if has_magic(src_path_str):
-        src_root_path = str(SmartPath(get_non_glob_dir(src_path_str)))
-        entry_iter = _iter_glob_file_stats(src_path_str, followlinks=followlinks)
+        entry_iter = _iter_glob_file_stats(
+            src_path_str,
+            followlinks=followlinks,
+            sort=sort,
+        )
     else:
-        src_root_path = str(SmartPath(src_path))
         entry_iter = _iter_file_stats(
-            src_root_path, missing_ok=False, followlinks=followlinks
+            src_root_path,
+            missing_ok=False,
+            followlinks=followlinks,
+            sort=sort,
         )
 
     async def _iterator() -> T.AsyncIterator[T.Tuple[str, FileEntry]]:
@@ -881,7 +961,27 @@ def _get_sync_source(
     return src_root_path, _iterator()
 
 
-async def _run_sync(
+async def _drain_copy_tasks(
+    tasks: set[asyncio.Task[None]],
+) -> set[asyncio.Task[None]]:
+    """Wait for at least one copy task and propagate errors.
+
+    :param tasks: Active copy tasks.
+    :return: Remaining pending tasks.
+    """
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for completed_task in done:
+        try:
+            await completed_task
+        except Exception:
+            for pending_task in pending:
+                pending_task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            raise
+    return set(pending)
+
+
+async def _run_sync_fast(
     src_iter: T.AsyncIterator[T.Tuple[str, FileEntry]],
     dst_iter: T.Optional[T.AsyncIterator[T.Tuple[str, FileEntry]]],
     dst_root_path: str,
@@ -894,7 +994,7 @@ async def _run_sync(
     worker: int,
     sync_type: str,
 ) -> None:
-    """Run the core sync loop using prepared iterators.
+    """Run the fast merge-based sync loop using prepared iterators.
 
     :param src_iter: Async iterator over source entries.
     :param dst_iter: Async iterator over destination entries, or None if missing.
@@ -941,25 +1041,6 @@ async def _run_sync(
             )
             if callback_after_copy_file:
                 callback_after_copy_file(src_file, dst_file)
-
-    async def _drain_copy_tasks(
-        tasks: set[asyncio.Task[None]],
-    ) -> set[asyncio.Task[None]]:
-        """Wait for at least one copy task and propagate errors.
-
-        :param tasks: Active copy tasks.
-        :return: Remaining pending tasks.
-        """
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for completed_task in done:
-            try:
-                await completed_task
-            except Exception:
-                for pending_task in pending:
-                    pending_task.cancel()
-                await asyncio.gather(*pending, return_exceptions=True)
-                raise
-        return set(pending)
 
     error: T.Optional[Exception] = None
     try:
@@ -1058,6 +1139,107 @@ async def _run_sync(
                         raise result
 
 
+async def _run_sync(
+    src_iter: T.AsyncIterator[T.Tuple[str, FileEntry]],
+    dst_root_path: str,
+    *,
+    followlinks: bool,
+    callback: T.Optional[T.Callable[[str, int], None]],
+    callback_after_copy_file: T.Optional[T.Callable[[str, str], None]],
+    force: bool,
+    overwrite: bool,
+    worker: int,
+    sync_type: str,
+) -> None:
+    """Run sync by checking destination files one by one.
+
+    This path mirrors megfile's ``smart_sync`` strategy and does not require
+    source and destination iterators to be sorted.
+
+    :param src_iter: Async iterator over source entries.
+    :param dst_root_path: Destination root path.
+    :param followlinks: Whether to follow symbolic links.
+    :param callback: Callback for copied bytes.
+    :param callback_after_copy_file: Callback after each file copy.
+    :param force: Whether to force copy even if files are the same.
+    :param overwrite: Whether to overwrite existing files.
+    :param worker: Maximum number of concurrent workers for copy tasks.
+    :param sync_type: Sync type for file comparison.
+    """
+    max_workers = worker if worker > 0 else GLOBAL_MAX_WORKERS
+    max_workers = max(max_workers, 1)
+    semaphore = asyncio.Semaphore(max_workers)
+    max_in_flight = max_workers * 2
+    copy_tasks: set[asyncio.Task[None]] = set()
+
+    async def _sync_single_entry(src_key: str, src_entry: FileEntry) -> None:
+        """Sync a single source entry to its destination.
+
+        :param src_key: Relative key for the source entry.
+        :param src_entry: Source file entry.
+        """
+        if src_key:
+            dst_abs_file_path = await smart_path_join(dst_root_path, src_key)
+        else:
+            dst_abs_file_path = dst_root_path
+
+        async with semaphore:
+            should_sync = True
+            if not force:
+                try:
+                    dst_stat = await smart_stat(
+                        dst_abs_file_path, follow_symlinks=followlinks
+                    )
+                except (FileNotFoundError, NotImplementedError):
+                    pass
+                else:
+                    if not overwrite:
+                        should_sync = False
+                    elif is_same_file(src_entry.stat, dst_stat, sync_type):
+                        should_sync = False
+
+            if should_sync:
+                wrapped_callback = None
+                if callback:
+
+                    def wrapped_callback(length: int) -> None:
+                        """Invoke copy callback with source path."""
+                        callback(src_entry.path, length)  # pyre-ignore[29]
+
+                await smart_copy_file(
+                    src_entry.path,
+                    dst_abs_file_path,
+                    followlinks=followlinks,
+                    callback=wrapped_callback,
+                )
+                if callback_after_copy_file:
+                    callback_after_copy_file(src_entry.path, dst_abs_file_path)
+            elif callback:
+                callback(src_entry.path, src_entry.stat.st_size)
+
+    error: T.Optional[Exception] = None
+    try:
+        async for src_key, src_entry in src_iter:
+            copy_tasks.add(asyncio.create_task(_sync_single_entry(src_key, src_entry)))
+            if len(copy_tasks) >= max_in_flight:
+                copy_tasks = await _drain_copy_tasks(copy_tasks)
+    except Exception as exc:
+        error = exc
+        raise
+    finally:
+        if copy_tasks:
+            if error is not None:
+                for pending_task in copy_tasks:
+                    pending_task.cancel()
+            results = await asyncio.gather(*copy_tasks, return_exceptions=True)
+            if error is None:
+                for result in results:
+                    if isinstance(result, Exception) and not isinstance(
+                        result, asyncio.CancelledError
+                    ):
+                        raise result
+
+
 async def smart_sync(
     src_path: PathLike,
     dst_path: PathLike,
@@ -1095,7 +1277,7 @@ async def smart_sync(
     if not has_magic(src_path_str) and not await smart_exists(src_path):
         raise FileNotFoundError(f"No match file: {src_path}")
 
-    src_root_path, src_iter = _get_sync_source(src_path, followlinks=followlinks)
+    src_root_path = _get_sync_root_path(src_path)
     dst_root_path = str(SmartPath(dst_path))
 
     src_protocol = SmartPath(src_root_path).filesystem.protocol
@@ -1105,13 +1287,42 @@ async def smart_sync(
     dst_missing = not await smart_exists(dst_path)
     if dst_missing:
         force = True
+        use_fast_sync = False
+        dst_iter = None
+    elif force:
+        use_fast_sync = False
         dst_iter = None
     else:
-        dst_iter = _iter_sync_entries(dst_root_path, followlinks=followlinks)
+        use_fast_sync = _can_use_fast_sync(src_protocol, dst_protocol)
+        dst_iter = _iter_sync_entries(
+            dst_root_path,
+            followlinks=followlinks,
+            sort=use_fast_sync,
+        )
+
+    src_root_path, src_iter = _get_sync_source(
+        src_path,
+        followlinks=followlinks,
+        sort=use_fast_sync,
+    )
+
+    if use_fast_sync:
+        await _run_sync_fast(
+            src_iter,
+            dst_iter,
+            dst_root_path,
+            followlinks=followlinks,
+            callback=callback,
+            callback_after_copy_file=callback_after_copy_file,
+            force=force,
+            overwrite=overwrite,
+            worker=worker,
+            sync_type=sync_type,
+        )
+        return
 
     await _run_sync(
         src_iter,
-        dst_iter,
         dst_root_path,
         followlinks=followlinks,
         callback=callback,
@@ -1198,9 +1409,7 @@ async def smart_sync_with_progress(
             callback_after_copy_file(src_file_path, dst_file_path)
 
     try:
-        src_root_path, src_iter = _get_sync_source(
-            src_path, followlinks=followlinks, on_entry=on_entry, on_done=on_done
-        )
+        src_root_path = _get_sync_root_path(src_path)
         dst_root_path = str(SmartPath(dst_path))
         src_protocol = SmartPath(src_root_path).filesystem.protocol
         dst_protocol = SmartPath(dst_root_path).filesystem.protocol
@@ -1209,13 +1418,44 @@ async def smart_sync_with_progress(
         dst_missing = not await smart_exists(dst_path)
         if dst_missing:
             force = True
+            use_fast_sync = False
+            dst_iter = None
+        elif force:
+            use_fast_sync = False
             dst_iter = None
         else:
-            dst_iter = _iter_sync_entries(dst_root_path, followlinks=followlinks)
+            use_fast_sync = _can_use_fast_sync(src_protocol, dst_protocol)
+            dst_iter = _iter_sync_entries(
+                dst_root_path,
+                followlinks=followlinks,
+                sort=use_fast_sync,
+            )
+
+        src_root_path, src_iter = _get_sync_source(
+            src_path,
+            followlinks=followlinks,
+            sort=use_fast_sync,
+            on_entry=on_entry,
+            on_done=on_done,
+        )
+
+        if use_fast_sync:
+            await _run_sync_fast(
+                src_iter,
+                dst_iter,
+                dst_root_path,
+                followlinks=followlinks,
+                callback=tqdm_callback,
+                callback_after_copy_file=tqdm_after_copy_file,
+                force=force,
+                overwrite=overwrite,
+                worker=worker,
+                sync_type=sync_type,
+            )
+            return
 
         await _run_sync(
             src_iter,
-            dst_iter,
             dst_root_path,
             followlinks=followlinks,
             callback=tqdm_callback,

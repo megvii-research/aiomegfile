@@ -206,11 +206,14 @@ class LocalFileSystem(BaseFileSystem):
     def scanfile(
         self,
         path,
+        sort: bool = False,
     ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """
         Iteratively traverse only files in given directory.
         Every iteration on generator yields FileEntry object.
 
+        :param path: Directory or file path to traverse.
+        :param sort: Whether to return entries in sorted order.
         :returns: Async context manager yielding an async iterator of FileEntry objects.
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
@@ -224,7 +227,7 @@ class LocalFileSystem(BaseFileSystem):
             return name.replace(os.path.sep, "/")
 
         async def _iter_dir(dir_path: str) -> T.AsyncIterator[FileEntry]:
-            """Yield FileEntry objects in sorted order under dir_path.
+            """Yield FileEntry objects under ``dir_path``.
 
             :param dir_path: Directory path to traverse.
             :return: Async iterator yielding FileEntry objects.
@@ -251,7 +254,8 @@ class LocalFileSystem(BaseFileSystem):
                     names.append(name)
                 entry_map[name] = (entry, is_symlink_dir)
 
-            names.sort(key=_normalize_sort)
+            if sort:
+                names.sort(key=_normalize_sort)
             for name in names:
                 is_dir_entry = name.endswith(os.path.sep)
                 raw_name = name[:-1] if is_dir_entry else name

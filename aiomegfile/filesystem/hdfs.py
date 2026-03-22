@@ -632,13 +632,19 @@ class HdfsFileSystem(BaseFileSystem):
 
         return AioScannableManager(aiterator())
 
-    def scanfile(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
+    def scanfile(
+        self,
+        path: str,
+        sort: bool = False,
+    ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Iteratively traverse only files under the given path.
 
         :param path: HDFS path without protocol.
+        :param sort: Compatibility flag for protocol-aligned scanfile APIs.
         :return: Async context manager yielding file entries.
         :rtype: typing.AsyncContextManager[typing.AsyncIterator[FileEntry]]
         """
+        _ = sort
         uri = self.build_uri(path)
 
         async def aiterator() -> T.AsyncIterator[FileEntry]:

@@ -5,8 +5,15 @@ import os
 import pytest
 from moto.server import ThreadedMotoServer
 
+import aiomegfile.smart as smart_module
 from aiomegfile.filesystem.s3 import S3FileSystem
-from aiomegfile.interfaces import FILE_SYSTEMS, Access, BaseFileSystem
+from aiomegfile.interfaces import (
+    FILE_SYSTEMS,
+    Access,
+    BaseFileSystem,
+    FileEntry,
+    StatResult,
+)
 from aiomegfile.smart import (
     smart_abspath,
     smart_access,
@@ -112,6 +119,77 @@ def filesystem_registry_snapshot():
     yield snapshot
     FILE_SYSTEMS.clear()
     FILE_SYSTEMS.update(snapshot)
+
+
+def _register_dummy_sync_filesystem(existing_paths: set[str]) -> None:
+    """Register a minimal filesystem for sync branch-selection tests.
+
+    :param existing_paths: Parsed paths that should be reported as existing.
+    """
+
+    class DummySyncFileSystem(BaseFileSystem):
+        """Minimal filesystem used to exercise sync path selection."""
+
+        protocol = "dummy"
+
+        def __init__(self, protocol_in_path: bool = True):
+            """Create a dummy filesystem instance.
+
+            :param protocol_in_path: Whether URIs keep their protocol prefix.
+            """
+            self.protocol_in_path = protocol_in_path
+
+        def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
+            """Return whether two filesystems share the same endpoint.
+
+            :param other_filesystem: Filesystem to compare against.
+            :return: False for all dummy filesystem comparisons.
+            :rtype: bool
+            """
+            return False
+
+        def parse_uri(self, uri: str) -> str:
+            """Parse a dummy URI into its path component.
+
+            :param uri: URI to parse.
+            :return: Parsed path.
+            :rtype: str
+            """
+            _, path, _ = split_uri(uri)
+            return path
+
+        def build_uri(self, path: str) -> str:
+            """Build a dummy URI from a path.
+
+            :param path: Path to wrap.
+            :return: Dummy URI or raw path.
+            :rtype: str
+            """
+            if not self.protocol_in_path:
+                return path
+            return super().build_uri(path)
+
+        @classmethod
+        def from_uri(cls, uri: str) -> "DummySyncFileSystem":
+            """Create a filesystem instance from a URI.
+
+            :param uri: URI used to infer protocol handling.
+            :return: Dummy filesystem instance.
+            :rtype: DummySyncFileSystem
+            """
+            return cls(protocol_in_path="dummy://" in str(uri))
+
+        async def exists(self, path: str, followlinks: bool = False) -> bool:
+            """Return whether the parsed path is marked as existing.
+
+            :param path: Parsed path to test.
+            :param followlinks: Unused compatibility flag.
+            :return: True when the path is present in ``existing_paths``.
+            :rtype: bool
+            """
+            return path in existing_paths
+
+    FILE_SYSTEMS["dummy"] = DummySyncFileSystem
 
 
 async def _create_bucket(filesystem: S3FileSystem) -> None:
@@ -345,6 +423,40 @@ async def test_smart_glob_stat_s3(s3_filesystem):
     assert {entry.name for entry in entries} == {"stat.txt"}
     assert any(entry.path.startswith("s3://") for entry in entries)
     assert {entry.stat.st_size for entry in entries} == {len(data)}
+
+
+async def test_smart_glob_stat_passes_sort_to_s3(monkeypatch):
+    """smart_glob_stat should forward the sort flag to S3 glob_stat."""
+    seen_sort: list[bool] = []
+
+    async def fake_glob_stat(
+        self,
+        path: str,
+        recursive: bool = True,
+        missing_ok: bool = True,
+        sort: bool = False,
+    ):
+        seen_sort.append(sort)
+        _ = recursive, missing_ok
+        yield FileEntry(
+            name="file.txt",
+            path="bucket/prefix/file.txt",
+            stat=StatResult(st_size=4, isdir=False),
+        )
+
+    monkeypatch.setattr(S3FileSystem, "glob_stat", fake_glob_stat)
+
+    default_entries = []
+    async for entry in smart_glob_stat("s3://bucket/prefix/*.txt"):
+        default_entries.append(entry)
+
+    sorted_entries = []
+    async for entry in smart_glob_stat("s3://bucket/prefix/*.txt", sort=True):
+        sorted_entries.append(entry)
+
+    assert seen_sort == [False, True]
+    assert [entry.path for entry in default_entries] == ["s3://bucket/prefix/file.txt"]
+    assert [entry.path for entry in sorted_entries] == ["s3://bucket/prefix/file.txt"]
 
 
 async def test_smart_save_as_and_load_text(tmp_path):
@@ -598,6 +710,57 @@ async def test_smart_sync_glob(tmp_path):
 
     assert (dst_dir / "a.txt").read_text() == "alpha"
     assert (dst_dir / "sub" / "b.txt").read_text() == "bravo"
+
+
+async def test_smart_sync_uses_fast_path_for_file_protocols(tmp_path, monkeypatch):
+    """smart_sync should use the fast path for local filesystems."""
+    src_file = tmp_path / "src.txt"
+    src_file.write_text("data")
+    dst_file = tmp_path / "dst.txt"
+
+    called: list[str] = []
+
+    async def fake_run_sync_fast(*args, **kwargs) -> None:
+        called.append("fast")
+
+    async def fake_run_sync(*args, **kwargs) -> None:
+        called.append("slow")
+
+    monkeypatch.setattr(smart_module, "_run_sync_fast", fake_run_sync_fast)
+    monkeypatch.setattr(smart_module, "_run_sync", fake_run_sync)
+
+    await smart_sync(src_file, dst_file)
+
+    assert called == ["slow"]
+
+    dst_file.write_text("data")
+
+    await smart_sync(src_file, dst_file)
+
+    assert called == ["slow", "fast"]
+
+
+async def test_smart_sync_uses_slow_path_for_other_protocols(
+    filesystem_registry_snapshot,
+    monkeypatch,
+):
+    """smart_sync should fall back to the megfile-style path for other protocols."""
+    _register_dummy_sync_filesystem({"src"})
+
+    called: list[str] = []
+
+    async def fake_run_sync_fast(*args, **kwargs) -> None:
+        called.append("fast")
+
+    async def fake_run_sync(*args, **kwargs) -> None:
+        called.append("slow")
+
+    monkeypatch.setattr(smart_module, "_run_sync_fast", fake_run_sync_fast)
+    monkeypatch.setattr(smart_module, "_run_sync", fake_run_sync)
+
+    await smart_sync("dummy://src", "dummy://dst")
+
+    assert called == ["slow"]
 
 
 async def test_smart_sync_with_progress(tmp_path):

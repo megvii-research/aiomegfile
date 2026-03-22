@@ -1420,13 +1420,16 @@ class SftpFileSystem(BaseFileSystem):
     def scanfile(
         self,
         path: str,
+        sort: bool = False,
     ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """Return async iterator over files recursively.
 
         :param path: Root path without protocol.
+        :param sort: Compatibility flag for protocol-aligned scanfile APIs.
         :return: Async context manager yielding file ``FileEntry`` values.
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
+        _ = sort
         uri = self.build_uri(path)
 
         async def _iter_files(

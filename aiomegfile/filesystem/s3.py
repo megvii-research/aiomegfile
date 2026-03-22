@@ -6,6 +6,7 @@ import os
 import re
 import typing as T
 import weakref
+from collections import deque
 
 import aiobotocore.session  # type: ignore
 import aiofiles
@@ -69,6 +70,177 @@ CALCULATE_MD5_FOR_OPERATIONS = {
 
 _S3_CLIENT_CACHE = weakref.WeakKeyDictionary()
 _S3_CLIENT_LOCKS = weakref.WeakKeyDictionary()
+
+
+async def _s3_fast_list_objects_recursive(
+    client: "S3Client",
+    bucket: str,
+    prefix: str,
+    *,
+    error_path: str,
+) -> T.AsyncIterator[T.Dict[str, T.Any]]:
+    """List S3 objects recursively with adaptive concurrent prefix traversal.
+
+    This implementation mirrors megfile's fast recursive listing strategy, but
+    uses asyncio tasks instead of thread pools.
+
+    :param client: S3 client used for requests.
+    :param bucket: Bucket name to list.
+    :param prefix: Prefix to list recursively.
+    :param error_path: Path used for S3 error translation.
+    :return: Async iterator of ``list_objects_v2`` responses.
+    :rtype: T.AsyncIterator[T.Dict[str, T.Any]]
+    """
+
+    async def _list_objects_v2(**kwargs: T.Any) -> T.Dict[str, T.Any]:
+        """Call ``list_objects_v2`` with translated S3 errors.
+
+        :param kwargs: Keyword arguments for ``list_objects_v2``.
+        :return: Raw S3 response.
+        :rtype: T.Dict[str, T.Any]
+        """
+        with raise_s3_error(error_path):
+            return await client.list_objects_v2(**kwargs)  # pyre-ignore[6,7]
+
+    async def _list_remaining_with_continuation(
+        first_resp: T.Dict[str, T.Any],
+        prefix_to_list: str,
+    ) -> T.List[T.Dict[str, T.Any]]:
+        """Continue serial listing from the first paginated response.
+
+        :param first_resp: Initial response for the prefix.
+        :param prefix_to_list: Prefix being listed.
+        :return: List of paginated responses.
+        :rtype: T.List[T.Dict[str, T.Any]]
+        """
+        results = [first_resp]
+        continuation_token = first_resp.get("NextContinuationToken")
+        while continuation_token:
+            resp = await _list_objects_v2(
+                Bucket=bucket,
+                Prefix=prefix_to_list,
+                ContinuationToken=continuation_token,
+                MaxKeys=MAX_KEYS,
+            )
+            results.append(resp)
+            if not resp.get("IsTruncated", False):
+                break
+            continuation_token = resp.get("NextContinuationToken")
+        return results
+
+    async def _get_all_subdirs(
+        prefix_to_list: str,
+    ) -> T.Tuple[T.List[T.Dict[str, T.Any]], T.List[str]]:
+        """Return top-level file responses and immediate subdirectories.
+
+        :param prefix_to_list: Prefix being listed.
+        :return: Tuple of top-level responses and subdirectory prefixes.
+        :rtype: T.Tuple[T.List[T.Dict[str, T.Any]], T.List[str]]
+        """
+        subdir_prefixes: set[str] = set()
+        top_level_responses: T.List[T.Dict[str, T.Any]] = []
+
+        delimiter_resp = await _list_objects_v2(
+            Bucket=bucket,
+            Prefix=prefix_to_list,
+            Delimiter="/",
+            MaxKeys=MAX_KEYS,
+        )
+        if delimiter_resp.get("Contents"):
+            top_level_responses.append(delimiter_resp)
+        for common_prefix in delimiter_resp.get("CommonPrefixes", []):
+            subdir_prefixes.add(common_prefix["Prefix"])
+
+        while delimiter_resp.get("IsTruncated", False):
+            delimiter_resp = await _list_objects_v2(
+                Bucket=bucket,
+                Prefix=prefix_to_list,
+                Delimiter="/",
+                ContinuationToken=delimiter_resp["NextContinuationToken"],
+                MaxKeys=MAX_KEYS,
+            )
+            if delimiter_resp.get("Contents"):
+                top_level_responses.append(delimiter_resp)
+            for common_prefix in delimiter_resp.get("CommonPrefixes", []):
+                subdir_prefixes.add(common_prefix["Prefix"])
+
+        return top_level_responses, list(subdir_prefixes)
+
+    async def _analyze_and_list_prefix(
+        prefix_to_list: str,
+    ) -> T.Tuple[T.List[T.Dict[str, T.Any]], T.List[str]]:
+        """Analyze one prefix and choose serial or concurrent traversal.
+
+        :param prefix_to_list: Prefix to analyze.
+        :return: Tuple of responses to yield immediately and subdirs to process.
+        :rtype: T.Tuple[T.List[T.Dict[str, T.Any]], T.List[str]]
+        """
+        first_resp = await _list_objects_v2(
+            Bucket=bucket,
+            Prefix=prefix_to_list,
+            MaxKeys=MAX_KEYS,
+        )
+        if not first_resp.get("IsTruncated", False):
+            return [first_resp], []
+
+        contents = first_resp.get("Contents", [])
+        subdirs_in_first_batch: set[str] = set()
+        for content in contents:
+            relative_path = content["Key"][len(prefix_to_list) :]
+            if "/" in relative_path:
+                first_subdir = relative_path.split("/")[0]
+                subdirs_in_first_batch.add(prefix_to_list + first_subdir + "/")
+
+        if len(subdirs_in_first_batch) == 0 or len(subdirs_in_first_batch) >= 2:
+            return (
+                await _list_remaining_with_continuation(first_resp, prefix_to_list),
+                [],
+            )
+
+        top_level_responses, subdir_prefixes = await _get_all_subdirs(prefix_to_list)
+        if len(subdir_prefixes) <= 1:
+            return (
+                await _list_remaining_with_continuation(first_resp, prefix_to_list),
+                [],
+            )
+        return top_level_responses, subdir_prefixes
+
+    initial_results, initial_subdirs = await _analyze_and_list_prefix(prefix)
+    for response in initial_results:
+        yield response
+
+    if not initial_subdirs:
+        return
+
+    pending_subdirs: deque[str] = deque(initial_subdirs)
+    max_workers = min(len(initial_subdirs), max(GLOBAL_MAX_WORKERS, 1))
+    active_tasks: dict[asyncio.Task[T.Any], str] = {}
+
+    def _submit_pending() -> None:
+        """Submit pending prefixes until the worker limit is reached."""
+        while pending_subdirs and len(active_tasks) < max_workers:
+            subdir = pending_subdirs.popleft()
+            active_tasks[asyncio.create_task(_analyze_and_list_prefix(subdir))] = subdir
+
+    _submit_pending()
+    try:
+        while active_tasks:
+            done, _ = await asyncio.wait(
+                active_tasks,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in done:
+                active_tasks.pop(task)
+                results, new_subdirs = await task
+                for response in results:
+                    yield response
+                pending_subdirs.extend(new_subdirs)
+                _submit_pending()
+    finally:
+        if active_tasks:
+            for task in active_tasks:
+                task.cancel()
+            await asyncio.gather(*active_tasks, return_exceptions=True)
 
 
 def is_s3(path: PathLike) -> bool:
@@ -695,11 +867,32 @@ class S3FileSystem(BaseFileSystem):
         bucket: str,
         prefix: str,
         delimiter: str = "",
-    ):
-        """List objects recursively."""
-        client = await self._get_client()
+        *,
+        sort: bool = False,
+    ) -> T.AsyncIterator[T.Dict[str, T.Any]]:
+        """List objects recursively.
 
-        with raise_s3_error(self.build_uri(f"{bucket}/{prefix}")):
+        :param bucket: Bucket name to list.
+        :param prefix: Prefix to list.
+        :param delimiter: Optional delimiter for non-recursive listing.
+        :param sort: Whether to preserve S3's lexicographic listing order.
+        :return: Async iterator of raw S3 responses.
+        :rtype: T.AsyncIterator[T.Dict[str, T.Any]]
+        """
+        client = await self._get_client()
+        error_path = self.build_uri(f"{bucket}/{prefix}")
+
+        if not sort and delimiter == "":
+            async for resp in _s3_fast_list_objects_recursive(
+                client,
+                bucket,
+                prefix,
+                error_path=error_path,
+            ):
+                yield resp
+            return
+
+        with raise_s3_error(error_path):
             resp = await client.list_objects_v2(
                 Bucket=bucket, Prefix=prefix, Delimiter=delimiter, MaxKeys=MAX_KEYS
             )
@@ -718,12 +911,12 @@ class S3FileSystem(BaseFileSystem):
                         )
                     )
 
-                yield resp
+                yield resp  # pyre-ignore[7]
 
                 if not next_resp:
                     break
 
-                with raise_s3_error(self.build_uri(f"{bucket}/{prefix}")):
+                with raise_s3_error(error_path):
                     resp = await next_resp
                 next_resp = None
         finally:
@@ -904,11 +1097,14 @@ class S3FileSystem(BaseFileSystem):
     def scanfile(
         self,
         path,
+        sort: bool = False,
     ) -> T.AsyncContextManager[T.AsyncIterator[FileEntry]]:
         """
         Iteratively traverse only files in given directory.
         Every iteration on generator yields FileEntry object.
 
+        :param path: Directory or file path to traverse.
+        :param sort: Whether to preserve lexicographic listing order.
         :returns: Async context manager yielding an async iterator of FileEntry objects.
         :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]
         """
@@ -929,7 +1125,11 @@ class S3FileSystem(BaseFileSystem):
 
             prefix = _become_prefix(key)
 
-            async for resp in self._list_objects_recursive(bucket, prefix):
+            async for resp in self._list_objects_recursive(
+                bucket,
+                prefix,
+                sort=sort,
+            ):
                 contents = resp.get("Contents", [])
                 if not contents:
                     continue
@@ -1043,12 +1243,14 @@ class S3FileSystem(BaseFileSystem):
         s3_pathname: str,
         recursive: bool = True,
         followlinks: bool = False,
+        sort: bool = False,
     ) -> T.AsyncIterator[FileEntry]:
         """Yield FileEntry objects matching a single glob pattern.
 
         :param s3_pathname: S3 path without protocol.
         :param recursive: If False, ``**`` will not search directory recursively.
         :param followlinks: Whether to follow symbolic links.
+        :param sort: Whether to preserve lexicographic listing order.
         :return: Async iterator of FileEntry objects.
         """
         s3_pathname = fspath(s3_pathname)
@@ -1088,7 +1290,10 @@ class S3FileSystem(BaseFileSystem):
         pattern = re.compile(translate(s3_pathname))
         bucket, prefix = parse_s3_path(top_prefix)
 
-        active_dirs: T.List[str] = []
+        if sort:
+            active_dirs: T.List[str] = []
+        else:
+            active_dirs: set[str] = set()
 
         def collect_dir_chain(path: str) -> T.List[str]:
             """Collect directory chain from top_dir to leaf.
@@ -1104,17 +1309,16 @@ class S3FileSystem(BaseFileSystem):
                 if parent == dirname:
                     break
                 dirname = parent
-            chain.reverse()
             return chain
 
-        def iter_new_dir_entries(path: str) -> T.Iterator[FileEntry]:
+        def _iter_new_dir_entries(path: str) -> T.Iterator[FileEntry]:
             """Yield new directory entries based on current path.
 
             :param path: Path used to determine new directories.
             :return: Iterator of FileEntry for newly discovered directories.
             """
             nonlocal active_dirs
-            current_dirs = collect_dir_chain(path)
+            current_dirs = collect_dir_chain(path)[::-1]
             common_length = 0
             for left_dir, right_dir in zip(active_dirs, current_dirs):
                 if left_dir != right_dir:
@@ -1130,7 +1334,36 @@ class S3FileSystem(BaseFileSystem):
                     )
             active_dirs = current_dirs
 
-        async for resp in self._list_objects_recursive(bucket, prefix, delimiter):
+        def _iter_new_dir_entries_fast(path: str) -> T.Iterator[FileEntry]:
+            """Yield new directory entries based on current path.
+
+            :param path: Path used to determine new directories.
+            :return: Iterator of FileEntry for newly discovered directories.
+            """
+            current_dirs = collect_dir_chain(path)
+            for dirname in current_dirs:
+                if dirname in active_dirs:
+                    break
+                active_dirs.add(dirname)  # type: ignore
+                match_path = dirname + "/" if search_dir else dirname
+                if pattern.match(match_path):
+                    yield FileEntry(
+                        _s3_entry_name(match_path),
+                        match_path,
+                        StatResult(isdir=True),
+                    )
+
+        if sort:
+            iter_new_dir_entries = _iter_new_dir_entries
+        else:
+            iter_new_dir_entries = _iter_new_dir_entries_fast
+
+        async for resp in self._list_objects_recursive(
+            bucket,
+            prefix,
+            delimiter,
+            sort=sort,
+        ):
             for content in resp.get("Contents", []):
                 obj_key = content["Key"]
                 path = f"{bucket}/{obj_key}"
@@ -1161,12 +1394,14 @@ class S3FileSystem(BaseFileSystem):
         path: str,
         recursive: bool = True,
         missing_ok: bool = True,
+        sort: bool = False,
     ) -> T.AsyncIterator[FileEntry]:
         """Return entries whose paths match the glob pattern.
 
         :param path: S3 glob pattern without protocol.
         :param recursive: If False, ``**`` will not search directory recursively.
         :param missing_ok: If False and no matches exist, raise FileNotFoundError.
+        :param sort: Whether to preserve lexicographic listing order.
         :return: Async iterator of FileEntry objects.
         :raises S3FileNotFoundError: If no matches and missing_ok is False.
         """
@@ -1177,55 +1412,66 @@ class S3FileSystem(BaseFileSystem):
 
         matched = False
         if grouped_paths:
-            max_workers = max(GLOBAL_MAX_WORKERS, 1)
-            semaphore = asyncio.Semaphore(max_workers)
-            done_sentinel = object()
-            result_queue: asyncio.Queue[object] = asyncio.Queue()
-
-            async def _run_group(group_path_prefix: str) -> None:
-                """Run glob_stat for a grouped prefix and enqueue results.
-
-                :param group_path_prefix: Grouped path prefix to scan.
-                """
-                async with semaphore:
+            if sort:
+                for group_path_prefix in sorted(grouped_paths):
                     async for file_entry in self._glob_stat_single_path(
                         group_path_prefix,
                         recursive=recursive,
+                        sort=True,
                     ):
-                        await result_queue.put(file_entry)
+                        matched = True
+                        yield file_entry
+            else:
+                max_workers = max(GLOBAL_MAX_WORKERS, 1)
+                semaphore = asyncio.Semaphore(max_workers)
+                done_sentinel = object()
+                result_queue: asyncio.Queue[object] = asyncio.Queue()
 
-            tasks = [
-                asyncio.create_task(_run_group(group_path_prefix))
-                for group_path_prefix in grouped_paths
-            ]
+                async def _run_group(group_path_prefix: str) -> None:
+                    """Run glob_stat for a grouped prefix and enqueue results.
 
-            async def _finish_groups() -> T.Tuple[object, ...]:
-                """Wait for group tasks and signal completion.
+                    :param group_path_prefix: Grouped path prefix to scan.
+                    """
+                    async with semaphore:
+                        async for file_entry in self._glob_stat_single_path(
+                            group_path_prefix,
+                            recursive=recursive,
+                            sort=False,
+                        ):
+                            await result_queue.put(file_entry)
 
-                :return: Tuple of task results or exceptions.
-                """
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                await result_queue.put(done_sentinel)
-                return results
+                tasks = [
+                    asyncio.create_task(_run_group(group_path_prefix))
+                    for group_path_prefix in grouped_paths
+                ]
 
-            finisher = asyncio.create_task(_finish_groups())
-            try:
-                while True:
-                    item = await result_queue.get()
-                    if item is done_sentinel:
-                        break
-                    matched = True
-                    yield T.cast(FileEntry, item)
-            finally:
-                if not finisher.done():
-                    for task in tasks:
-                        task.cancel()
-                task_results = await finisher
-                for result in task_results:
-                    if isinstance(result, Exception) and not isinstance(
-                        result, asyncio.CancelledError
-                    ):
-                        raise result
+                async def _finish_groups() -> T.Tuple[object, ...]:
+                    """Wait for group tasks and signal completion.
+
+                    :return: Tuple of task results or exceptions.
+                    """
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    await result_queue.put(done_sentinel)
+                    return results
+
+                finisher = asyncio.create_task(_finish_groups())
+                try:
+                    while True:
+                        item = await result_queue.get()
+                        if item is done_sentinel:
+                            break
+                        matched = True
+                        yield T.cast(FileEntry, item)
+                finally:
+                    if not finisher.done():
+                        for task in tasks:
+                            task.cancel()
+                    task_results = await finisher
+                    for result in task_results:
+                        if isinstance(result, Exception) and not isinstance(
+                            result, asyncio.CancelledError
+                        ):
+                            raise result
 
         if not matched and not missing_ok:
             raise S3FileNotFoundError(

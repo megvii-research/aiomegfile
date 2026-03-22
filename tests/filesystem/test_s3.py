@@ -4,6 +4,7 @@ import io
 import pytest
 from moto.server import ThreadedMotoServer
 
+import aiomegfile.filesystem.s3 as s3_module
 from aiomegfile.errors import (
     S3BucketNotFoundError,
     S3FileExistsError,
@@ -346,6 +347,71 @@ class TestS3FileSystem:
         assert entry.name == filename
         assert entry.path == f"{_bucket_name}/{filename}"
         assert entry.stat.isdir is False
+
+    async def test_scanfile_sort_false_uses_fast_list(self, filesystem, monkeypatch):
+        """Test scanfile defaults to the fast recursive S3 listing path."""
+        await self._create_bucket(filesystem)
+
+        prefix = "scanfile_fast_default"
+        await self._put_object(filesystem, f"{prefix}/a.txt", b"a")
+        await self._put_object(filesystem, f"{prefix}/nested/b.txt", b"b")
+
+        called = False
+
+        async def fake_fast_list(
+            client, bucket: str, key_prefix: str, *, error_path: str
+        ):
+            nonlocal called
+            called = True
+            _ = error_path
+            yield await client.list_objects_v2(
+                Bucket=bucket,
+                Prefix=key_prefix,
+                MaxKeys=s3_module.MAX_KEYS,
+            )
+
+        monkeypatch.setattr(
+            s3_module, "_s3_fast_list_objects_recursive", fake_fast_list
+        )
+
+        entries = []
+        async with filesystem.scanfile(f"{_bucket_name}/{prefix}") as scanner:
+            async for entry in scanner:
+                entries.append(entry)
+
+        assert called is True
+        assert sorted(entry.path for entry in entries) == [
+            f"{_bucket_name}/{prefix}/a.txt",
+            f"{_bucket_name}/{prefix}/nested/b.txt",
+        ]
+
+    async def test_scanfile_sort_true_skips_fast_list(self, filesystem, monkeypatch):
+        """Test scanfile(sort=True) keeps the ordered listing path."""
+        await self._create_bucket(filesystem)
+
+        prefix = "scanfile_sorted"
+        await self._put_object(filesystem, f"{prefix}/a.txt", b"a")
+        await self._put_object(filesystem, f"{prefix}/nested/b.txt", b"b")
+
+        async def fail_fast_list(*args, **kwargs):
+            raise AssertionError("fast list should not be used when sort=True")
+            yield
+
+        monkeypatch.setattr(
+            s3_module, "_s3_fast_list_objects_recursive", fail_fast_list
+        )
+
+        entries = []
+        async with filesystem.scanfile(
+            f"{_bucket_name}/{prefix}", sort=True
+        ) as scanner:
+            async for entry in scanner:
+                entries.append(entry)
+
+        assert sorted(entry.path for entry in entries) == [
+            f"{_bucket_name}/{prefix}/a.txt",
+            f"{_bucket_name}/{prefix}/nested/b.txt",
+        ]
 
     async def test_glob_stat_non_recursive(self, filesystem):
         """Test glob_stat matches non-recursive patterns."""

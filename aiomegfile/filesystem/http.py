@@ -659,14 +659,20 @@ class HttpFileSystem(BaseFileSystem):
         """
         raise NotADirectoryError(f"Not a directory: {self.build_uri(path)}")
 
-    def scanfile(self, path: str) -> T.AsyncContextManager[T.AsyncIterator[T.Any]]:
+    def scanfile(
+        self,
+        path: str,
+        sort: bool = False,
+    ) -> T.AsyncContextManager[T.AsyncIterator[T.Any]]:
         """Scan files under a path.
 
         HTTP protocol does not support directory traversal.
 
         :param path: Target path without protocol.
+        :param sort: Compatibility flag for protocol-aligned scanfile APIs.
         :raises NotADirectoryError: Always raised for HTTP resources.
         """
+        _ = sort
         raise NotADirectoryError(f"Not a directory: {self.build_uri(path)}")
 
     def same_endpoint(self, other_filesystem: BaseFileSystem) -> bool:
