@@ -778,7 +778,7 @@ def _wrap_async_result(result, run_awaitable=None):
     ):
         return result
     if _is_aio_smart_path(result):
-        return _SyncSmartPath._from_aio_path(result)
+        return _SyncSmartPath._from_aio_path(result)  # pytype: disable=wrong-arg-types
     if hasattr(result, "__class__") and result.__class__.__name__ == "URIPathParents":
         return _SyncPathParents(result)
     wrapped_sequence = _wrap_sequence_values(result)
