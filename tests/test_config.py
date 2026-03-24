@@ -93,8 +93,8 @@ def test_config_uses_megfile_environment_overrides(monkeypatch):
     assert module.DEFAULT_WRITER_BLOCK_AUTOSCALE is False
 
 
-def test_config_accepts_legacy_aiomegfile_environment_overrides(monkeypatch):
-    """Config module should accept legacy ``AIOMEGFILE_*`` overrides.
+def test_config_uses_megfile_retry_overrides_without_global_override(monkeypatch):
+    """Protocol retry limits should work without overriding the global default.
 
     :param monkeypatch: Pytest monkeypatch fixture.
     :return: None
@@ -116,8 +116,8 @@ def test_config_accepts_legacy_aiomegfile_environment_overrides(monkeypatch):
     assert module.WEBDAV_MAX_RETRY_TIMES == 17
 
 
-def test_config_prefers_megfile_names_over_legacy_names(monkeypatch):
-    """New ``MEGFILE_*`` names should override legacy names.
+def test_config_defaults_apply_when_retry_overrides_are_absent(monkeypatch):
+    """Protocol retry limits should fall back to the global retry default.
 
     :param monkeypatch: Pytest monkeypatch fixture.
     :return: None
@@ -127,12 +127,15 @@ def test_config_prefers_megfile_names_over_legacy_names(monkeypatch):
         monkeypatch,
         {
             "MEGFILE_MAX_RETRY_TIMES": "3",
-            "MEGFILE_HTTP_MAX_RETRY_TIMES": "5",
         },
     )
 
     assert module.DEFAULT_MAX_RETRY_TIMES == 3
-    assert module.HTTP_MAX_RETRY_TIMES == 5
+    assert module.S3_MAX_RETRY_TIMES == 3
+    assert module.HDFS_MAX_RETRY_TIMES == 3
+    assert module.HTTP_MAX_RETRY_TIMES == 3
+    assert module.SFTP_MAX_RETRY_TIMES == 3
+    assert module.WEBDAV_MAX_RETRY_TIMES == 3
 
 
 def test_config_autoscale_true_without_writer_block_size(monkeypatch):
