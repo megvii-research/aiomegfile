@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
+import sys
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -186,3 +190,41 @@ def test_config_reader_block_size_negative_raises(monkeypatch):
                 "MEGFILE_READER_BLOCK_SIZE": "-1",
             },
         )
+
+
+def test_config_file_env_applies_before_constants_on_package_import() -> None:
+    """Config file ``[env]`` values should affect exported constants on import.
+
+    :return: None
+    :rtype: None
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        home_path = Path(temp_dir)
+        config_path = home_path / ".config" / "megfile" / "megfile.conf"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(
+            "[env]\nMEGFILE_MAX_WORKERS = 16\nMEGFILE_MAX_RETRY_TIMES = 5\n",
+            encoding="utf-8",
+        )
+
+        env = os.environ.copy()
+        env["HOME"] = temp_dir
+        env.pop("MEGFILE_MAX_WORKERS", None)
+        env.pop("MEGFILE_MAX_RETRY_TIMES", None)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import aiomegfile.config as c; "
+                    "print(c.GLOBAL_MAX_WORKERS, c.DEFAULT_MAX_RETRY_TIMES)"
+                ),
+            ],
+            capture_output=True,
+            check=True,
+            env=env,
+            text=True,
+        )
+
+        assert result.stdout.strip() == "16 5"

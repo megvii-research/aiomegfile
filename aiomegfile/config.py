@@ -12,6 +12,52 @@ DEFAULT_CONFIG_PATH = "~/.config/megfile/megfile.conf"
 CONFIG_PATH = DEFAULT_CONFIG_PATH
 
 
+class CaseSensitiveConfigParser(configparser.ConfigParser):
+    """Config parser that preserves key case."""
+
+    def optionxform(self, optionstr: str) -> str:
+        """Return config option string unchanged.
+
+        :param optionstr: Config option string.
+        :return: Original option string.
+        :rtype: str
+        """
+        return optionstr
+
+
+def load_aiomegfile_config(section: str) -> T.Dict[str, str]:
+    """Load one section from the main megfile config file.
+
+    :param section: Config section name.
+    :return: Mapping of option names to values.
+    :rtype: T.Dict[str, str]
+    """
+    path = os.path.expanduser(CONFIG_PATH)
+    if not os.path.isfile(path):
+        return {}
+    config = CaseSensitiveConfigParser()
+    if os.path.exists(path):
+        config.read(path)
+    if not config.has_section(section):
+        return {}
+    return dict(config.items(section))
+
+
+def _load_env_defaults_from_config() -> None:
+    """Load ``[env]`` config entries into process environment defaults.
+
+    Values already present in ``os.environ`` keep priority over config file
+    values.
+
+    :return: None
+    :rtype: None
+    """
+    for key, value in load_aiomegfile_config("env").items():
+        os.environ.setdefault(key.upper(), value)
+
+
+_load_env_defaults_from_config()
+
 DEFAULT_MAX_RETRY_TIMES = int(os.getenv("MEGFILE_MAX_RETRY_TIMES", default="10") or 10)
 GLOBAL_MAX_WORKERS = int(os.getenv("MEGFILE_MAX_WORKERS", default="8") or 8)
 
@@ -69,38 +115,3 @@ WEBDAV_MAX_RETRY_TIMES = int(
 
 DEFAULT_COPY_BUFFER_SIZE = 16 * 1024  # 16KB, same as shutil.copyfileobj
 DEFAULT_HASH_BUFFER_SIZE = 4 * 1024  # 4KB for hash calculations
-
-
-class CaseSensitiveConfigParser(configparser.ConfigParser):
-    """Config parser that preserves key case."""
-
-    def optionxform(self, optionstr: str) -> str:
-        """Return config option string unchanged.
-
-        :param optionstr: Config option string.
-        :return: Original option string.
-        :rtype: str
-        """
-        return optionstr
-
-
-def load_aiomegfile_config(section: str) -> T.Dict[str, str]:
-    """Load one section from the main megfile config file.
-
-    :param section: Config section name.
-    :return: Mapping of option names to values.
-    :rtype: T.Dict[str, str]
-    """
-    path = os.path.expanduser(CONFIG_PATH)
-    if not os.path.isfile(path):
-        return {}
-    config = CaseSensitiveConfigParser()
-    if os.path.exists(path):
-        config.read(path)
-    if not config.has_section(section):
-        return {}
-    return dict(config.items(section))
-
-
-for key, value in load_aiomegfile_config("env").items():
-    os.environ.setdefault(key.upper(), value)
