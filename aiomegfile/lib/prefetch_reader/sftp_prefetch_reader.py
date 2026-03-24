@@ -2,9 +2,9 @@ import typing as T
 from io import BytesIO
 
 from aiomegfile.config import (
-    DEFAULT_MAX_RETRY_TIMES,
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
+    SFTP_MAX_RETRY_TIMES,
 )
 from aiomegfile.errors.sftp import translate_sftp_error
 from aiomegfile.lib.prefetch_reader.base_prefetch_reader import AioBasePrefetchReader
@@ -44,7 +44,7 @@ class AioSftpPrefetchReader(AioBasePrefetchReader):
         block_size: int = READER_BLOCK_SIZE,
         max_buffer_size: int = READER_MAX_BUFFER_SIZE,
         block_forward: T.Optional[int] = None,
-        max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+        max_retries: int = SFTP_MAX_RETRY_TIMES,
     ) -> None:
         """Initialize the SFTP prefetch reader.
 

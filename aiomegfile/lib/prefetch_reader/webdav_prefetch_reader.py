@@ -6,9 +6,9 @@ import typing as T
 from io import BytesIO
 
 from aiomegfile.config import (
-    DEFAULT_MAX_RETRY_TIMES,
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
+    WEBDAV_MAX_RETRY_TIMES,
 )
 from aiomegfile.errors.webdav import (
     _ensure_aiodav,
@@ -68,7 +68,7 @@ class AioWebdavPrefetchReader(AioBasePrefetchReader):
         block_size: int = READER_BLOCK_SIZE,
         max_buffer_size: int = READER_MAX_BUFFER_SIZE,
         block_forward: T.Optional[int] = None,
-        max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+        max_retries: int = WEBDAV_MAX_RETRY_TIMES,
     ) -> None:
         """Initialize the WebDAV prefetch reader.
 

@@ -15,9 +15,9 @@ from dataclasses import dataclass
 import asyncssh
 
 from aiomegfile.config import (
-    DEFAULT_MAX_RETRY_TIMES,
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
+    SFTP_MAX_RETRY_TIMES,
 )
 from aiomegfile.errors.sftp import sftp_retry, translate_sftp_error
 from aiomegfile.interfaces import (
@@ -267,7 +267,7 @@ def _get_keepalive_interval():
 async def _get_sftp_client(
     endpoint: _SftpEndpoint,
     *,
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    max_retries: int = SFTP_MAX_RETRY_TIMES,
 ) -> T.Tuple[T.Any, T.Any]:
     """Create a new SFTP client pair for the given endpoint.
 
@@ -1370,7 +1370,7 @@ class SftpFileSystem(BaseFileSystem):
                 max_retries=(
                     int(max_retries)
                     if max_retries is not None
-                    else DEFAULT_MAX_RETRY_TIMES
+                    else SFTP_MAX_RETRY_TIMES
                 ),
             )
 
