@@ -8,128 +8,185 @@ aiomegfile - Asyncio implementation of megfile
 [![Support python versions](https://img.shields.io/pypi/pyversions/aiomegfile.svg)](https://pypi.org/project/aiomegfile/)
 [![License](https://img.shields.io/pypi/l/aiomegfile.svg)](https://github.com/megvii-research/aiomegfile/blob/main/LICENSE)
 
-* Docs: http://megvii-research.github.io/aiomegfile
+* Docs: https://megvii-research.github.io/aiomegfile
 
-`aiomegfile` is asyncio implementation of `megfile`.
+`aiomegfile` brings the `megfile` programming model to asyncio applications.
+It provides:
 
-## Support Protocols
-- fs(local filesystem)
-- s3
+- Async smart functions such as `smart_open`, `smart_copy`, and `smart_sync`
+- An async `SmartPath` abstraction with a `pathlib`-style interface
+- A CLI named `amf` for listing, copying, syncing, streaming, and inspecting files
 
-Support more in the future.
+The public API mirrors `megfile` where possible, but operations are async-first.
+
+## Supported Protocols
+
+Current backends in this repository include:
+
+- Local filesystem with plain paths or `file://`
+- `s3://`
+- `http://` and `https://` for async read-oriented access
+- `sftp://`
+- `stdio://` for stdin/stdout/stderr bridging
+- `hdfs://` with the `hdfs` extra
+- `webdav://` and `webdavs://` with the `webdav` extra
 
 ## Installation
 
+Install the core package:
+
 ```bash
-pip3 install aiomegfile
+pip install aiomegfile
+```
+
+Install optional extras when you need them:
+
+```bash
+pip install "aiomegfile[cli]"
+pip install "aiomegfile[hdfs]"
+pip install "aiomegfile[webdav]"
 ```
 
 ## Quick Start
 
-Smart methods and `SmartPath` are the same as `megfile`, but all methods are async. You can use `aiomegfile` to do file operations in an async way.
-
-### Functional Interface Example
+### Functional API
 
 ```python
 import asyncio
-from aiomegfile import smart_open
 
-async def main():
-    async with smart_open('s3://bucket/key', 'r') as f:
-        content = await f.read()
-        print(content)
+from aiomegfile import smart_exists, smart_open
 
-if __name__ == '__main__':
+
+async def main() -> None:
+    async with smart_open("/tmp/aiomegfile-demo.txt", "w") as writer:
+        await writer.write("hello from aiomegfile\n")
+
+    async with smart_open("/tmp/aiomegfile-demo.txt", "r") as reader:
+        content = await reader.read()
+
+    print(content.strip())
+    print(await smart_exists("/tmp/aiomegfile-demo.txt"))
+
+
+if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### SmartPath Interface
-
-`SmartPath` has a similar interface with `pathlib.Path`, but async.
+### `SmartPath`
 
 ```python
 import asyncio
+
 from aiomegfile import SmartPath
 
-async def main():
-    path = SmartPath('s3://bucket/key')
-    content = await path.read_text()
-    print(content)
 
-if __name__ == '__main__':
+async def main() -> None:
+    root = SmartPath("s3://example-bucket/demo")
+    file_path = root / "message.txt"
+
+    await file_path.write_text("hello from SmartPath\n")
+    print(await file_path.read_text())
+
+    async for child in root.iterdir():
+        print(await child.as_uri())
+
+
+if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Quick Start
-
-Smart methods and `SmartPath` are the same as `megfile`, but all methods are async. You can use `aiomegfile` to do file operations in an async way.
-
-### Functional Interface Example
+### Syncing Data
 
 ```python
 import asyncio
-from aiomegfile import smart_open
 
-async def main():
-    async with smart_open('s3://bucket/key', 'r') as f:
-        content = await f.read()
-        print(content)
+from aiomegfile import smart_sync
 
-if __name__ == '__main__':
-    asyncio.run(main())
-```
 
-### SmartPath Interface
+async def main() -> None:
+    await smart_sync("./data", "s3://example-bucket/backup")
 
-`SmartPath` has a similar interface with `pathlib.Path`, but async.
 
-```python
-import asyncio
-from aiomegfile import SmartPath
-
-async def main():
-    path = SmartPath('s3://bucket/key')
-    content = await path.read_text()
-    print(content)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
 ```
 
 ## CLI
 
-Install the CLI extras:
+Install the CLI extra first:
 
 ```bash
-pip3 install "aiomegfile[cli]"
+pip install "aiomegfile[cli]"
 ```
 
-Example usage:
+Common commands:
 
 ```bash
 amf ls ./data
-amf ls s3://bucket/prefix -l
-amf cp -r ./data s3://bucket/backup
-amf sync ./data s3://bucket/backup --progress-bar
+amf ls s3://my-bucket/prefix -l
+amf cp -r ./data s3://my-bucket/archive
+amf sync ./data s3://my-bucket/archive --progress-bar
+amf cat https://example.com/data.txt
+printf 'payload' | amf to s3://my-bucket/stdin-demo.txt
 ```
 
-For a wider protocol matrix and advanced configuration, see the `megfile` docs:
-http://megvii-research.github.io/megfile
+Shell completion can be enabled with:
+
+```bash
+amf completion bash
+amf completion zsh
+amf completion fish
+```
+
+## Configuration
+
+Runtime configuration is loaded from `~/.config/megfile/megfile.conf`.
+The file supports at least two useful sections:
+
+- `[env]` for environment variables loaded during import
+- `[alias]` for custom protocol aliases
+
+Example:
+
+```ini
+[env]
+AIOMEGFILE_MAX_WORKERS = 16
+AIOMEGFILE_READER_BLOCK_SIZE = 16MB
+
+[alias]
+datasets = s3://company-datasets/
+public = https://static.example.com/
+```
+
+With the alias above, `datasets://images/cat.jpg` resolves to
+`s3://company-datasets/images/cat.jpg`.
+
+The CLI also provides helpers for common configuration tasks:
+
+```bash
+amf config s3 <access_key> <secret_key> --profile-name default
+amf config hdfs http://namenode:9870 --profile-name prod
+amf config alias datasets s3://company-datasets/
+amf config env AIOMEGFILE_MAX_WORKERS=16
+```
+
+## Documentation
+
+The full documentation site includes installation notes, protocol details, CLI
+reference, and API reference:
+
+https://megvii-research.github.io/aiomegfile
 
 ## How to Contribute
-* We welcome everyone to contribute code to the `aiomegfile` project, but the contributed code needs to meet the following conditions as much as possible:
-    *You can submit code even if the code doesn't meet conditions. The project members will evaluate and assist you in making code changes*
 
-    * **Code format**: Your code needs to pass **code format check**. `aiomegfile` uses `ruff` as lint tool
-    * **Static check**: Your code needs complete **type hint**. `aiomegfile` uses `pytype` as static check tool. If `pytype` failed in static check, use `# pytype: disable=XXX` to disable the error and please tell us why you disable it.
-    * **Test**: Your code needs complete **unit test** coverage. `aiomegfile` uses `pyfakefs` and `moto` as local file system and s3 virtual environment in unit tests. The newly added code should have a complete unit test to ensure the correctness
+We welcome contributions in code, tests, and documentation.
 
-* You can help to improve `aiomegfile` in many ways:
-    * Write code.
-    * Improve [documentation](https://github.com/megvii-research/aiomegfile/blob/main/docs).
-    * Report or investigate [bugs and issues](https://github.com/megvii-research/aiomegfile/issues).
-    * If you find any problem or have any improving suggestion, [submit a new issue](https://github.com/megvii-research/aiomegfile/issues) as well. We will reply as soon as possible and evaluate whether to adopt.
-    * Review [pull requests](https://github.com/megvii-research/aiomegfile/pulls).
-    * Star `aiomegfile` repo.
-    * Recommend `aiomegfile` to your friends.
-    * Any other form of contribution is welcomed.
+- Run lint checks with `ruff`
+- Keep type hints complete
+- Add or update tests for behavior changes
+- Improve docs when public behavior changes
+
+Issues and pull requests are welcome:
+
+- Issues: https://github.com/megvii-research/aiomegfile/issues
+- Pull requests: https://github.com/megvii-research/aiomegfile/pulls
