@@ -3,7 +3,7 @@ import typing as T
 
 import aiohttp
 
-from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
+from aiomegfile.config import HTTP_MAX_RETRY_TIMES
 from aiomegfile.errors.http import http_retry
 
 _CONTENT_RANGE_TOTAL_RE = re.compile(r"/(\d+)\s*$")
@@ -76,7 +76,7 @@ def is_byte_range_supported(headers: T.Mapping[str, str], status_code: int) -> b
 async def request_headers(
     url: str,
     timeout: float,
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    max_retries: int = HTTP_MAX_RETRY_TIMES,
     session: T.Optional[aiohttp.ClientSession] = None,
 ) -> tuple[dict[str, str], int]:
     """Fetch response headers for an HTTP resource.

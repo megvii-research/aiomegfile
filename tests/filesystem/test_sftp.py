@@ -92,6 +92,13 @@ class TestSftpFileSystem:
         monkeypatch.setenv("SFTP_KEEPALIVE_INTERVAL", "7.5")
         assert sftp_module._get_keepalive_interval() == pytest.approx(7.5)
 
+    async def test_open_uses_sftp_retry_config_default(self, filesystem, monkeypatch):
+        """Test SFTP read open uses module retry default when omitted."""
+        fs, _ = filesystem
+        monkeypatch.setattr(sftp_module, "SFTP_MAX_RETRY_TIMES", 6)
+        reader = fs.open("//abs.txt", "rb")
+        assert reader._max_retries == 6
+
     async def test_open_read_absolute_and_relative(self, filesystem):
         """Test opening and reading absolute and home-relative files."""
         fs, _ = filesystem

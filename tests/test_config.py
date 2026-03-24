@@ -8,6 +8,35 @@ from pathlib import Path
 
 import pytest
 
+PROJECT_ENV_KEYS = {
+    "MEGFILE_MAX_RETRY_TIMES",
+    "AIOMEGFILE_MAX_RETRY_TIMES",
+    "MEGFILE_MAX_WORKERS",
+    "AIOMEGFILE_MAX_WORKERS",
+    "MEGFILE_WRITER_BLOCK_SIZE",
+    "AIOMEGFILE_WRITER_BLOCK_SIZE",
+    "MEGFILE_WRITER_BLOCK_AUTOSCALE",
+    "AIOMEGFILE_WRITER_BLOCK_AUTOSCALE",
+    "MEGFILE_WRITER_MAX_BUFFER_SIZE",
+    "AIOMEGFILE_WRITER_MAX_BUFFER_SIZE",
+    "MEGFILE_READER_BLOCK_SIZE",
+    "AIOMEGFILE_READER_BLOCK_SIZE",
+    "MEGFILE_READER_MAX_BUFFER_SIZE",
+    "AIOMEGFILE_READER_MAX_BUFFER_SIZE",
+    "MEGFILE_READER_LAZY_PREFETCH",
+    "AIOMEGFILE_READER_LAZY_PREFETCH",
+    "MEGFILE_S3_MAX_RETRY_TIMES",
+    "AIOMEGFILE_S3_MAX_RETRY_TIMES",
+    "MEGFILE_HDFS_MAX_RETRY_TIMES",
+    "AIOMEGFILE_HDFS_MAX_RETRY_TIMES",
+    "MEGFILE_HTTP_MAX_RETRY_TIMES",
+    "AIOMEGFILE_HTTP_MAX_RETRY_TIMES",
+    "MEGFILE_SFTP_MAX_RETRY_TIMES",
+    "AIOMEGFILE_SFTP_MAX_RETRY_TIMES",
+    "MEGFILE_WEBDAV_MAX_RETRY_TIMES",
+    "AIOMEGFILE_WEBDAV_MAX_RETRY_TIMES",
+}
+
 
 def _load_config_module(monkeypatch, env: dict[str, str | None]):
     """Load a fresh config module with isolated environment overrides.
@@ -17,6 +46,9 @@ def _load_config_module(monkeypatch, env: dict[str, str | None]):
     :return: Loaded config module object.
     :rtype: types.ModuleType
     """
+    for key in PROJECT_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
     for key, value in env.items():
         if value is None:
             monkeypatch.delenv(key, raising=False)
@@ -33,8 +65,8 @@ def _load_config_module(monkeypatch, env: dict[str, str | None]):
     return module
 
 
-def test_config_uses_environment_overrides(monkeypatch):
-    """Config module should use environment overrides when provided.
+def test_config_uses_megfile_environment_overrides(monkeypatch):
+    """Config module should use ``MEGFILE_*`` overrides when provided.
 
     :param monkeypatch: Pytest monkeypatch fixture.
     :return: None
@@ -43,15 +75,19 @@ def test_config_uses_environment_overrides(monkeypatch):
     module = _load_config_module(
         monkeypatch,
         {
-            "AIOMEGFILE_MAX_RETRY_TIMES": "3",
-            "AIOMEGFILE_MAX_WORKERS": "12",
-            "AIOMEGFILE_WRITER_BLOCK_SIZE": "4Mi",
-            "AIOMEGFILE_WRITER_MAX_BUFFER_SIZE": "16Mi",
-            "AIOMEGFILE_READER_BLOCK_SIZE": "2Mi",
-            "AIOMEGFILE_READER_MAX_BUFFER_SIZE": "8Mi",
-            "AIOMEGFILE_READER_LAZY_PREFETCH": "true",
-            "AIOMEGFILE_S3_MAX_RETRY_TIMES": "9",
-            "AIOMEGFILE_WRITER_BLOCK_AUTOSCALE": "false",
+            "MEGFILE_MAX_RETRY_TIMES": "3",
+            "MEGFILE_MAX_WORKERS": "12",
+            "MEGFILE_WRITER_BLOCK_SIZE": "4Mi",
+            "MEGFILE_WRITER_MAX_BUFFER_SIZE": "16Mi",
+            "MEGFILE_READER_BLOCK_SIZE": "2Mi",
+            "MEGFILE_READER_MAX_BUFFER_SIZE": "8Mi",
+            "MEGFILE_READER_LAZY_PREFETCH": "true",
+            "MEGFILE_S3_MAX_RETRY_TIMES": "9",
+            "MEGFILE_HDFS_MAX_RETRY_TIMES": "7",
+            "MEGFILE_HTTP_MAX_RETRY_TIMES": "5",
+            "MEGFILE_SFTP_MAX_RETRY_TIMES": "4",
+            "MEGFILE_WEBDAV_MAX_RETRY_TIMES": "6",
+            "MEGFILE_WRITER_BLOCK_AUTOSCALE": "false",
         },
     )
 
@@ -63,7 +99,55 @@ def test_config_uses_environment_overrides(monkeypatch):
     assert module.READER_MAX_BUFFER_SIZE == 8 * 1024 * 1024
     assert module.READER_LAZY_PREFETCH is True
     assert module.S3_MAX_RETRY_TIMES == 9
+    assert module.HDFS_MAX_RETRY_TIMES == 7
+    assert module.HTTP_MAX_RETRY_TIMES == 5
+    assert module.SFTP_MAX_RETRY_TIMES == 4
+    assert module.WEBDAV_MAX_RETRY_TIMES == 6
     assert module.DEFAULT_WRITER_BLOCK_AUTOSCALE is False
+
+
+def test_config_accepts_legacy_aiomegfile_environment_overrides(monkeypatch):
+    """Config module should accept legacy ``AIOMEGFILE_*`` overrides.
+
+    :param monkeypatch: Pytest monkeypatch fixture.
+    :return: None
+    :rtype: None
+    """
+    module = _load_config_module(
+        monkeypatch,
+        {
+            "AIOMEGFILE_MAX_RETRY_TIMES": "11",
+            "AIOMEGFILE_HTTP_MAX_RETRY_TIMES": "13",
+            "AIOMEGFILE_SFTP_MAX_RETRY_TIMES": "15",
+            "AIOMEGFILE_WEBDAV_MAX_RETRY_TIMES": "17",
+        },
+    )
+
+    assert module.DEFAULT_MAX_RETRY_TIMES == 11
+    assert module.HTTP_MAX_RETRY_TIMES == 13
+    assert module.SFTP_MAX_RETRY_TIMES == 15
+    assert module.WEBDAV_MAX_RETRY_TIMES == 17
+
+
+def test_config_prefers_megfile_names_over_legacy_names(monkeypatch):
+    """New ``MEGFILE_*`` names should override legacy names.
+
+    :param monkeypatch: Pytest monkeypatch fixture.
+    :return: None
+    :rtype: None
+    """
+    module = _load_config_module(
+        monkeypatch,
+        {
+            "MEGFILE_MAX_RETRY_TIMES": "3",
+            "AIOMEGFILE_MAX_RETRY_TIMES": "9",
+            "MEGFILE_HTTP_MAX_RETRY_TIMES": "5",
+            "AIOMEGFILE_HTTP_MAX_RETRY_TIMES": "7",
+        },
+    )
+
+    assert module.DEFAULT_MAX_RETRY_TIMES == 3
+    assert module.HTTP_MAX_RETRY_TIMES == 5
 
 
 def test_config_autoscale_true_without_writer_block_size(monkeypatch):
@@ -76,8 +160,8 @@ def test_config_autoscale_true_without_writer_block_size(monkeypatch):
     module = _load_config_module(
         monkeypatch,
         {
-            "AIOMEGFILE_WRITER_BLOCK_SIZE": None,
-            "AIOMEGFILE_WRITER_BLOCK_AUTOSCALE": "true",
+            "MEGFILE_WRITER_BLOCK_SIZE": None,
+            "MEGFILE_WRITER_BLOCK_AUTOSCALE": "true",
         },
     )
 
@@ -95,7 +179,7 @@ def test_config_writer_block_size_zero_raises(monkeypatch):
         _load_config_module(
             monkeypatch,
             {
-                "AIOMEGFILE_WRITER_BLOCK_SIZE": "0",
+                "MEGFILE_WRITER_BLOCK_SIZE": "0",
             },
         )
 
@@ -111,6 +195,6 @@ def test_config_reader_block_size_negative_raises(monkeypatch):
         _load_config_module(
             monkeypatch,
             {
-                "AIOMEGFILE_READER_BLOCK_SIZE": "-1",
+                "MEGFILE_READER_BLOCK_SIZE": "-1",
             },
         )

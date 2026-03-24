@@ -24,7 +24,7 @@ from botocore.retries.standard import (
     quota,
 )
 
-from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
+from aiomegfile.config import S3_MAX_RETRY_TIMES
 from aiomegfile.errors.core import UnknownError
 from aiomegfile.utils.path import PathLike
 
@@ -295,7 +295,7 @@ class AioMegfileRetryConditions(AioStandardRetryConditions):
 
     def __init__(
         self,
-        max_attempts: int = DEFAULT_MAX_RETRY_TIMES,
+        max_attempts: int = S3_MAX_RETRY_TIMES,
     ):
         """Initialize retry conditions.
 
@@ -327,9 +327,7 @@ class AioMegfileRetryConditions(AioStandardRetryConditions):
         return False
 
 
-def register_retry_handler(
-    client: "S3Client", max_attempts: int = DEFAULT_MAX_RETRY_TIMES
-):
+def register_retry_handler(client: "S3Client", max_attempts: int = S3_MAX_RETRY_TIMES):
     """Register aiobotocore retry handler for an S3-like client.
 
     :param client: aiobotocore client instance.

@@ -7,7 +7,7 @@ import typing as T
 
 import aiohttp
 
-from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
+from aiomegfile.config import HTTP_MAX_RETRY_TIMES
 from aiomegfile.errors.core import UnknownError, aioretry
 
 HTTP_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
@@ -99,7 +99,7 @@ def translate_http_error(error: Exception, url: str) -> Exception:
 
 
 def http_retry(
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    max_retries: int = HTTP_MAX_RETRY_TIMES,
     before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
     after_callback: T.Optional[T.Callable[..., T.Awaitable[T.Any]]] = None,
     retry_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,

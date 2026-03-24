@@ -56,7 +56,7 @@ Helper commands are available for common configuration files:
    amf config s3 <access_key> <secret_key> --profile-name default
    amf config hdfs http://namenode:9870 --profile-name prod --user hdfs
    amf config alias datasets s3://company-datasets/
-   amf config env AIOMEGFILE_MAX_WORKERS=16
+   amf config env MEGFILE_MAX_WORKERS=16
 
 Completion
 ----------

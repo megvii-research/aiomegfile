@@ -20,9 +20,9 @@ from email.utils import parsedate_to_datetime
 
 from aiomegfile.config import (
     DEFAULT_COPY_BUFFER_SIZE,
-    DEFAULT_MAX_RETRY_TIMES,
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
+    WEBDAV_MAX_RETRY_TIMES,
 )
 from aiomegfile.errors.webdav import (
     WebdavFileExistsError,
@@ -586,7 +586,7 @@ class WebdavFileSystem(BaseFileSystem):
         show_port_in_uri: T.Optional[bool] = None,
         show_username_in_uri: T.Optional[bool] = None,
         show_password_in_uri: T.Optional[bool] = None,
-        max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+        max_retries: int = WEBDAV_MAX_RETRY_TIMES,
     ) -> None:
         """Initialize WebDAV filesystem endpoint.
 

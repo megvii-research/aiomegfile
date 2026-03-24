@@ -10,7 +10,7 @@ from email.utils import parsedate_to_datetime
 import aiohttp
 
 from aiomegfile.config import (
-    DEFAULT_MAX_RETRY_TIMES,
+    HTTP_MAX_RETRY_TIMES,
     READER_BLOCK_SIZE,
     READER_MAX_BUFFER_SIZE,
 )
@@ -635,7 +635,7 @@ class HttpFileSystem(BaseFileSystem):
             mode=mode,
             timeout=self._timeout,
             max_retries=(
-                int(max_retries) if max_retries is not None else DEFAULT_MAX_RETRY_TIMES
+                int(max_retries) if max_retries is not None else HTTP_MAX_RETRY_TIMES
             ),
             encoding=text_encoding,
             errors=text_errors,

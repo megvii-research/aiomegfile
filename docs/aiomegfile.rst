@@ -2,7 +2,7 @@ API Reference
 =============
 
 Smart Modules
-------------
+-------------
 
 .. toctree::
 

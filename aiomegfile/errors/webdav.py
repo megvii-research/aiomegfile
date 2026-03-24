@@ -9,7 +9,7 @@ import typing as T
 
 import aiohttp
 
-from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
+from aiomegfile.config import WEBDAV_MAX_RETRY_TIMES
 from aiomegfile.errors.core import UnknownError, aioretry
 from aiomegfile.errors.http import http_should_retry
 
@@ -177,7 +177,7 @@ def translate_webdav_error(error: Exception, uri: str) -> Exception:
 
 
 def webdav_retry(
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    max_retries: int = WEBDAV_MAX_RETRY_TIMES,
     before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
     after_callback: T.Optional[T.Callable[..., T.Awaitable[T.Any]]] = None,
     retry_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,

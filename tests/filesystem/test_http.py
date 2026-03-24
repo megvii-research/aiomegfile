@@ -12,6 +12,7 @@ from http.server import (
 
 import pytest
 
+from aiomegfile.filesystem import http as http_module
 from aiomegfile.filesystem.http import HttpFileSystem, HttpsFileSystem, is_http
 from aiomegfile.interfaces import get_filesystem_by_uri
 from aiomegfile.lib.prefetch_reader.http_prefetch_reader import AioHttpPrefetchReader
@@ -236,6 +237,14 @@ def head_405_range_http_server():
         server.shutdown()
         thread.join(timeout=5)
         server.server_close()
+
+
+def test_open_uses_http_retry_config_default(monkeypatch):
+    """HTTP open should use module retry default when ``max_retries`` is omitted."""
+    monkeypatch.setattr(http_module, "HTTP_MAX_RETRY_TIMES", 7)
+    filesystem = HttpFileSystem()
+    reader = filesystem.open("example.com/data.txt", "rb")
+    assert reader._max_retries == 7
 
 
 class TestHttpFileSystem:

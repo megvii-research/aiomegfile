@@ -21,9 +21,10 @@ Example:
 .. code-block:: ini
 
    [env]
-   AIOMEGFILE_MAX_WORKERS = 16
-   AIOMEGFILE_READER_BLOCK_SIZE = 16MB
-   AIOMEGFILE_WRITER_BLOCK_SIZE = 16MB
+   MEGFILE_MAX_WORKERS = 16
+   MEGFILE_READER_BLOCK_SIZE = 16MB
+   MEGFILE_WRITER_BLOCK_SIZE = 16MB
+   MEGFILE_WEBDAV_MAX_RETRY_TIMES = 6
    WEBDAV_USERNAME = alice
 
    [alias]
@@ -38,22 +39,32 @@ Common Environment Variables
 
    * - Variable
      - Meaning
-   * - ``AIOMEGFILE_MAX_WORKERS``
+   * - ``MEGFILE_MAX_RETRY_TIMES``
+     - Global retry limit used when a protocol-specific retry limit is not set.
+   * - ``MEGFILE_MAX_WORKERS``
      - Global concurrency limit for background async work.
-   * - ``AIOMEGFILE_READER_BLOCK_SIZE``
+   * - ``MEGFILE_READER_BLOCK_SIZE``
      - Chunk size for buffered readers.
-   * - ``AIOMEGFILE_READER_MAX_BUFFER_SIZE``
+   * - ``MEGFILE_READER_MAX_BUFFER_SIZE``
      - Maximum prefetch buffer size for readers.
-   * - ``AIOMEGFILE_READER_LAZY_PREFETCH``
+   * - ``MEGFILE_READER_LAZY_PREFETCH``
      - Enables lazy prefetch behavior when supported.
-   * - ``AIOMEGFILE_WRITER_BLOCK_SIZE``
+   * - ``MEGFILE_WRITER_BLOCK_SIZE``
      - Chunk size for buffered writers, especially important for S3 multipart uploads.
-   * - ``AIOMEGFILE_WRITER_MAX_BUFFER_SIZE``
+   * - ``MEGFILE_WRITER_MAX_BUFFER_SIZE``
      - Maximum in-memory write buffer size.
-   * - ``AIOMEGFILE_S3_MAX_RETRY_TIMES``
+   * - ``MEGFILE_WRITER_BLOCK_AUTOSCALE``
+     - Enables writer block auto-scaling when no explicit writer block size is set.
+   * - ``MEGFILE_S3_MAX_RETRY_TIMES``
      - Retry limit for S3 operations.
-   * - ``AIOMEGFILE_HDFS_MAX_RETRY_TIMES``
+   * - ``MEGFILE_HDFS_MAX_RETRY_TIMES``
      - Retry limit for HDFS operations.
+   * - ``MEGFILE_HTTP_MAX_RETRY_TIMES``
+     - Retry limit for HTTP and HTTPS operations.
+   * - ``MEGFILE_SFTP_MAX_RETRY_TIMES``
+     - Retry limit for SFTP operations.
+   * - ``MEGFILE_WEBDAV_MAX_RETRY_TIMES``
+     - Retry limit for WebDAV and WebDAVS operations.
 
 Protocol-specific Settings
 --------------------------
@@ -104,7 +115,7 @@ The CLI can write the common config files for you:
    amf config s3 <access_key> <secret_key> --profile-name default
    amf config hdfs http://namenode:9870 --profile-name prod --user hdfs
    amf config alias datasets s3://company-datasets/
-   amf config env AIOMEGFILE_MAX_WORKERS=16
+   amf config env MEGFILE_MAX_WORKERS=16
 
 Alias Resolution
 ----------------

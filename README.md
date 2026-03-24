@@ -150,8 +150,9 @@ Example:
 
 ```ini
 [env]
-AIOMEGFILE_MAX_WORKERS = 16
-AIOMEGFILE_READER_BLOCK_SIZE = 16MB
+MEGFILE_MAX_WORKERS = 16
+MEGFILE_READER_BLOCK_SIZE = 16MB
+MEGFILE_HTTP_MAX_RETRY_TIMES = 6
 
 [alias]
 datasets = s3://company-datasets/
@@ -167,7 +168,7 @@ The CLI also provides helpers for common configuration tasks:
 amf config s3 <access_key> <secret_key> --profile-name default
 amf config hdfs http://namenode:9870 --profile-name prod
 amf config alias datasets s3://company-datasets/
-amf config env AIOMEGFILE_MAX_WORKERS=16
+amf config env MEGFILE_MAX_WORKERS=16
 ```
 
 ## Documentation

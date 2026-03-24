@@ -7,7 +7,7 @@ import typing as T
 
 import asyncssh
 
-from aiomegfile.config import DEFAULT_MAX_RETRY_TIMES
+from aiomegfile.config import SFTP_MAX_RETRY_TIMES
 from aiomegfile.errors.core import UnknownError, aioretry
 
 __all__ = [
@@ -129,7 +129,7 @@ def translate_sftp_error(error: Exception, uri: str) -> Exception:
 
 
 def sftp_retry(
-    max_retries: int = DEFAULT_MAX_RETRY_TIMES,
+    max_retries: int = SFTP_MAX_RETRY_TIMES,
     before_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
     after_callback: T.Optional[T.Callable[..., T.Awaitable[T.Any]]] = None,
     retry_callback: T.Optional[T.Callable[..., T.Awaitable[None]]] = None,
