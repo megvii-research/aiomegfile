@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.filesystem.http &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../aiomegfile.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aiomegfile.filesystem.http</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aiomegfile.filesystem.http</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">codecs</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">timezone</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">email.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">parsedate_to_datetime</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">aiohttp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HTTP_MAX_RETRY_TIMES</span><span class="p">,</span>
+    <span class="n">READER_BLOCK_SIZE</span><span class="p">,</span>
+    <span class="n">READER_MAX_BUFFER_SIZE</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.errors.http</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HTTP_NOT_FOUND_STATUS_CODES</span><span class="p">,</span>
+    <span class="n">http_retry</span><span class="p">,</span>
+    <span class="n">translate_http_error</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AioReadable</span><span class="p">,</span>
+    <span class="n">AioSeekable</span><span class="p">,</span>
+    <span class="n">BaseFileSystem</span><span class="p">,</span>
+    <span class="n">StatResult</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.lib.prefetch_reader.http_prefetch_reader</span><span class="w"> </span><span class="kn">import</span> <span class="n">AioHttpPrefetchReader</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.http</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">is_byte_range_supported</span><span class="p">,</span>
+    <span class="n">parse_total_size_from_headers</span><span class="p">,</span>
+    <span class="n">request_headers</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">fspath</span><span class="p">,</span> <span class="n">split_uri</span>
+
+<span class="n">DEFAULT_HTTP_TIMEOUT</span> <span class="o">=</span> <span class="mf">60.0</span>
+
+
+<div class="viewcode-block" id="is_http">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.is_http">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_http</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return whether the given path is an HTTP or HTTPS URL.</span>
+
+<span class="sd">    :param path: Path to be tested.</span>
+<span class="sd">    :return: True if path is an HTTP(S) URL, otherwise False.</span>
+<span class="sd">    :rtype: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">fspath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">parsed</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlparse</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parsed</span><span class="o">.</span><span class="n">scheme</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;http&quot;</span><span class="p">,</span> <span class="s2">&quot;https&quot;</span><span class="p">}</span> <span class="ow">and</span> <span class="nb">bool</span><span class="p">(</span><span class="n">parsed</span><span class="o">.</span><span class="n">netloc</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_parse_http_timestamp</span><span class="p">(</span><span class="n">last_modified</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse HTTP ``Last-Modified`` header into unix timestamp.</span>
+
+<span class="sd">    :param last_modified: Header value.</span>
+<span class="sd">    :return: Parsed unix timestamp, or 0.0 when unavailable.</span>
+<span class="sd">    :rtype: float</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">last_modified</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="n">parsed</span> <span class="o">=</span> <span class="n">parsedate_to_datetime</span><span class="p">(</span><span class="n">last_modified</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">parsed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parsed</span> <span class="o">=</span> <span class="n">parsed</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parsed</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="AioHttpContentReader">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AioHttpContentReader</span><span class="p">(</span><span class="n">AioReadable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async reader for streaming HTTP response content.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the content reader.</span>
+
+<span class="sd">        :param uri: Full HTTP(S) URL.</span>
+<span class="sd">        :param mode: File mode.</span>
+<span class="sd">        :param timeout: Request timeout in seconds.</span>
+<span class="sd">        :param max_retries: Maximum retry attempts.</span>
+<span class="sd">        :param encoding: Text encoding for text mode.</span>
+<span class="sd">        :param errors: Text decoding error strategy.</span>
+<span class="sd">        :param newline: Newline handling for text mode.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span> <span class="o">=</span> <span class="n">uri</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_retries</span> <span class="o">=</span> <span class="n">max_retries</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_encoding</span> <span class="o">=</span> <span class="n">encoding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_errors</span> <span class="o">=</span> <span class="n">errors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_newline</span> <span class="o">=</span> <span class="n">newline</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_owns_session</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response_ctx</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientResponse</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">aiohttp</span><span class="o">.</span><span class="n">StreamReader</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_decoder_finalized</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="n">decoder_factory</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">getincrementaldecoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_encoding</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span> <span class="o">=</span> <span class="n">decoder_factory</span><span class="p">(</span><span class="n">errors</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return source URI.</span>
+
+<span class="sd">        :return: URI string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return open mode.</span>
+
+<span class="sd">        :return: File mode string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__aenter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Enter async context and open HTTP streaming response.</span>
+
+<span class="sd">        :return: Reader instance.</span>
+<span class="sd">        :rtype: AioHttpContentReader</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_response</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_session</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure a usable aiohttp session exists.</span>
+
+<span class="sd">        :return: Active ``aiohttp.ClientSession``.</span>
+<span class="sd">        :rtype: aiohttp.ClientSession</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;HTTP session is closed&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span>
+
+        <span class="n">timeout</span> <span class="o">=</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientTimeout</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_owns_session</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_open_response</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open the HTTP response stream with retry support.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="nd">@http_retry</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_retries</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_open_once</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientResponse</span><span class="p">]:</span>
+            <span class="n">session</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_session</span><span class="p">()</span>
+            <span class="n">response_ctx</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">)</span>  <span class="c1"># pyre-ignore[16]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">response_ctx</span><span class="o">.</span><span class="fm">__aenter__</span><span class="p">()</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+                    <span class="k">await</span> <span class="n">response_ctx</span><span class="o">.</span><span class="fm">__aexit__</span><span class="p">(</span><span class="o">*</span><span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+                <span class="k">raise</span>
+            <span class="k">return</span> <span class="n">response_ctx</span><span class="p">,</span> <span class="n">response</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response_ctx</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_open_once</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">translate_http_error</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response_ctx</span> <span class="o">=</span> <span class="n">response_ctx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response</span> <span class="o">=</span> <span class="n">response</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_decode_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">final</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decode bytes to text for text mode.</span>
+
+<span class="sd">        :param data: Input bytes.</span>
+<span class="sd">        :param final: Whether this is the final decode pass.</span>
+<span class="sd">        :return: Decoded string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">final</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoder_finalized</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">final</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">final</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_decoder_finalized</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">text</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_read_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read raw bytes from stream using pending buffer.</span>
+
+<span class="sd">        :param size: Maximum bytes to read. ``None`` means read all.</span>
+<span class="sd">        :return: Raw bytes.</span>
+<span class="sd">        :rtype: bytes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_response</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">size</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">prefix</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="n">suffix</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># pyre-ignore[16]</span>
+            <span class="k">return</span> <span class="n">prefix</span> <span class="o">+</span> <span class="n">suffix</span>
+
+        <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">size</span><span class="p">])</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">size</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">data</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">remain</span> <span class="o">=</span> <span class="n">size</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">remain</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">+=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">remain</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_readline_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read one raw line from stream using pending buffer.</span>
+
+<span class="sd">        :param size: Maximum bytes to read.</span>
+<span class="sd">        :return: Line bytes.</span>
+<span class="sd">        :rtype: bytes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_response</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">newline_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">newline_index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">end</span> <span class="o">=</span> <span class="n">newline_index</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">end</span><span class="p">])</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">end</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">line</span>
+
+            <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">:</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">size</span><span class="p">])</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">size</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">line</span>
+
+            <span class="n">chunk</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">8192</span><span class="p">)</span>  <span class="c1"># pyre-ignore[16]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">size</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">),</span> <span class="n">size</span><span class="p">)</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">end</span><span class="p">])</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">[:</span><span class="n">end</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">line</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AioHttpContentReader.read">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.read">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read content from current position.</span>
+
+<span class="sd">        :param size: Maximum size to read.</span>
+<span class="sd">        :return: Read bytes or text.</span>
+<span class="sd">        :rtype: T.AnyStr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_bytes</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">T</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">T</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
+            <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_decode_bytes</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="p">(</span><span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">size</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioHttpContentReader.readline">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.readline">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read one line from current position.</span>
+
+<span class="sd">        :param size: Maximum size to read.</span>
+<span class="sd">        :return: One line in bytes or text.</span>
+<span class="sd">        :rtype: T.AnyStr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_readline_bytes</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">T</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="n">final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">at_eof</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span>
+        <span class="k">return</span> <span class="n">T</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode_bytes</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">final</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="AioHttpContentReader.tell">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.tell">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return current stream offset.</span>
+
+<span class="sd">        :return: Current stream offset.</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_offset</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Close reader and release HTTP resources.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_ctx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_ctx</span><span class="o">.</span><span class="fm">__aexit__</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_response_ctx</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_owns_session</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="AioHttpAdaptiveReader">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AioHttpAdaptiveReader</span><span class="p">(</span><span class="n">AioReadable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">],</span> <span class="n">AioSeekable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adaptive HTTP reader selecting prefetch or full-content strategy.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">max_buffer_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">block_forward</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the adaptive reader.</span>
+
+<span class="sd">        :param uri: Full HTTP(S) URL.</span>
+<span class="sd">        :param mode: File mode.</span>
+<span class="sd">        :param timeout: Request timeout in seconds.</span>
+<span class="sd">        :param max_retries: Maximum retry attempts.</span>
+<span class="sd">        :param encoding: Text encoding for text mode.</span>
+<span class="sd">        :param errors: Text decoding error strategy.</span>
+<span class="sd">        :param newline: Newline handling for text mode.</span>
+<span class="sd">        :param block_size: Prefetch block size in bytes.</span>
+<span class="sd">        :param max_buffer_size: Maximum prefetch buffer size.</span>
+<span class="sd">        :param block_forward: Number of prefetched blocks ahead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span> <span class="o">=</span> <span class="n">uri</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_retries</span> <span class="o">=</span> <span class="n">max_retries</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_encoding</span> <span class="o">=</span> <span class="n">encoding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_errors</span> <span class="o">=</span> <span class="n">errors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_newline</span> <span class="o">=</span> <span class="n">newline</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_block_size</span> <span class="o">=</span> <span class="n">block_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_buffer_size</span> <span class="o">=</span> <span class="n">max_buffer_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_block_forward</span> <span class="o">=</span> <span class="n">block_forward</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span>
+            <span class="n">T</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">AioHttpPrefetchReader</span><span class="p">,</span> <span class="n">AioHttpContentReader</span><span class="p">]</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entered</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return source URI.</span>
+
+<span class="sd">        :return: URI string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return open mode.</span>
+
+<span class="sd">        :return: File mode string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_select_reader</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">AioHttpPrefetchReader</span><span class="p">,</span> <span class="n">AioHttpContentReader</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select concrete reader implementation lazily.</span>
+
+<span class="sd">        :return: Selected reader instance.</span>
+<span class="sd">        :rtype: T.Union[AioHttpPrefetchReader, AioHttpContentReader]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">headers</span><span class="p">,</span> <span class="n">status_code</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request_headers</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">,</span>
+                <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_retries</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">translate_http_error</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+        <span class="k">if</span> <span class="n">is_byte_range_supported</span><span class="p">(</span><span class="n">headers</span><span class="p">,</span> <span class="n">status_code</span><span class="p">):</span>
+            <span class="n">content_size</span> <span class="o">=</span> <span class="n">parse_total_size_from_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span> <span class="o">=</span> <span class="n">AioHttpPrefetchReader</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mode</span><span class="p">,</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_encoding</span><span class="p">,</span>
+                <span class="n">errors</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">,</span>
+                <span class="n">newline</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_newline</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">,</span>
+                <span class="n">content_size</span><span class="o">=</span><span class="n">content_size</span><span class="p">,</span>
+                <span class="n">block_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_block_size</span><span class="p">,</span>
+                <span class="n">max_buffer_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_buffer_size</span><span class="p">,</span>
+                <span class="n">block_forward</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_block_forward</span><span class="p">,</span>
+                <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_retries</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span> <span class="o">=</span> <span class="n">AioHttpContentReader</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_mode</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">,</span>
+                <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_retries</span><span class="p">,</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_encoding</span><span class="p">,</span>
+                <span class="n">errors</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_errors</span><span class="p">,</span>
+                <span class="n">newline</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_newline</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_active_reader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return initialized reader entered with async context.</span>
+
+<span class="sd">        :return: Active reader instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_reader</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entered</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">reader</span><span class="o">.</span><span class="fm">__aenter__</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_entered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">reader</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__aenter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Enter async context and return selected reader.</span>
+
+<span class="sd">        :return: Concrete reader instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_reader</span><span class="p">()</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__aexit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Exit async context and close selected reader.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entered</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reader</span><span class="p">,</span> <span class="s2">&quot;__aexit__&quot;</span><span class="p">):</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span><span class="o">.</span><span class="fm">__aexit__</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">)</span>  <span class="c1"># pyre-ignore[16]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>  <span class="c1"># pyre-ignore[16]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entered</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="AioHttpAdaptiveReader.read">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.read">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read content from current position.</span>
+
+<span class="sd">        :param size: Maximum size to read.</span>
+<span class="sd">        :return: Read bytes or text.</span>
+<span class="sd">        :rtype: T.AnyStr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_reader</span><span class="p">()</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">reader</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">size</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioHttpAdaptiveReader.readline">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.readline">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read one line from current position.</span>
+
+<span class="sd">        :param size: Maximum size to read.</span>
+<span class="sd">        :return: One line in bytes or text.</span>
+<span class="sd">        :rtype: T.AnyStr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_reader</span><span class="p">()</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">reader</span><span class="o">.</span><span class="n">readline</span><span class="p">(</span><span class="n">size</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioHttpAdaptiveReader.seek">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.seek">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">seek</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">whence</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Move stream cursor and return new offset.</span>
+
+<span class="sd">        :param offset: Target offset.</span>
+<span class="sd">        :param whence: Seek reference position.</span>
+<span class="sd">        :return: New absolute offset.</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_reader</span><span class="p">()</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">reader</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">whence</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioHttpAdaptiveReader.tell">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.tell">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return current stream offset.</span>
+
+<span class="sd">        :return: Current stream offset.</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Close selected reader if initialized.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reader</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entered</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="HttpFileSystem">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HttpFileSystem</span><span class="p">(</span><span class="n">BaseFileSystem</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filesystem adapter for read-only HTTP resources.&quot;&quot;&quot;</span>
+
+    <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;http&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_HTTP_TIMEOUT</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the HTTP filesystem.</span>
+
+<span class="sd">        :param timeout: Request timeout in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+
+<div class="viewcode-block" id="HttpFileSystem.is_dir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_dir">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether path points to a directory.</span>
+
+<span class="sd">        HTTP resources are treated as files only.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :param followlinks: Ignored for HTTP protocol.</span>
+<span class="sd">        :return: Always False.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.is_file">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_file">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether path points to an existing HTTP resource.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :param followlinks: Ignored for HTTP protocol.</span>
+<span class="sd">        :return: True when resource exists, otherwise False.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="n">followlinks</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.exists">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.exists">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether path points to an existing HTTP resource.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :param followlinks: Ignored for HTTP protocol.</span>
+<span class="sd">        :return: True when resource exists, otherwise False.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">request_headers</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientResponseError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">error</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">HTTP_NOT_FOUND_STATUS_CODES</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.stat">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.stat">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get metadata for an HTTP resource.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :param followlinks: Ignored for HTTP protocol.</span>
+<span class="sd">        :return: StatResult for the HTTP resource.</span>
+<span class="sd">        :rtype: StatResult</span>
+<span class="sd">        :raises FileNotFoundError: When resource does not exist.</span>
+<span class="sd">        :raises PermissionError: When request is denied.</span>
+<span class="sd">        :raises OSError: When request fails for other reasons.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">headers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request_headers</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">translate_http_error</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+        <span class="n">size</span> <span class="o">=</span> <span class="n">parse_total_size_from_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+        <span class="n">mtime</span> <span class="o">=</span> <span class="n">_parse_http_timestamp</span><span class="p">(</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Last-Modified&quot;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">StatResult</span><span class="p">(</span>
+            <span class="n">st_size</span><span class="o">=</span><span class="n">size</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">st_ctime</span><span class="o">=</span><span class="n">mtime</span><span class="p">,</span>
+            <span class="n">st_mtime</span><span class="o">=</span><span class="n">mtime</span><span class="p">,</span>
+            <span class="n">isdir</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">islnk</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">extra</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">headers</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.open">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.open">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">open</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+        <span class="n">buffering</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># noqa: ARG002</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open a read-only HTTP resource.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :param mode: Open mode, supports ``r``/``rt``/``rb``.</span>
+<span class="sd">        :param buffering: Ignored, kept for API compatibility.</span>
+<span class="sd">        :param encoding: Text encoding in text mode.</span>
+<span class="sd">        :param errors: Text decoding error handling strategy.</span>
+<span class="sd">        :param newline: Newline handling in text mode.</span>
+<span class="sd">        :param kwargs: Extra options for compatibility with megfile APIs.</span>
+
+<span class="sd">            Supported options:</span>
+
+<span class="sd">            - ``block_size``: Prefetch block size in bytes.</span>
+<span class="sd">            - ``max_buffer_size``: Maximum in-memory prefetch buffer size in bytes.</span>
+<span class="sd">            - ``block_forward``: Number of blocks to prefetch ahead.</span>
+<span class="sd">            - ``max_retries``: Maximum retry attempts for transient HTTP errors.</span>
+
+<span class="sd">        :return: Async reader context manager.</span>
+<span class="sd">        :rtype: T.AsyncContextManager</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">flag</span> <span class="ow">in</span> <span class="n">mode</span> <span class="k">for</span> <span class="n">flag</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;+&quot;</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;HTTP resources are read-only&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unacceptable mode: </span><span class="si">{</span><span class="n">mode</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">block_size</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block_size&quot;</span><span class="p">)</span>
+        <span class="n">max_buffer_size</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_buffer_size&quot;</span><span class="p">)</span>
+        <span class="n">block_forward</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;block_forward&quot;</span><span class="p">)</span>
+        <span class="n">max_retries</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_retries&quot;</span><span class="p">)</span>
+
+        <span class="n">text_encoding</span> <span class="o">=</span> <span class="n">encoding</span> <span class="ow">or</span> <span class="s2">&quot;utf-8&quot;</span>
+        <span class="n">text_errors</span> <span class="o">=</span> <span class="n">errors</span> <span class="ow">or</span> <span class="s2">&quot;strict&quot;</span>
+
+        <span class="k">return</span> <span class="n">AioHttpAdaptiveReader</span><span class="p">(</span>
+            <span class="n">uri</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">,</span>
+            <span class="n">max_retries</span><span class="o">=</span><span class="p">(</span>
+                <span class="nb">int</span><span class="p">(</span><span class="n">max_retries</span><span class="p">)</span> <span class="k">if</span> <span class="n">max_retries</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">HTTP_MAX_RETRY_TIMES</span>
+            <span class="p">),</span>
+            <span class="n">encoding</span><span class="o">=</span><span class="n">text_encoding</span><span class="p">,</span>
+            <span class="n">errors</span><span class="o">=</span><span class="n">text_errors</span><span class="p">,</span>
+            <span class="n">newline</span><span class="o">=</span><span class="n">newline</span><span class="p">,</span>
+            <span class="n">block_size</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">block_size</span><span class="p">)</span> <span class="k">if</span> <span class="n">block_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">READER_BLOCK_SIZE</span><span class="p">,</span>
+            <span class="n">max_buffer_size</span><span class="o">=</span><span class="p">(</span>
+                <span class="nb">int</span><span class="p">(</span><span class="n">max_buffer_size</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">max_buffer_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="n">READER_MAX_BUFFER_SIZE</span>
+            <span class="p">),</span>
+            <span class="n">block_forward</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">block_forward</span><span class="p">)</span> <span class="k">if</span> <span class="n">block_forward</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.scandir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.scandir">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">scandir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scan entries under a path.</span>
+
+<span class="sd">        HTTP protocol does not support directory listing.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :raises NotADirectoryError: Always raised for HTTP resources.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Not a directory: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.scanfile">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.scanfile">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">scanfile</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scan files under a path.</span>
+
+<span class="sd">        HTTP protocol does not support directory traversal.</span>
+
+<span class="sd">        :param path: Target path without protocol.</span>
+<span class="sd">        :param sort: Compatibility flag for protocol-aligned scanfile APIs.</span>
+<span class="sd">        :raises NotADirectoryError: Always raised for HTTP resources.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">sort</span>
+        <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Not a directory: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.same_endpoint">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.same_endpoint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">same_endpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_filesystem</span><span class="p">:</span> <span class="n">BaseFileSystem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether this filesystem points to the same endpoint.</span>
+
+<span class="sd">        :param other_filesystem: Filesystem to compare.</span>
+<span class="sd">        :return: True when both are HTTP filesystems with same protocol.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">other_filesystem</span><span class="p">,</span> <span class="n">HttpFileSystem</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span> <span class="o">==</span> <span class="n">other_filesystem</span><span class="o">.</span><span class="n">protocol</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HttpFileSystem.parse_uri">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.parse_uri">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse path part from URI.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: Path without protocol.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">split_uri</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build URI from path.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :return: URI string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;HttpFileSystem&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new filesystem instance from URI.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: HttpFileSystem instance.</span>
+<span class="sd">        :rtype: HttpFileSystem</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="HttpsFileSystem">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpsFileSystem">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HttpsFileSystem</span><span class="p">(</span><span class="n">HttpFileSystem</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filesystem adapter for HTTPS resources.&quot;&quot;&quot;</span>
+
+    <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;https&quot;</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

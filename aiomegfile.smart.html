@@ -44,18 +44,29 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="aiomegfile.html">API Reference</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="aiomegfile.html#smart-module">Smart Module</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="aiomegfile.html#smart-modules">Smart Modules</a><ul class="current">
 <li class="toctree-l3 current"><a class="current reference internal" href="#">aiomegfile.smart module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.SmartCacher"><code class="docutils literal notranslate"><span class="pre">SmartCacher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_abspath"><code class="docutils literal notranslate"><span class="pre">smart_abspath()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_cache"><code class="docutils literal notranslate"><span class="pre">smart_cache()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_combine_open"><code class="docutils literal notranslate"><span class="pre">smart_combine_open()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_concat"><code class="docutils literal notranslate"><span class="pre">smart_concat()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_copy"><code class="docutils literal notranslate"><span class="pre">smart_copy()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_exists"><code class="docutils literal notranslate"><span class="pre">smart_exists()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_getmd5"><code class="docutils literal notranslate"><span class="pre">smart_getmd5()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_glob"><code class="docutils literal notranslate"><span class="pre">smart_glob()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_glob_stat"><code class="docutils literal notranslate"><span class="pre">smart_glob_stat()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_iglob"><code class="docutils literal notranslate"><span class="pre">smart_iglob()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_isabs"><code class="docutils literal notranslate"><span class="pre">smart_isabs()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_isdir"><code class="docutils literal notranslate"><span class="pre">smart_isdir()</span></code></a></li>
@@ -78,16 +89,19 @@
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_save_content"><code class="docutils literal notranslate"><span class="pre">smart_save_content()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_save_text"><code class="docutils literal notranslate"><span class="pre">smart_save_text()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_scan"><code class="docutils literal notranslate"><span class="pre">smart_scan()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_scan_stat"><code class="docutils literal notranslate"><span class="pre">smart_scan_stat()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_scandir"><code class="docutils literal notranslate"><span class="pre">smart_scandir()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_stat"><code class="docutils literal notranslate"><span class="pre">smart_stat()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_symlink"><code class="docutils literal notranslate"><span class="pre">smart_symlink()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_sync"><code class="docutils literal notranslate"><span class="pre">smart_sync()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_sync_with_progress"><code class="docutils literal notranslate"><span class="pre">smart_sync_with_progress()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_touch"><code class="docutils literal notranslate"><span class="pre">smart_touch()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_unlink"><code class="docutils literal notranslate"><span class="pre">smart_unlink()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.smart.smart_walk"><code class="docutils literal notranslate"><span class="pre">smart_walk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.smart_path.html">aiomegfile.smart_path module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.interfaces.html">aiomegfile.interfaces module</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a></li>
@@ -124,6 +138,36 @@
              
   <section id="module-aiomegfile.smart">
 <span id="aiomegfile-smart-module"></span><h1>aiomegfile.smart module<a class="headerlink" href="#module-aiomegfile.smart" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.smart.SmartCacher">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">SmartCacher</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/lib/cacher.html#SmartCacher"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.SmartCacher" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AioClosable</span></code></p>
+<p>Async smart cache files in local filesystem.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.smart.SmartCacher.cache_path">
+<span class="sig-name descname"><span class="pre">cache_path</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#aiomegfile.smart.SmartCacher.cache_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.smart.SmartCacher.close">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#aiomegfile.smart.SmartCacher.close" title="Link to this definition"></a></dt>
+<dd><p>Upload cached content if needed and remove cache file.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.smart.SmartCacher.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.smart.SmartCacher.mode" title="Link to this definition"></a></dt>
+<dd><p>Return the cache mode.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.smart.SmartCacher.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.smart.SmartCacher.name" title="Link to this definition"></a></dt>
+<dd><p>Return the original path.</p>
+</dd></dl>
+
+</dd></dl>
+
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_abspath">
 <em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_abspath</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_abspath"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_abspath" title="Link to this definition"></a></dt>
@@ -137,6 +181,60 @@
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.smart.smart_cache">
+<span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_cache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~os.PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cacher:</span> <span class="pre">~typing.Type[~aiomegfile.lib.cacher.SmartCacher]</span> <span class="pre">=</span> <span class="pre">&lt;class</span> <span class="pre">'aiomegfile.lib.cacher.SmartCacher'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**options:</span> <span class="pre">~typing.Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_cache"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_cache" title="Link to this definition"></a></dt>
+<dd><p>Return an async cacher for non-local paths.</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">smart_cache</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<span class="gp">... </span>    <span class="k">async</span> <span class="k">with</span> <span class="n">smart_cache</span><span class="p">(</span>
+<span class="gp">... </span>        <span class="s2">&quot;s3://mybucket/myfile.mp4&quot;</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="p">)</span> <span class="k">as</span> <span class="n">cache_path</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="nb">print</span><span class="p">(</span><span class="n">cache_path</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path to cache.</p></li>
+<li><p><strong>cacher</strong> – Cacher class for non-local paths.</p></li>
+<li><p><strong>options</strong> – Optional arguments for cacher.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Async cacher instance.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AsyncContextManager[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.smart.smart_combine_open">
+<span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_combine_open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_glob:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'rb'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">open_func=&lt;function</span> <span class="pre">smart_open&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AioCombineReader</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_combine_open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_combine_open" title="Link to this definition"></a></dt>
+<dd><p>Open a unified reader that supports multi-file reading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path_glob</strong> – Path pattern that may contain shell wildcard characters.</p></li>
+<li><p><strong>mode</strong> – Mode to open file, supports ‘rb’.</p></li>
+<li><p><strong>open_func</strong> – Callable to open each file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Combined async reader.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>AioCombineReader</p>
 </dd>
 </dl>
 </dd></dl>
@@ -157,14 +255,16 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_copy">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_copy" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_copy" title="Link to this definition"></a></dt>
 <dd><p>Copy a file or directory and return the destination path string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>src_path</strong> – Source path to copy.</p></li>
 <li><p><strong>dst_path</strong> – Destination path.</p></li>
+<li><p><strong>callback</strong> – Called periodically during copy with bytes written.</p></li>
 <li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>overwrite</strong> – Whether to overwrite destination when it exists.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -194,14 +294,38 @@
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.smart.smart_getmd5">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_getmd5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recalculate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_getmd5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_getmd5" title="Link to this definition"></a></dt>
+<dd><p>Get the MD5 value of a file or directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – File path to compute MD5.</p></li>
+<li><p><strong>recalculate</strong> – Calculate MD5 in real-time or return cached value when
+supported by the filesystem.</p></li>
+<li><p><strong>followlinks</strong> – If True, follow symbolic links when calculating MD5.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>MD5 hex digest.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_glob">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_glob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_glob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_glob" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_glob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_glob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_glob" title="Link to this definition"></a></dt>
 <dd><p>Return paths whose paths match the glob pattern.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – Base path to search under.</p></li>
 <li><p><strong>recursive</strong> – If False, <code class="docutils literal notranslate"><span class="pre">**</span></code> will not search directory recursively.</p></li>
+<li><p><strong>missing_ok</strong> – If False and target path doesn’t match any file,
+raise FileNotFoundError.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -210,18 +334,50 @@
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>T.List[str]</p>
 </dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>FileNotFoundError</strong> – If no matches and missing_ok is False.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.smart.smart_glob_stat">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_glob_stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pathname</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_glob_stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_glob_stat" title="Link to this definition"></a></dt>
+<dd><p>Return entries whose paths match the glob pattern.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pathname</strong> – Path pattern that may contain shell wildcard characters.</p></li>
+<li><p><strong>recursive</strong> – If False, <code class="docutils literal notranslate"><span class="pre">**</span></code> will not search directory recursively.</p></li>
+<li><p><strong>missing_ok</strong> – If False and target path doesn’t match any file,
+raise FileNotFoundError.</p></li>
+<li><p><strong>sort</strong> – Whether to request sorted traversal when supported by the
+filesystem.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Async iterator of FileEntry objects.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AsyncIterator[<a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry">FileEntry</a>]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>FileNotFoundError</strong> – If no matches and missing_ok is False.</p>
+</dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_iglob">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_iglob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_iglob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_iglob" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_iglob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_iglob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_iglob" title="Link to this definition"></a></dt>
 <dd><p>Yield paths whose paths match the glob pattern.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – Base path to search under.</p></li>
 <li><p><strong>recursive</strong> – If False, <code class="docutils literal notranslate"><span class="pre">**</span></code> will not search directory recursively.</p></li>
+<li><p><strong>missing_ok</strong> – If False and target path doesn’t match any file,
+raise FileNotFoundError.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -394,13 +550,14 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_move">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_move" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_move" title="Link to this definition"></a></dt>
 <dd><p>Move a file or directory and return the destination path string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>src_path</strong> – Source path to move.</p></li>
 <li><p><strong>dst_path</strong> – Destination path.</p></li>
+<li><p><strong>overwrite</strong> – Whether to overwrite destination when it exists.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -414,7 +571,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_open">
-<span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffering</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_open" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffering</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_open" title="Link to this definition"></a></dt>
 <dd><p>Open the file with mode.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -425,6 +582,7 @@
 <li><p><strong>encoding</strong> – Text encoding in text mode.</p></li>
 <li><p><strong>errors</strong> – Error handling strategy.</p></li>
 <li><p><strong>newline</strong> – Newline handling policy in text mode.</p></li>
+<li><p><strong>kwargs</strong> – Extra open options for compatibility with megfile.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -538,13 +696,14 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_rename">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_rename</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_rename"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_rename" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_rename</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_rename"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_rename" title="Link to this definition"></a></dt>
 <dd><p>Rename a file or directory and return the destination path string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>src_path</strong> – Source path to rename.</p></li>
 <li><p><strong>dst_path</strong> – Destination path.</p></li>
+<li><p><strong>overwrite</strong> – Whether to overwrite destination when it exists.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -601,7 +760,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_scan">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_scan"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_scan" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_scan"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_scan" title="Link to this definition"></a></dt>
 <dd><p>Iteratively traverse only files in the given path.</p>
 <p>If the path is a file, yields that file only.</p>
 <dl class="field-list simple">
@@ -610,6 +769,8 @@
 <li><p><strong>path</strong> – Given path.</p></li>
 <li><p><strong>missing_ok</strong> – If False and the path is missing, raise FileNotFoundError.</p></li>
 <li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>sort</strong> – Whether to request sorted traversal when supported by the
+filesystem.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -622,8 +783,35 @@
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.smart.smart_scan_stat">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_scan_stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_scan_stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_scan_stat" title="Link to this definition"></a></dt>
+<dd><p>Iteratively traverse only files in the given path with stats.</p>
+<p>If the path is a file, yields that file entry only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Given path.</p></li>
+<li><p><strong>missing_ok</strong> – If False and the path is missing, raise FileNotFoundError.</p></li>
+<li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>sort</strong> – Whether to request sorted traversal when supported by the
+filesystem.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Async iterator of FileEntry objects.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AsyncIterator[<a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry">FileEntry</a>]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>FileNotFoundError</strong> – If no matches and missing_ok is False.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_scandir">
-<span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_scandir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">FileEntry</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_scandir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_scandir" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_scandir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_scandir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_scandir" title="Link to this definition"></a></dt>
 <dd><p>Return an async context manager for iterating directory entries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -633,14 +821,14 @@
 <dd class="field-even"><p>Async context manager producing FileEntry items.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>T.AsyncContextManager[T.AsyncIterator[FileEntry]]</p>
+<dd class="field-odd"><p>T.AsyncContextManager[T.AsyncIterator[<a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry">FileEntry</a>]]</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_stat">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">follow_symlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">StatResult</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_stat" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">follow_symlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_stat" title="Link to this definition"></a></dt>
 <dd><p>Get the status of the path.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -653,7 +841,7 @@
 <dd class="field-even"><p>StatResult for the path.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>StatResult</p>
+<dd class="field-odd"><p><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult">StatResult</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -677,7 +865,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="aiomegfile.smart.smart_sync">
-<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_sync</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback_after_copy_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_sync"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_sync" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_sync</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback_after_copy_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_sync"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_sync" title="Link to this definition"></a></dt>
 <dd><p>Sync file or directory to the destination path.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -690,10 +878,12 @@ first.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>src_path</strong> – Given source path.</p></li>
 <li><p><strong>dst_path</strong> – Given destination path.</p></li>
-<li><p><strong>callback</strong> – Called periodically during copy with bytes written.</p></li>
+<li><p><strong>callback</strong> – Called periodically during copy with source path and bytes
+written.</p></li>
+<li><p><strong>followlinks</strong> – False if regard symlink as file, else True.</p></li>
 <li><p><strong>callback_after_copy_file</strong> – Called after copy success, and the input parameter
 is src file path and dst file path.</p></li>
-<li><p><strong>followlinks</strong> – False if regard symlink as file, else True.</p></li>
+<li><p><strong>worker</strong> – Maximum number of concurrent workers for copy tasks.</p></li>
 <li><p><strong>force</strong> – Sync file forcible, do not ignore same files, priority is higher than
 <code class="docutils literal notranslate"><span class="pre">overwrite</span></code>.</p></li>
 <li><p><strong>overwrite</strong> – Whether to overwrite files when they already exist.</p></li>
@@ -701,6 +891,35 @@ is src file path and dst file path.</p></li>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>FileNotFoundError</strong> – If source path does not exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.smart.smart_sync_with_progress">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.smart.</span></span><span class="sig-name descname"><span class="pre">smart_sync_with_progress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback_after_copy_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/smart.html#smart_sync_with_progress"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.smart.smart_sync_with_progress" title="Link to this definition"></a></dt>
+<dd><p>Sync file or directory with progress bars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>src_path</strong> – Given source path.</p></li>
+<li><p><strong>dst_path</strong> – Given destination path.</p></li>
+<li><p><strong>callback</strong> – Called periodically during copy with source path and bytes
+written.</p></li>
+<li><p><strong>followlinks</strong> – False if regard symlink as file, else True.</p></li>
+<li><p><strong>force</strong> – Sync file forcible, do not ignore same files, priority is higher than
+<code class="docutils literal notranslate"><span class="pre">overwrite</span></code>.</p></li>
+<li><p><strong>overwrite</strong> – Whether to overwrite files when they already exist.</p></li>
+<li><p><strong>callback_after_copy_file</strong> – Called after copy success, and the input parameter
+is src file path and dst file path.</p></li>
+<li><p><strong>worker</strong> – Maximum number of concurrent workers for copy tasks.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If source path does not exist.</p></li>
+<li><p><strong>ImportError</strong> – If <code class="docutils literal notranslate"><span class="pre">tqdm</span></code> is not available.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>

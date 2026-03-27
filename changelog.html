@@ -21,7 +21,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="aiomegfile.filesystem.local module" href="aiomegfile.filesystem.local.html" /> 
+    <link rel="prev" title="aiomegfile.filesystem.webdav module" href="aiomegfile.filesystem.webdav.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,14 +43,21 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">CHANGELOG</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#id1">0.0.2 - 2026.03.02</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id2">0.0.1 - 2026.02.27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">0.0.3 - 2026.03.27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">0.0.2 - 2026.03.02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">0.0.1 - 2026.02.27</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -83,22 +90,44 @@
   <section id="changelog">
 <h1>CHANGELOG<a class="headerlink" href="#changelog" title="Link to this heading"></a></h1>
 <section id="id1">
-<h2>0.0.2 - 2026.03.02<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<h2>0.0.3 - 2026.03.27<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>feat</p>
 <ul>
-<li><p>Support cli</p></li>
+<li><p>Support http, sftp, stdio, webdav and hdfs.</p></li>
+<li><p>Cli support more commands.</p></li>
+<li><p>Megfile patch supported.</p></li>
 </ul>
 </li>
 <li><p>perf</p>
 <ul>
-<li><p>Speed up s3 by asyncio task</p></li>
+<li><p>Speed up s3 list files and smart sync.</p></li>
+</ul>
+</li>
+<li><p>docs</p>
+<ul>
+<li><p>Add more docs.</p></li>
 </ul>
 </li>
 </ul>
 </section>
 <section id="id2">
-<h2>0.0.1 - 2026.02.27<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<h2>0.0.2 - 2026.03.02<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>feat</p>
+<ul>
+<li><p>Support cli.</p></li>
+</ul>
+</li>
+<li><p>perf</p>
+<ul>
+<li><p>Speed up s3 by asyncio task.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="id3">
+<h2>0.0.1 - 2026.02.27<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>First release.</p></li>
 </ul>
@@ -109,7 +138,7 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="aiomegfile.filesystem.local.html" class="btn btn-neutral float-left" title="aiomegfile.filesystem.local module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aiomegfile.filesystem.webdav.html" class="btn btn-neutral float-left" title="aiomegfile.filesystem.webdav module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

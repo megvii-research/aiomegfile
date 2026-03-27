@@ -22,7 +22,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="API Reference" href="aiomegfile.html" />
-    <link rel="prev" title="Getting Started" href="readme.html" /> 
+    <link rel="prev" title="Configuration" href="configuration.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -44,16 +44,51 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">CLI</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#quick-examples">Quick Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-groups">Command Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#protocol-support">Protocol Support</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#reference">Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#completion">Completion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reference">Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#amf">amf</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#amf-cat">cat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-completion">completion</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-config">config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-cp">cp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-edit">edit</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-head">head</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-ll">ll</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-ls">ls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-md5sum">md5sum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-mkdir">mkdir</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-mtime">mtime</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-mv">mv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-rm">rm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-size">size</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-stat">stat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-sync">sync</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-tail">tail</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-to">to</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-touch">touch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#amf-version">version</a></li>
 </ul>
 </li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -98,23 +133,845 @@
 amf<span class="w"> </span>ls<span class="w"> </span>s3://my-bucket/prefix<span class="w"> </span>-l
 amf<span class="w"> </span>cp<span class="w"> </span>-r<span class="w"> </span>./data<span class="w"> </span>s3://my-bucket/backup
 amf<span class="w"> </span>sync<span class="w"> </span>./data<span class="w"> </span>s3://my-bucket/backup<span class="w"> </span>--progress-bar
+amf<span class="w"> </span>cat<span class="w"> </span>https://example.com/data.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;payload&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>amf<span class="w"> </span>to<span class="w"> </span>s3://my-bucket/stdin-demo.txt
 </pre></div>
 </div>
-<p>Supported protocols match the current aiomegfile backend set (<code class="docutils literal notranslate"><span class="pre">file://</span></code> and
-<code class="docutils literal notranslate"><span class="pre">s3://</span></code>).</p>
+</section>
+<section id="command-groups">
+<h2>Command Groups<a class="headerlink" href="#command-groups" title="Link to this heading"></a></h2>
+<p>The CLI covers several common workflows:</p>
+<ul class="simple">
+<li><p>Inspection: <code class="docutils literal notranslate"><span class="pre">ls</span></code>, <code class="docutils literal notranslate"><span class="pre">ll</span></code>, <code class="docutils literal notranslate"><span class="pre">stat</span></code>, <code class="docutils literal notranslate"><span class="pre">size</span></code>, <code class="docutils literal notranslate"><span class="pre">mtime</span></code>, <code class="docutils literal notranslate"><span class="pre">md5sum</span></code></p></li>
+<li><p>Transfer: <code class="docutils literal notranslate"><span class="pre">cp</span></code>, <code class="docutils literal notranslate"><span class="pre">mv</span></code>, <code class="docutils literal notranslate"><span class="pre">sync</span></code>, <code class="docutils literal notranslate"><span class="pre">rm</span></code>, <code class="docutils literal notranslate"><span class="pre">mkdir</span></code>, <code class="docutils literal notranslate"><span class="pre">touch</span></code></p></li>
+<li><p>Streaming: <code class="docutils literal notranslate"><span class="pre">cat</span></code>, <code class="docutils literal notranslate"><span class="pre">head</span></code>, <code class="docutils literal notranslate"><span class="pre">tail</span></code>, <code class="docutils literal notranslate"><span class="pre">to</span></code>, <code class="docutils literal notranslate"><span class="pre">edit</span></code></p></li>
+<li><p>Configuration: <code class="docutils literal notranslate"><span class="pre">config</span></code></p></li>
+<li><p>Shell integration: <code class="docutils literal notranslate"><span class="pre">completion</span></code></p></li>
+</ul>
+</section>
+<section id="protocol-support">
+<h2>Protocol Support<a class="headerlink" href="#protocol-support" title="Link to this heading"></a></h2>
+<p>The CLI works with the same backend registry as the Python API:</p>
+<ul class="simple">
+<li><p>local paths and <code class="docutils literal notranslate"><span class="pre">file://</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3://</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">http://</span></code> and <code class="docutils literal notranslate"><span class="pre">https://</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sftp://</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stdio://</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hdfs://</span></code> when the HDFS extra is installed</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">webdav://</span></code> and <code class="docutils literal notranslate"><span class="pre">webdavs://</span></code> when the WebDAV extra is installed</p></li>
+</ul>
 </section>
 <section id="configuration">
 <h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
-<p>For S3 credentials, use the helper command (writes to <code class="docutils literal notranslate"><span class="pre">~/.aws/credentials</span></code>):</p>
+<p>Helper commands are available for common configuration files:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>s3<span class="w"> </span>&lt;access_key&gt;<span class="w"> </span>&lt;secret_key&gt;<span class="w"> </span>--profile-name<span class="w"> </span>default
+amf<span class="w"> </span>config<span class="w"> </span>hdfs<span class="w"> </span>http://namenode:9870<span class="w"> </span>--profile-name<span class="w"> </span>prod<span class="w"> </span>--user<span class="w"> </span>hdfs
+amf<span class="w"> </span>config<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>datasets<span class="w"> </span>s3://company-datasets/
+amf<span class="w"> </span>config<span class="w"> </span>env<span class="w"> </span><span class="nv">MEGFILE_MAX_WORKERS</span><span class="o">=</span><span class="m">16</span>
 </pre></div>
 </div>
-<p>If you need a broader protocol matrix or advanced configuration options,
-refer to the megfile documentation at
-<a class="reference external" href="http://megvii-research.github.io/megfile">http://megvii-research.github.io/megfile</a>.</p>
+</section>
+<section id="completion">
+<h2>Completion<a class="headerlink" href="#completion" title="Link to this heading"></a></h2>
+<p>The CLI can append completion setup to your shell config:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>completion<span class="w"> </span>bash
+amf<span class="w"> </span>completion<span class="w"> </span>zsh
+amf<span class="w"> </span>completion<span class="w"> </span>fish
+</pre></div>
+</div>
+</section>
+<section id="notes">
+<h2>Notes<a class="headerlink" href="#notes" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sync</span></code> modifies the destination tree to match the source.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cp</span></code> supports recursive copies with <code class="docutils literal notranslate"><span class="pre">-r</span></code> and progress bars with <code class="docutils literal notranslate"><span class="pre">-g</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">to</span></code> reads from stdin and writes to the target path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cat</span></code>, <code class="docutils literal notranslate"><span class="pre">head</span></code>, and <code class="docutils literal notranslate"><span class="pre">tail</span></code> are useful for quick remote inspection.</p></li>
+</ul>
 </section>
 <section id="reference">
 <h2>Reference<a class="headerlink" href="#reference" title="Link to this heading"></a></h2>
+<section id="amf">
+<h3>amf<a class="headerlink" href="#amf" title="Link to this heading"></a></h3>
+<p>Client for aiomegfile.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-debug">
+<span class="sig-name descname"><span class="pre">--debug</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-debug" title="Link to this definition"></a></dt>
+<dd><p>Enable debug mode.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-log-level">
+<span class="sig-name descname"><span class="pre">--log-level</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;log_level&gt;</span></span><a class="headerlink" href="#cmdoption-amf-log-level" title="Link to this definition"></a></dt>
+<dd><p>Set logging level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><p>DEBUG | INFO | WARNING | ERROR</p>
+</dd>
+</dl>
+</dd></dl>
+
+<section id="amf-cat">
+<h4>cat<a class="headerlink" href="#amf-cat" title="Link to this heading"></a></h4>
+<p>Print the file content to stdout.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>cat<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cat-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cat-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-completion">
+<h4>completion<a class="headerlink" href="#amf-completion" title="Link to this heading"></a></h4>
+<p>Shell completion helper.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>completion<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<section id="amf-completion-bash">
+<h5>bash<a class="headerlink" href="#amf-completion-bash" title="Link to this heading"></a></h5>
+<p>Enable bash completion for aiomegfile.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>completion<span class="w"> </span>bash<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="amf-completion-fish">
+<h5>fish<a class="headerlink" href="#amf-completion-fish" title="Link to this heading"></a></h5>
+<p>Enable fish completion for aiomegfile.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>completion<span class="w"> </span>fish<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="amf-completion-zsh">
+<h5>zsh<a class="headerlink" href="#amf-completion-zsh" title="Link to this heading"></a></h5>
+<p>Enable zsh completion for aiomegfile.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>completion<span class="w"> </span>zsh<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="amf-config">
+<h4>config<a class="headerlink" href="#amf-config" title="Link to this heading"></a></h4>
+<p>Configuration helpers.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<section id="amf-config-alias">
+<h5>alias<a class="headerlink" href="#amf-config-alias" title="Link to this heading"></a></h5>
+<p>Update alias configuration in the config file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param path<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Config file path.</p>
+</dd>
+<dt class="field-even">param name<span class="colon">:</span></dt>
+<dd class="field-even"><p>Alias name.</p>
+</dd>
+<dt class="field-odd">param protocol_or_path<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Protocol or protocol/prefix mapping.</p>
+</dd>
+<dt class="field-even">param no_cover<span class="colon">:</span></dt>
+<dd class="field-even"><p>Whether to forbid overwriting existing alias.</p>
+</dd>
+<dt class="field-odd">return<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+<dt class="field-even">rtype<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span><span class="nb">alias</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>NAME<span class="w"> </span>PROTOCOL_OR_PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-alias-p">
+<span id="cmdoption-amf-config-alias-path"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--path</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;path&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-alias-p" title="Link to this definition"></a></dt>
+<dd><p>megfile config file, default is ~/.config/megfile/megfile.conf</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-alias-no-cover">
+<span class="sig-name descname"><span class="pre">--no-cover</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-alias-no-cover" title="Link to this definition"></a></dt>
+<dd><p>Not cover the same-name config</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-alias-arg-NAME">
+<span class="sig-name descname"><span class="pre">NAME</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-alias-arg-NAME" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-alias-arg-PROTOCOL_OR_PATH">
+<span class="sig-name descname"><span class="pre">PROTOCOL_OR_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-alias-arg-PROTOCOL_OR_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-config-env">
+<h5>env<a class="headerlink" href="#amf-config-env" title="Link to this heading"></a></h5>
+<p>Update env configuration in the config file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param path<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Config file path.</p>
+</dd>
+<dt class="field-even">param expr<span class="colon">:</span></dt>
+<dd class="field-even"><p>Environment assignment in the form NAME=VALUE.</p>
+</dd>
+<dt class="field-odd">param no_cover<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Whether to forbid overwriting existing env.</p>
+</dd>
+<dt class="field-even">return<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">rtype<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>env<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>EXPR
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-env-p">
+<span id="cmdoption-amf-config-env-path"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--path</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;path&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-env-p" title="Link to this definition"></a></dt>
+<dd><p>megfile config file, default is ~/.config/megfile/megfile.conf</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-env-no-cover">
+<span class="sig-name descname"><span class="pre">--no-cover</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-env-no-cover" title="Link to this definition"></a></dt>
+<dd><p>Not cover the same-name config</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-env-arg-EXPR">
+<span class="sig-name descname"><span class="pre">EXPR</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-env-arg-EXPR" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-config-hdfs">
+<h5>hdfs<a class="headerlink" href="#amf-config-hdfs" title="Link to this heading"></a></h5>
+<p>Update HDFS configuration in the config file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param path<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Config file path.</p>
+</dd>
+<dt class="field-even">param url<span class="colon">:</span></dt>
+<dd class="field-even"><p>HDFS URL.</p>
+</dd>
+<dt class="field-odd">param profile_name<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Profile name.</p>
+</dd>
+<dt class="field-even">param user<span class="colon">:</span></dt>
+<dd class="field-even"><p>HDFS user.</p>
+</dd>
+<dt class="field-odd">param root<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Root path.</p>
+</dd>
+<dt class="field-even">param token<span class="colon">:</span></dt>
+<dd class="field-even"><p>Auth token.</p>
+</dd>
+<dt class="field-odd">param timeout<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Request timeout.</p>
+</dd>
+<dt class="field-even">param no_cover<span class="colon">:</span></dt>
+<dd class="field-even"><p>Whether to forbid overwriting existing profile.</p>
+</dd>
+<dt class="field-odd">return<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+<dt class="field-even">rtype<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>hdfs<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>URL
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-p">
+<span id="cmdoption-amf-config-hdfs-path"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--path</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;path&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-p" title="Link to this definition"></a></dt>
+<dd><p>hdfs config file, default is $HOME/.hdfscli.cfg</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-n">
+<span id="cmdoption-amf-config-hdfs-profile-name"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--profile-name</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;profile_name&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-n" title="Link to this definition"></a></dt>
+<dd><p>hdfs config file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-u">
+<span id="cmdoption-amf-config-hdfs-user"></span><span class="sig-name descname"><span class="pre">-u</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--user</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;user&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-u" title="Link to this definition"></a></dt>
+<dd><p>user name</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-r">
+<span id="cmdoption-amf-config-hdfs-root"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--root</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;root&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-r" title="Link to this definition"></a></dt>
+<dd><p>hdfs path’s root dir</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-t">
+<span id="cmdoption-amf-config-hdfs-token"></span><span class="sig-name descname"><span class="pre">-t</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--token</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;token&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-t" title="Link to this definition"></a></dt>
+<dd><p>token for requesting hdfs server</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-o">
+<span id="cmdoption-amf-config-hdfs-timeout"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--timeout</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;timeout&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-o" title="Link to this definition"></a></dt>
+<dd><p>request hdfs server timeout, default 10</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-no-cover">
+<span class="sig-name descname"><span class="pre">--no-cover</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-no-cover" title="Link to this definition"></a></dt>
+<dd><p>Not cover the same-name config</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-arg-URL">
+<span class="sig-name descname"><span class="pre">URL</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-arg-URL" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-config-s3">
+<h5>s3<a class="headerlink" href="#amf-config-s3" title="Link to this heading"></a></h5>
+<p>Update S3 credentials in the AWS credentials file.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>s3<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>AWS_ACCESS_KEY_ID<span class="w"> </span>AWS_SECRET_ACCESS_KEY
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-p">
+<span id="cmdoption-amf-config-s3-path"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--path</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;path&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-s3-p" title="Link to this definition"></a></dt>
+<dd><p>S3 config file, default is $HOME/.aws/credentials</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-n">
+<span id="cmdoption-amf-config-s3-profile-name"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--profile-name</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;profile_name&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-s3-n" title="Link to this definition"></a></dt>
+<dd><p>S3 profile name</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-e">
+<span id="cmdoption-amf-config-s3-endpoint-url"></span><span class="sig-name descname"><span class="pre">-e</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--endpoint-url</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;endpoint_url&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-s3-e" title="Link to this definition"></a></dt>
+<dd><p>endpoint-url</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-st">
+<span id="cmdoption-amf-config-s3-session-token"></span><span class="sig-name descname"><span class="pre">-st</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--session-token</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;session_token&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-s3-st" title="Link to this definition"></a></dt>
+<dd><p>session-token</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-as">
+<span id="cmdoption-amf-config-s3-addressing-style"></span><span class="sig-name descname"><span class="pre">-as</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--addressing-style</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;addressing_style&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-s3-as" title="Link to this definition"></a></dt>
+<dd><p>addressing-style</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-sv">
+<span id="cmdoption-amf-config-s3-signature-version"></span><span class="sig-name descname"><span class="pre">-sv</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--signature-version</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;signature_version&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-s3-sv" title="Link to this definition"></a></dt>
+<dd><p>signature-version</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-no-cover">
+<span class="sig-name descname"><span class="pre">--no-cover</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-s3-no-cover" title="Link to this definition"></a></dt>
+<dd><p>Not cover the same-name config</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-arg-AWS_ACCESS_KEY_ID">
+<span class="sig-name descname"><span class="pre">AWS_ACCESS_KEY_ID</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-s3-arg-AWS_ACCESS_KEY_ID" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-config-s3-arg-AWS_SECRET_ACCESS_KEY">
+<span class="sig-name descname"><span class="pre">AWS_SECRET_ACCESS_KEY</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-s3-arg-AWS_SECRET_ACCESS_KEY" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="amf-cp">
+<h4>cp<a class="headerlink" href="#amf-cp" title="Link to this heading"></a></h4>
+<p>Copy files from source to destination.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>cp<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>SRC_PATH<span class="w"> </span>DST_PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cp-r">
+<span id="cmdoption-amf-cp-recursive"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--recursive</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-r" title="Link to this definition"></a></dt>
+<dd><p>Command is performed on all files under the specified path.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cp-T">
+<span id="cmdoption-amf-cp-no-target-directory"></span><span class="sig-name descname"><span class="pre">-T</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-target-directory</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-T" title="Link to this definition"></a></dt>
+<dd><p>Treat dst_path as a normal file.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cp-g">
+<span id="cmdoption-amf-cp-progress-bar"></span><span class="sig-name descname"><span class="pre">-g</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--progress-bar</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-g" title="Link to this definition"></a></dt>
+<dd><p>Show progress bar.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cp-skip">
+<span class="sig-name descname"><span class="pre">--skip</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-skip" title="Link to this definition"></a></dt>
+<dd><p>Skip existed files.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cp-arg-SRC_PATH">
+<span class="sig-name descname"><span class="pre">SRC_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-arg-SRC_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-cp-arg-DST_PATH">
+<span class="sig-name descname"><span class="pre">DST_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-arg-DST_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-edit">
+<h4>edit<a class="headerlink" href="#amf-edit" title="Link to this heading"></a></h4>
+<p>Edit a file using a local editor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param path<span class="colon">:</span></dt>
+<dd class="field-odd"><p>File path to edit.</p>
+</dd>
+<dt class="field-even">param editor<span class="colon">:</span></dt>
+<dd class="field-even"><p>Editor command to use.</p>
+</dd>
+</dl>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>edit<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-edit-e">
+<span id="cmdoption-amf-edit-editor"></span><span class="sig-name descname"><span class="pre">-e</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--editor</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;editor&gt;</span></span><a class="headerlink" href="#cmdoption-amf-edit-e" title="Link to this definition"></a></dt>
+<dd><p>Editor to use.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-edit-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-edit-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-head">
+<h4>head<a class="headerlink" href="#amf-head" title="Link to this heading"></a></h4>
+<p>Print the first lines of a file.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>head<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-head-n">
+<span id="cmdoption-amf-head-lines"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--lines</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;lines&gt;</span></span><a class="headerlink" href="#cmdoption-amf-head-n" title="Link to this definition"></a></dt>
+<dd><p>Print the first NUM lines</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-head-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-head-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-ll">
+<h4>ll<a class="headerlink" href="#amf-ll" title="Link to this heading"></a></h4>
+<p>List all the objects in the path with human readable sizes.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>ll<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ll-f">
+<span id="cmdoption-amf-ll-full"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--full</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ll-f" title="Link to this definition"></a></dt>
+<dd><p>Displays the full path of each file.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ll-r">
+<span id="cmdoption-amf-ll-recursive"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--recursive</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ll-r" title="Link to this definition"></a></dt>
+<dd><p>Command is performed on all files under the specified path.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ll-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ll-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-ls">
+<h4>ls<a class="headerlink" href="#amf-ls" title="Link to this heading"></a></h4>
+<p>List all the objects in the path.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>ls<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ls-l">
+<span id="cmdoption-amf-ls-long"></span><span class="sig-name descname"><span class="pre">-l</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--long</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ls-l" title="Link to this definition"></a></dt>
+<dd><p>List all the objects with size, modification time and path.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ls-f">
+<span id="cmdoption-amf-ls-full"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--full</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ls-f" title="Link to this definition"></a></dt>
+<dd><p>Displays the full path of each file.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ls-r">
+<span id="cmdoption-amf-ls-recursive"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--recursive</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ls-r" title="Link to this definition"></a></dt>
+<dd><p>Command is performed on all files under the specified path.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ls-h">
+<span id="cmdoption-amf-ls-human-readable"></span><span class="sig-name descname"><span class="pre">-h</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--human-readable</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ls-h" title="Link to this definition"></a></dt>
+<dd><p>Displays file sizes in human readable format.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-ls-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-ls-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-md5sum">
+<h4>md5sum<a class="headerlink" href="#amf-md5sum" title="Link to this heading"></a></h4>
+<p>Compute md5 checksum for a file.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>md5sum<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-md5sum-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-md5sum-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-mkdir">
+<h4>mkdir<a class="headerlink" href="#amf-mkdir" title="Link to this heading"></a></h4>
+<p>Create a directory.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>mkdir<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mkdir-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mkdir-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-mtime">
+<h4>mtime<a class="headerlink" href="#amf-mtime" title="Link to this heading"></a></h4>
+<p>Return the last modification time of a path.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>mtime<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mtime-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mtime-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-mv">
+<h4>mv<a class="headerlink" href="#amf-mv" title="Link to this heading"></a></h4>
+<p>Move files from source to destination.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>mv<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>SRC_PATH<span class="w"> </span>DST_PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mv-r">
+<span id="cmdoption-amf-mv-recursive"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--recursive</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-r" title="Link to this definition"></a></dt>
+<dd><p>Command is performed on all files under the specified path.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mv-T">
+<span id="cmdoption-amf-mv-no-target-directory"></span><span class="sig-name descname"><span class="pre">-T</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--no-target-directory</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-T" title="Link to this definition"></a></dt>
+<dd><p>Treat dst_path as a normal file.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mv-g">
+<span id="cmdoption-amf-mv-progress-bar"></span><span class="sig-name descname"><span class="pre">-g</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--progress-bar</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-g" title="Link to this definition"></a></dt>
+<dd><p>Show progress bar.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mv-skip">
+<span class="sig-name descname"><span class="pre">--skip</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-skip" title="Link to this definition"></a></dt>
+<dd><p>Skip existed files.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mv-arg-SRC_PATH">
+<span class="sig-name descname"><span class="pre">SRC_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-arg-SRC_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-mv-arg-DST_PATH">
+<span class="sig-name descname"><span class="pre">DST_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-arg-DST_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-rm">
+<h4>rm<a class="headerlink" href="#amf-rm" title="Link to this heading"></a></h4>
+<p>Remove files from a path.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>rm<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-rm-r">
+<span id="cmdoption-amf-rm-recursive"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--recursive</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-rm-r" title="Link to this definition"></a></dt>
+<dd><p>Command is performed on all files under the specified path.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-rm-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-rm-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-size">
+<h4>size<a class="headerlink" href="#amf-size" title="Link to this heading"></a></h4>
+<p>Return the size of a file or directory.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>size<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-size-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-size-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-stat">
+<h4>stat<a class="headerlink" href="#amf-stat" title="Link to this heading"></a></h4>
+<p>Return stat info for a path.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>stat<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-stat-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-stat-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-sync">
+<h4>sync<a class="headerlink" href="#amf-sync" title="Link to this heading"></a></h4>
+<p>Sync files from source to destination.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>sync<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>SRC_PATH<span class="w"> </span>DST_PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-f">
+<span id="cmdoption-amf-sync-force"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--force</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-f" title="Link to this definition"></a></dt>
+<dd><p>Copy files forcible, ignore same files.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-skip">
+<span class="sig-name descname"><span class="pre">--skip</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-skip" title="Link to this definition"></a></dt>
+<dd><p>Skip existed files.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-w">
+<span id="cmdoption-amf-sync-worker"></span><span class="sig-name descname"><span class="pre">-w</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--worker</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;worker&gt;</span></span><a class="headerlink" href="#cmdoption-amf-sync-w" title="Link to this definition"></a></dt>
+<dd><p>Number of workers.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-g">
+<span id="cmdoption-amf-sync-progress-bar"></span><span class="sig-name descname"><span class="pre">-g</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--progress-bar</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-g" title="Link to this definition"></a></dt>
+<dd><p>Show progress bar.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-v">
+<span id="cmdoption-amf-sync-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-v" title="Link to this definition"></a></dt>
+<dd><p>Show more progress log.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-q">
+<span id="cmdoption-amf-sync-quiet"></span><span class="sig-name descname"><span class="pre">-q</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-q" title="Link to this definition"></a></dt>
+<dd><p>Not show any progress log.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-arg-SRC_PATH">
+<span class="sig-name descname"><span class="pre">SRC_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-arg-SRC_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-sync-arg-DST_PATH">
+<span class="sig-name descname"><span class="pre">DST_PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-arg-DST_PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-tail">
+<h4>tail<a class="headerlink" href="#amf-tail" title="Link to this heading"></a></h4>
+<p>Print the last lines of a file.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>tail<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-tail-n">
+<span id="cmdoption-amf-tail-lines"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--lines</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;lines&gt;</span></span><a class="headerlink" href="#cmdoption-amf-tail-n" title="Link to this definition"></a></dt>
+<dd><p>Print the last NUM lines</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-tail-f">
+<span id="cmdoption-amf-tail-follow"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--follow</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-tail-f" title="Link to this definition"></a></dt>
+<dd><p>Output appended data</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-tail-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-tail-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-to">
+<h4>to<a class="headerlink" href="#amf-to" title="Link to this heading"></a></h4>
+<p>Write stdin to a file.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>to<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-to-a">
+<span id="cmdoption-amf-to-append"></span><span class="sig-name descname"><span class="pre">-a</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--append</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-to-a" title="Link to this definition"></a></dt>
+<dd><p>Append to the given file</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-to-o">
+<span id="cmdoption-amf-to-stdout"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--stdout</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-to-o" title="Link to this definition"></a></dt>
+<dd><p>Output to stdout as well</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-to-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-to-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-touch">
+<h4>touch<a class="headerlink" href="#amf-touch" title="Link to this heading"></a></h4>
+<p>Touch a file.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>touch<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>PATH
+</pre></div>
+</div>
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-amf-touch-arg-PATH">
+<span class="sig-name descname"><span class="pre">PATH</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-touch-arg-PATH" title="Link to this definition"></a></dt>
+<dd><p>Required argument</p>
+</dd></dl>
+
+</section>
+<section id="amf-version">
+<h4>version<a class="headerlink" href="#amf-version" title="Link to this heading"></a></h4>
+<p>Return the aiomegfile version.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>version<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+</section>
 </section>
 </section>
 
@@ -122,7 +979,7 @@ refer to the megfile documentation at
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="readme.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="configuration.html" class="btn btn-neutral float-left" title="Configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="aiomegfile.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

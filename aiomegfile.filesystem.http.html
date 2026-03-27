@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.filesystem.http module &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="aiomegfile.filesystem.sftp module" href="aiomegfile.filesystem.sftp.html" />
+    <link rel="prev" title="aiomegfile.filesystem.s3 module" href="aiomegfile.filesystem.s3.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="aiomegfile.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#smart-modules">Smart Modules</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.local.html">aiomegfile.filesystem.local module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.s3.html">aiomegfile.filesystem.s3 module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">aiomegfile.filesystem.http module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader"><code class="docutils literal notranslate"><span class="pre">AioHttpAdaptiveReader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.http.AioHttpContentReader"><code class="docutils literal notranslate"><span class="pre">AioHttpContentReader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.http.HttpFileSystem"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.http.HttpsFileSystem"><code class="docutils literal notranslate"><span class="pre">HttpsFileSystem</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.http.is_http"><code class="docutils literal notranslate"><span class="pre">is_http()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.sftp.html">aiomegfile.filesystem.sftp module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.stdio.html">aiomegfile.filesystem.stdio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html">aiomegfile.filesystem.hdfs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.webdav.html">aiomegfile.filesystem.webdav module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="aiomegfile.html">API Reference</a></li>
+      <li class="breadcrumb-item active">aiomegfile.filesystem.http module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/aiomegfile.filesystem.http.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-aiomegfile.filesystem.http">
+<span id="aiomegfile-filesystem-http-module"></span><h1>aiomegfile.filesystem.http module<a class="headerlink" href="#module-aiomegfile.filesystem.http" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.http.</span></span><span class="sig-name descname"><span class="pre">AioHttpAdaptiveReader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_buffer_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_forward</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpAdaptiveReader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AioReadable</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">AioSeekable</span></code></p>
+<p>Adaptive HTTP reader selecting prefetch or full-content strategy.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.close">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.close" title="Link to this definition"></a></dt>
+<dd><p>Close selected reader if initialized.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.mode" title="Link to this definition"></a></dt>
+<dd><p>Return open mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>File mode string.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.name" title="Link to this definition"></a></dt>
+<dd><p>Return source URI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>URI string.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.read">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AnyStr</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpAdaptiveReader.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.read" title="Link to this definition"></a></dt>
+<dd><p>Read content from current position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>size</strong> – Maximum size to read.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Read bytes or text.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AnyStr</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.readline">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">readline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AnyStr</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpAdaptiveReader.readline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.readline" title="Link to this definition"></a></dt>
+<dd><p>Read one line from current position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>size</strong> – Maximum size to read.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>One line in bytes or text.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AnyStr</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.seek">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">seek</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">whence</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpAdaptiveReader.seek"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.seek" title="Link to this definition"></a></dt>
+<dd><p>Move stream cursor and return new offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>offset</strong> – Target offset.</p></li>
+<li><p><strong>whence</strong> – Seek reference position.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New absolute offset.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpAdaptiveReader.tell">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">tell</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpAdaptiveReader.tell"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpAdaptiveReader.tell" title="Link to this definition"></a></dt>
+<dd><p>Return current stream offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Current stream offset.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.http.</span></span><span class="sig-name descname"><span class="pre">AioHttpContentReader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpContentReader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AioReadable</span></code></p>
+<p>Async reader for streaming HTTP response content.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader.close">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader.close" title="Link to this definition"></a></dt>
+<dd><p>Close reader and release HTTP resources.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader.mode" title="Link to this definition"></a></dt>
+<dd><p>Return open mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>File mode string.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader.name" title="Link to this definition"></a></dt>
+<dd><p>Return source URI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>URI string.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader.read">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AnyStr</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpContentReader.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader.read" title="Link to this definition"></a></dt>
+<dd><p>Read content from current position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>size</strong> – Maximum size to read.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Read bytes or text.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AnyStr</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader.readline">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">readline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AnyStr</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpContentReader.readline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader.readline" title="Link to this definition"></a></dt>
+<dd><p>Read one line from current position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>size</strong> – Maximum size to read.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>One line in bytes or text.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AnyStr</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.AioHttpContentReader.tell">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">tell</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#AioHttpContentReader.tell"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.AioHttpContentReader.tell" title="Link to this definition"></a></dt>
+<dd><p>Return current stream offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Current stream offset.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.http.</span></span><span class="sig-name descname"><span class="pre">HttpFileSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseFileSystem</span></code></p>
+<p>Filesystem adapter for read-only HTTP resources.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.build_uri">
+<span class="sig-name descname"><span class="pre">build_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.build_uri" title="Link to this definition"></a></dt>
+<dd><p>Build URI from path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Path without protocol.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>URI string.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.exists">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.exists" title="Link to this definition"></a></dt>
+<dd><p>Return whether path points to an existing HTTP resource.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Target path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Ignored for HTTP protocol.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True when resource exists, otherwise False.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.from_uri">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.from_uri" title="Link to this definition"></a></dt>
+<dd><p>Create a new filesystem instance from URI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>uri</strong> – URI string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>HttpFileSystem instance.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#aiomegfile.filesystem.http.HttpFileSystem" title="aiomegfile.filesystem.http.HttpFileSystem">HttpFileSystem</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.is_dir">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.is_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.is_dir" title="Link to this definition"></a></dt>
+<dd><p>Return whether path points to a directory.</p>
+<p>HTTP resources are treated as files only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Target path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Ignored for HTTP protocol.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Always False.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.is_file">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.is_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.is_file" title="Link to this definition"></a></dt>
+<dd><p>Return whether path points to an existing HTTP resource.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Target path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Ignored for HTTP protocol.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True when resource exists, otherwise False.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.open">
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffering</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.open" title="Link to this definition"></a></dt>
+<dd><p>Open a read-only HTTP resource.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Target path without protocol.</p></li>
+<li><p><strong>mode</strong> – Open mode, supports <code class="docutils literal notranslate"><span class="pre">r</span></code>/<code class="docutils literal notranslate"><span class="pre">rt</span></code>/<code class="docutils literal notranslate"><span class="pre">rb</span></code>.</p></li>
+<li><p><strong>buffering</strong> – Ignored, kept for API compatibility.</p></li>
+<li><p><strong>encoding</strong> – Text encoding in text mode.</p></li>
+<li><p><strong>errors</strong> – Text decoding error handling strategy.</p></li>
+<li><p><strong>newline</strong> – Newline handling in text mode.</p></li>
+<li><p><strong>kwargs</strong> – <p>Extra options for compatibility with megfile APIs.</p>
+<p>Supported options:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">block_size</span></code>: Prefetch block size in bytes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_buffer_size</span></code>: Maximum in-memory prefetch buffer size in bytes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">block_forward</span></code>: Number of blocks to prefetch ahead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_retries</span></code>: Maximum retry attempts for transient HTTP errors.</p></li>
+</ul>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Async reader context manager.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AsyncContextManager</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.parse_uri">
+<span class="sig-name descname"><span class="pre">parse_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.parse_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.parse_uri" title="Link to this definition"></a></dt>
+<dd><p>Parse path part from URI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>uri</strong> – URI string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Path without protocol.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.protocol">
+<span class="sig-name descname"><span class="pre">protocol</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'http'</span></em><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.protocol" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.same_endpoint">
+<span class="sig-name descname"><span class="pre">same_endpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other_filesystem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BaseFileSystem</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.same_endpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.same_endpoint" title="Link to this definition"></a></dt>
+<dd><p>Return whether this filesystem points to the same endpoint.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other_filesystem</strong> – Filesystem to compare.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True when both are HTTP filesystems with same protocol.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.scandir">
+<span class="sig-name descname"><span class="pre">scandir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.scandir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.scandir" title="Link to this definition"></a></dt>
+<dd><p>Scan entries under a path.</p>
+<p>HTTP protocol does not support directory listing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Target path without protocol.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotADirectoryError</strong> – Always raised for HTTP resources.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.scanfile">
+<span class="sig-name descname"><span class="pre">scanfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.scanfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.scanfile" title="Link to this definition"></a></dt>
+<dd><p>Scan files under a path.</p>
+<p>HTTP protocol does not support directory traversal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Target path without protocol.</p></li>
+<li><p><strong>sort</strong> – Compatibility flag for protocol-aligned scanfile APIs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotADirectoryError</strong> – Always raised for HTTP resources.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpFileSystem.stat">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpFileSystem.stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpFileSystem.stat" title="Link to this definition"></a></dt>
+<dd><p>Get metadata for an HTTP resource.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Target path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Ignored for HTTP protocol.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>StatResult for the HTTP resource.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult">StatResult</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – When resource does not exist.</p></li>
+<li><p><strong>PermissionError</strong> – When request is denied.</p></li>
+<li><p><strong>OSError</strong> – When request fails for other reasons.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpsFileSystem">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.http.</span></span><span class="sig-name descname"><span class="pre">HttpsFileSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#HttpsFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.HttpsFileSystem" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#aiomegfile.filesystem.http.HttpFileSystem" title="aiomegfile.filesystem.http.HttpFileSystem"><code class="xref py py-class docutils literal notranslate"><span class="pre">HttpFileSystem</span></code></a></p>
+<p>Filesystem adapter for HTTPS resources.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.HttpsFileSystem.protocol">
+<span class="sig-name descname"><span class="pre">protocol</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'https'</span></em><a class="headerlink" href="#aiomegfile.filesystem.http.HttpsFileSystem.protocol" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.http.is_http">
+<span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.http.</span></span><span class="sig-name descname"><span class="pre">is_http</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/http.html#is_http"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.http.is_http" title="Link to this definition"></a></dt>
+<dd><p>Return whether the given path is an HTTP or HTTPS URL.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Path to be tested.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if path is an HTTP(S) URL, otherwise False.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aiomegfile.filesystem.s3.html" class="btn btn-neutral float-left" title="aiomegfile.filesystem.s3 module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aiomegfile.filesystem.sftp.html" class="btn btn-neutral float-right" title="aiomegfile.filesystem.sftp module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

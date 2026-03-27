@@ -41,10 +41,16 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">CHANGELOG</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -86,6 +92,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">aiofiles.ospath</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Access</span><span class="p">,</span>
     <span class="n">AioScannableManager</span><span class="p">,</span>
     <span class="n">BaseFileSystem</span><span class="p">,</span>
     <span class="n">FileEntry</span><span class="p">,</span>
@@ -245,6 +252,7 @@
         <span class="n">encoding</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">errors</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>  <span class="c1"># noqa: F401</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Open the file with mode.</span>
 
@@ -254,6 +262,7 @@
 <span class="sd">        :param encoding: Text encoding when using text modes.</span>
 <span class="sd">        :param errors: Error handling strategy for encoding/decoding.</span>
 <span class="sd">        :param newline: Newline handling in text mode.</span>
+<span class="sd">        :param kwargs: Extra open options for compatibility with megfile.</span>
 <span class="sd">        :return: Async file context manager.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">flag</span> <span class="ow">in</span> <span class="n">mode</span> <span class="k">for</span> <span class="n">flag</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;+&quot;</span><span class="p">)):</span>
@@ -308,11 +317,14 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">scanfile</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">path</span><span class="p">,</span>
+        <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Iteratively traverse only files in given directory.</span>
 <span class="sd">        Every iteration on generator yields FileEntry object.</span>
 
+<span class="sd">        :param path: Directory or file path to traverse.</span>
+<span class="sd">        :param sort: Whether to return entries in sorted order.</span>
 <span class="sd">        :returns: Async context manager yielding an async iterator of FileEntry objects.</span>
 <span class="sd">        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -326,7 +338,7 @@
             <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
 
         <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_iter_dir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]:</span>
-<span class="w">            </span><span class="sd">&quot;&quot;&quot;Yield FileEntry objects in sorted order under dir_path.</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Yield FileEntry objects under ``dir_path``.</span>
 
 <span class="sd">            :param dir_path: Directory path to traverse.</span>
 <span class="sd">            :return: Async iterator yielding FileEntry objects.</span>
@@ -353,7 +365,8 @@
                     <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
                 <span class="n">entry_map</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">is_symlink_dir</span><span class="p">)</span>
 
-            <span class="n">names</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">_normalize_sort</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
+                <span class="n">names</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">_normalize_sort</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
                 <span class="n">is_dir_entry</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)</span>
                 <span class="n">raw_name</span> <span class="o">=</span> <span class="n">name</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">is_dir_entry</span> <span class="k">else</span> <span class="n">name</span>
@@ -519,6 +532,32 @@
         <span class="k">return</span> <span class="n">dst_path</span></div>
 
 
+<div class="viewcode-block" id="LocalFileSystem.access">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.access">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">access</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="n">Access</span> <span class="o">=</span> <span class="n">Access</span><span class="o">.</span><span class="n">READ</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Test if path has access permission described by mode</span>
+<span class="sd">        Using ``os.access``</span>
+
+<span class="sd">        :param mode: access mode</span>
+<span class="sd">        :returns: Access: Enum, the read/write access that path has.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Access</span><span class="o">.</span><span class="n">READ</span><span class="p">,</span> <span class="n">Access</span><span class="o">.</span><span class="n">WRITE</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Unsupported mode: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mode</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">Access</span><span class="o">.</span><span class="n">READ</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">Access</span><span class="o">.</span><span class="n">WRITE</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">W_OK</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Unsupported mode: </span><span class="si">{}</span><span class="s2"> -- Mode should use one of &quot;</span>
+                <span class="s2">&quot;the enums belonging to:  </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">mode</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">Access</span><span class="p">])</span>
+                <span class="p">)</span>
+            <span class="p">)</span></div>
+
+
 <div class="viewcode-block" id="LocalFileSystem.same_endpoint">
 <a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.same_endpoint">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">same_endpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_filesystem</span><span class="p">:</span> <span class="n">BaseFileSystem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -546,8 +585,6 @@
         <span class="k">return</span> <span class="n">path</span></div>
 
 
-<div class="viewcode-block" id="LocalFileSystem.build_uri">
-<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.build_uri">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Build URI for the filesystem by path part.</span>
@@ -557,11 +594,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocol_in_path</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">path</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span>
 
-
-<div class="viewcode-block" id="LocalFileSystem.from_uri">
-<a class="viewcode-back" href="../../../aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.from_uri">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;LocalFileSystem&quot;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -571,7 +605,6 @@
 <span class="sd">        :return: LocalFileSystem instance.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">protocol_in_path</span><span class="o">=</span><span class="s2">&quot;file://&quot;</span> <span class="ow">in</span> <span class="n">uri</span><span class="p">)</span></div>
-</div>
 
 </pre></div>
 

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.filesystem.stdio module &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="aiomegfile.filesystem.hdfs module" href="aiomegfile.filesystem.hdfs.html" />
+    <link rel="prev" title="aiomegfile.filesystem.sftp module" href="aiomegfile.filesystem.sftp.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="aiomegfile.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#smart-modules">Smart Modules</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.local.html">aiomegfile.filesystem.local module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.s3.html">aiomegfile.filesystem.s3 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html">aiomegfile.filesystem.http module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.sftp.html">aiomegfile.filesystem.sftp module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">aiomegfile.filesystem.stdio module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.stdio.AioSTDReader"><code class="docutils literal notranslate"><span class="pre">AioSTDReader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.stdio.AioSTDWriter"><code class="docutils literal notranslate"><span class="pre">AioSTDWriter</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.stdio.StdioFileSystem"><code class="docutils literal notranslate"><span class="pre">StdioFileSystem</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html">aiomegfile.filesystem.hdfs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.webdav.html">aiomegfile.filesystem.webdav module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="aiomegfile.html">API Reference</a></li>
+      <li class="breadcrumb-item active">aiomegfile.filesystem.stdio module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/aiomegfile.filesystem.stdio.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-aiomegfile.filesystem.stdio">
+<span id="aiomegfile-filesystem-stdio-module"></span><h1>aiomegfile.filesystem.stdio module<a class="headerlink" href="#module-aiomegfile.filesystem.stdio" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.stdio.</span></span><span class="sig-name descname"><span class="pre">AioSTDReader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDReader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AioReadable</span></code></p>
+<p>Async wrapper around <code class="docutils literal notranslate"><span class="pre">sys.stdin</span></code>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader.close">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader.close" title="Link to this definition"></a></dt>
+<dd><p>Close reader handle.</p>
+<p><code class="docutils literal notranslate"><span class="pre">stdin</span></code> itself is not closed.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader.mode" title="Link to this definition"></a></dt>
+<dd><p>Return open mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Open mode.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader.name" title="Link to this definition"></a></dt>
+<dd><p>Return reader name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Stream name.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader.read">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AnyStr</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDReader.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader.read" title="Link to this definition"></a></dt>
+<dd><p>Read data from stdin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>size</strong> – Maximum size to read.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Read data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AnyStr</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader.readline">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">readline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AnyStr</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDReader.readline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader.readline" title="Link to this definition"></a></dt>
+<dd><p>Read one line from stdin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>size</strong> – Maximum size to read.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Line data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AnyStr</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDReader.tell">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">tell</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDReader.tell"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDReader.tell" title="Link to this definition"></a></dt>
+<dd><p>Return current offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>io.UnsupportedOperation</strong> – Always raised for stdio stream.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.stdio.</span></span><span class="sig-name descname"><span class="pre">AioSTDWriter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDWriter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AioWritable</span></code></p>
+<p>Async wrapper around <code class="docutils literal notranslate"><span class="pre">sys.stdout</span></code> or <code class="docutils literal notranslate"><span class="pre">sys.stderr</span></code>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter.close">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter.close" title="Link to this definition"></a></dt>
+<dd><p>Close writer handle.</p>
+<p><code class="docutils literal notranslate"><span class="pre">stdout</span></code>/<code class="docutils literal notranslate"><span class="pre">stderr</span></code> itself is not closed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter.flush">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDWriter.flush"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter.flush" title="Link to this definition"></a></dt>
+<dd><p>Flush writer buffer.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter.mode" title="Link to this definition"></a></dt>
+<dd><p>Return open mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Open mode.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter.name" title="Link to this definition"></a></dt>
+<dd><p>Return writer name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Stream name.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter.tell">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">tell</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDWriter.tell"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter.tell" title="Link to this definition"></a></dt>
+<dd><p>Return current offset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>io.UnsupportedOperation</strong> – Always raised for stdio stream.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.AioSTDWriter.write">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">AnyStr</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#AioSTDWriter.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.AioSTDWriter.write" title="Link to this definition"></a></dt>
+<dd><p>Write data to stdout or stderr.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> – Data to write.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of written items.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.filesystem.stdio.</span></span><span class="sig-name descname"><span class="pre">StdioFileSystem</span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseFileSystem</span></code></p>
+<p>Filesystem adapter for <code class="docutils literal notranslate"><span class="pre">stdio://</span></code> paths.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.absolute">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">absolute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.absolute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.absolute" title="Link to this definition"></a></dt>
+<dd><p>Return path unchanged for stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Path without protocol.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Original path.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.build_uri">
+<span class="sig-name descname"><span class="pre">build_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.build_uri" title="Link to this definition"></a></dt>
+<dd><p>Build stdio URI from path part.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Path without protocol.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>URI string.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.exists">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.exists" title="Link to this definition"></a></dt>
+<dd><p>Return True when path is a valid stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Unused compatibility argument.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Whether path is valid stdio path.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.from_uri">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.from_uri" title="Link to this definition"></a></dt>
+<dd><p>Create a new filesystem instance from URI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>uri</strong> – URI string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New filesystem instance.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#aiomegfile.filesystem.stdio.StdioFileSystem" title="aiomegfile.filesystem.stdio.StdioFileSystem">StdioFileSystem</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.is_dir">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.is_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.is_dir" title="Link to this definition"></a></dt>
+<dd><p>Return False for stdio streams.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Unused compatibility argument.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Always False.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.is_file">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.is_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.is_file" title="Link to this definition"></a></dt>
+<dd><p>Return True when path is a valid stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Unused compatibility argument.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Whether path is valid stdio path.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.mkdir">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mkdir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">511</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parents</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exist_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.mkdir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.mkdir" title="Link to this definition"></a></dt>
+<dd><p>Directory operation is unsupported for stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>mode</strong> – Unused compatibility argument.</p></li>
+<li><p><strong>parents</strong> – Unused compatibility argument.</p></li>
+<li><p><strong>exist_ok</strong> – Unused compatibility argument.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotADirectoryError</strong> – Always raised.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.open">
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffering</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.open" title="Link to this definition"></a></dt>
+<dd><p>Open stdio stream in read or write mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>mode</strong> – Stream mode. Supports <code class="docutils literal notranslate"><span class="pre">rb</span></code>, <code class="docutils literal notranslate"><span class="pre">wb</span></code>, <code class="docutils literal notranslate"><span class="pre">rt</span></code>, <code class="docutils literal notranslate"><span class="pre">wt</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span></code>, <code class="docutils literal notranslate"><span class="pre">w</span></code>.</p></li>
+<li><p><strong>buffering</strong> – Unused compatibility argument.</p></li>
+<li><p><strong>encoding</strong> – Unused compatibility argument.</p></li>
+<li><p><strong>errors</strong> – Unused compatibility argument.</p></li>
+<li><p><strong>newline</strong> – Unused compatibility argument.</p></li>
+<li><p><strong>kwargs</strong> – Unused compatibility arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If mode/path is not acceptable.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Async stdio reader or writer.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>T.AsyncContextManager[T.Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.parse_uri">
+<span class="sig-name descname"><span class="pre">parse_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.parse_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.parse_uri" title="Link to this definition"></a></dt>
+<dd><p>Parse path part from URI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>uri</strong> – URI string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Path without protocol.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.protocol">
+<span class="sig-name descname"><span class="pre">protocol</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'stdio'</span></em><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.protocol" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.remove">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">remove</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">missing_ok</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.remove"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.remove" title="Link to this definition"></a></dt>
+<dd><p>Remove operation is unsupported for stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>missing_ok</strong> – Unused compatibility argument.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>OSError</strong> – Always raised.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.same_endpoint">
+<span class="sig-name descname"><span class="pre">same_endpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other_filesystem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BaseFileSystem</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.same_endpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.same_endpoint" title="Link to this definition"></a></dt>
+<dd><p>Return whether filesystem points to same stdio endpoint.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other_filesystem</strong> – Filesystem to compare.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True when both are <code class="docutils literal notranslate"><span class="pre">StdioFileSystem</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.scandir">
+<span class="sig-name descname"><span class="pre">scandir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.scandir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.scandir" title="Link to this definition"></a></dt>
+<dd><p>Directory scan is unsupported for stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> – Path without protocol.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotADirectoryError</strong> – Always raised.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.scanfile">
+<span class="sig-name descname"><span class="pre">scanfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.scanfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.scanfile" title="Link to this definition"></a></dt>
+<dd><p>File scan is unsupported for stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>sort</strong> – Compatibility flag for protocol-aligned scanfile APIs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotADirectoryError</strong> – Always raised.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.stdio.StdioFileSystem.stat">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/stdio.html#StdioFileSystem.stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.stdio.StdioFileSystem.stat" title="Link to this definition"></a></dt>
+<dd><p>Stat operation is unsupported for stdio stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Path without protocol.</p></li>
+<li><p><strong>followlinks</strong> – Unused compatibility argument.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>OSError</strong> – Always raised.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aiomegfile.filesystem.sftp.html" class="btn btn-neutral float-left" title="aiomegfile.filesystem.sftp module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aiomegfile.filesystem.hdfs.html" class="btn btn-neutral float-right" title="aiomegfile.filesystem.hdfs module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

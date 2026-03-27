@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.interfaces &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../aiomegfile.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aiomegfile.interfaces</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aiomegfile.interfaces</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">stat</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractAsyncContextManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">types</span><span class="w"> </span><span class="kn">import</span> <span class="n">TracebackType</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProtocolNotFoundError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.alias</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_alias</span><span class="p">,</span> <span class="n">resolve_alias</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">fullname</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">split_uri</span>
+
+<span class="n">Self</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;Self&quot;</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Access">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.Access">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Access</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">READ</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">WRITE</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+
+<div class="viewcode-block" id="StatResult">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">StatResult</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">NamedTuple</span><span class="p">):</span>
+    <span class="n">st_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">st_ctime</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">st_mtime</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">isdir</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">islnk</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">extra</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="StatResult.is_file">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.is_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">isdir</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">islnk</span></div>
+
+
+<div class="viewcode-block" id="StatResult.is_dir">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.is_dir">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">isdir</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">islnk</span></div>
+
+
+<div class="viewcode-block" id="StatResult.is_symlink">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.is_symlink">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_symlink</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">islnk</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Size of the file in bytes.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">st_size</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ctime</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Platform dependent:</span>
+
+<span class="sd">        the time of most recent metadata change on Unix,</span>
+<span class="sd">        the time of creation on Windows, expressed in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">st_ctime</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mtime</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time of most recent content modification expressed in seconds.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">st_mtime</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        File mode: file type and file mode bits (permissions).</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_mode&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_mode</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">islnk</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IFLNK</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">isdir</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IFDIR</span>
+        <span class="k">return</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IFREG</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_ino</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Platform dependent, but if non-zero, uniquely identifies the file for</span>
+<span class="sd">        a given value of st_dev. Typically:</span>
+
+<span class="sd">        the inode number on Unix,</span>
+<span class="sd">        the file index on Windows,</span>
+<span class="sd">        the decimal of etag on oss.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_ino&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_ino</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ETag&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">[</span><span class="s2">&quot;ETag&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mi">16</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_dev</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Identifier of the device on which this file resides.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_dev&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_dev</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_nlink</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of hard links.</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_nlink&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_nlink</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_uid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        User identifier of the file owner.</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_uid&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_uid</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_gid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Group identifier of the file owner.</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_gid&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_gid</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_atime</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Time of most recent access expressed in seconds.</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_atime&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_atime</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_atime_ns</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Time of most recent access expressed in nanoseconds as an integer.</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_atime_ns&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_atime_ns</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_mtime_ns</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Time of most recent content modification expressed in nanoseconds as an integer.</span>
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_mtime_ns&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_mtime_ns</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">st_ctime_ns</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Platform dependent:</span>
+
+<span class="sd">            the time of most recent metadata change on Unix,</span>
+<span class="sd">            the time of creation on Windows, expressed in nanoseconds as an integer.</span>
+
+<span class="sd">        Only support fs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span> <span class="s2">&quot;st_ctime_ns&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">st_ctime_ns</span>
+        <span class="k">return</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="FileEntry">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FileEntry</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">NamedTuple</span><span class="p">):</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">stat</span><span class="p">:</span> <span class="n">StatResult</span>
+
+<div class="viewcode-block" id="FileEntry.inode">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.inode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">st_ino</span></div>
+
+
+<div class="viewcode-block" id="FileEntry.is_file">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.is_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="FileEntry.is_dir">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.is_dir">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="FileEntry.is_symlink">
+<a class="viewcode-back" href="../../aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.is_symlink">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_symlink</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">stat</span><span class="o">.</span><span class="n">is_symlink</span><span class="p">()</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AioScannableManager</span><span class="p">(</span><span class="n">AbstractAsyncContextManager</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Async-compatible wrapper around ``scandir`` or ``scanfile``</span>
+<span class="sd">    that yields ``FileEntry`` objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aiterator</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">,</span>
+        <span class="n">aexit</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span>
+            <span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[</span>
+                <span class="p">[</span>
+                    <span class="n">T</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="ne">BaseException</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">TracebackType</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">],</span>
+                <span class="n">T</span><span class="o">.</span><span class="n">Awaitable</span><span class="p">[</span><span class="kc">None</span><span class="p">],</span>
+            <span class="p">]</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the iterator for a directory path.</span>
+
+<span class="sd">        :param path: Directory path to scan.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_aiterator</span> <span class="o">=</span> <span class="n">aiterator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_aexit</span> <span class="o">=</span> <span class="n">aexit</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__anext__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FileEntry</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the next directory entry or raise ``StopAsyncIteration``.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">anext</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_aiterator</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__aiter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return self to support ``async for`` iteration.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__await__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return self to provide a minimal awaitable interface.&quot;&quot;&quot;</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">():</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__aenter__</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">dummy</span><span class="p">()</span><span class="o">.</span><span class="fm">__await__</span><span class="p">()</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__aexit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Close the underlying iterator.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aexit</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aexit</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">)</span>
+
+
+<span class="n">FILE_SYSTEMS</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">BaseFileSystem</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for all file system implementations.</span>
+
+<span class="sd">    .. note ::</span>
+
+<span class="sd">        For performance reasons, some interface definitions are different.</span>
+
+<span class="sd">            1. The ``copy``, ``upload``, and ``download`` operations only handle</span>
+<span class="sd">                single files, as they typically require processing each file&#39;s data.</span>
+<span class="sd">                Therefore, providing low-level APIs in the ``FileSystem`` is sufficient.</span>
+
+<span class="sd">            2. The ``move`` and ``remove`` operations should support both files and</span>
+<span class="sd">                directories to allow for file system optimizations.</span>
+<span class="sd">                In a local file system, for instance, moving a directory typically only</span>
+<span class="sd">                requires updating the directory entry.</span>
+
+<span class="sd">            3. The ``glob_stat``, ``is_absolute``, ``access``, ``concat`` operations are</span>
+<span class="sd">                not included in the base class. They can be added to the corresponding</span>
+<span class="sd">                FileSystem when needed due to performance or other requirements.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init_subclass__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">cls</span><span class="o">.</span><span class="n">protocol</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Subclasses(</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">) of BaseFileSystem must define a protocol&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">protocol</span> <span class="ow">in</span> <span class="n">FILE_SYSTEMS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;File system protocol &#39;</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;already registered by </span><span class="si">{</span><span class="n">FILE_SYSTEMS</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">protocol</span><span class="p">]</span><span class="si">!r}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="n">FILE_SYSTEMS</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">protocol</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span>
+
+        <span class="n">build_uri_impl</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">build_uri</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">build_uri_impl</span><span class="p">,</span> <span class="s2">&quot;__alias_wrapped__&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+
+            <span class="k">def</span><span class="w"> </span><span class="nf">_build_uri_with_alias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;Build URI and apply alias mapping when configured.</span>
+
+<span class="sd">                :param path: Path without protocol.</span>
+<span class="sd">                :return: Generated URI string.</span>
+<span class="sd">                :rtype: str</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="n">uri</span> <span class="o">=</span> <span class="n">build_uri_impl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+                <span class="n">alias_info</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_alias_info&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">apply_alias</span><span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">alias_info</span><span class="p">)</span>
+
+            <span class="n">_build_uri_with_alias</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="n">build_uri_impl</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="n">_build_uri_with_alias</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="n">build_uri_impl</span><span class="o">.</span><span class="vm">__qualname__</span>
+            <span class="n">_build_uri_with_alias</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">build_uri_impl</span><span class="o">.</span><span class="vm">__doc__</span>
+            <span class="n">_build_uri_with_alias</span><span class="o">.</span><span class="n">__alias_wrapped__</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">build_uri</span> <span class="o">=</span> <span class="n">_build_uri_with_alias</span>
+
+        <span class="n">from_uri_impl</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_uri</span>
+        <span class="n">from_uri_func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">from_uri_impl</span><span class="p">,</span> <span class="s2">&quot;__func__&quot;</span><span class="p">,</span> <span class="n">from_uri_impl</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">from_uri_func</span><span class="p">,</span> <span class="s2">&quot;__alias_wrapped__&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+
+            <span class="k">def</span><span class="w"> </span><span class="nf">_from_uri_with_alias</span><span class="p">(</span><span class="n">inner_cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;Create filesystem instance with alias resolution.</span>
+
+<span class="sd">                :param uri: URI string.</span>
+<span class="sd">                :return: Filesystem instance.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="n">unaliased_uri</span><span class="p">,</span> <span class="n">alias_info</span> <span class="o">=</span> <span class="n">resolve_alias</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+                <span class="n">filesystem</span> <span class="o">=</span> <span class="n">from_uri_func</span><span class="p">(</span><span class="n">inner_cls</span><span class="p">,</span> <span class="n">unaliased_uri</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">alias_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="n">filesystem</span><span class="p">,</span> <span class="s2">&quot;_alias_info&quot;</span><span class="p">,</span> <span class="n">alias_info</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">filesystem</span>
+
+            <span class="n">_from_uri_with_alias</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="n">from_uri_func</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="n">_from_uri_with_alias</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="n">from_uri_func</span><span class="o">.</span><span class="vm">__qualname__</span>
+            <span class="n">_from_uri_with_alias</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">from_uri_func</span><span class="o">.</span><span class="vm">__doc__</span>
+            <span class="n">_from_uri_with_alias</span><span class="o">.</span><span class="n">__alias_wrapped__</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">from_uri</span> <span class="o">=</span> <span class="nb">classmethod</span><span class="p">(</span><span class="n">_from_uri_with_alias</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a directory.</span>
+
+<span class="sd">        :param path: The path to check.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links when checking.</span>
+<span class="sd">        :return: True if the path is a directory, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;is_dir&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the path points to a regular file.</span>
+
+<span class="sd">        :param path: The path to check.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links when checking.</span>
+<span class="sd">        :return: True if the path is a regular file, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;is_file&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether the path points to an existing file or directory.</span>
+
+<span class="sd">        :param path: The path to check.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links when checking.</span>
+<span class="sd">        :return: True if the path exists, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;exists&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the status of the path.</span>
+
+<span class="sd">        :param path: File path.</span>
+<span class="sd">        :param followlinks: Whether to follow symbolic links when</span>
+<span class="sd">            resolving the path.</span>
+<span class="sd">        :return: StatResult information for the path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;stat&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove (delete) the file or directory.</span>
+
+<span class="sd">        If path is a file, remove it directly.</span>
+<span class="sd">        If path is a directory, remove it and all its contents recursively.</span>
+
+<span class="sd">        :param path: The file or directory path to remove.</span>
+<span class="sd">        :param missing_ok: If False, raise FileNotFoundError when the path is missing.</span>
+<span class="sd">        :raises FileNotFoundError: When path is missing and missing_ok is False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;remove&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">mkdir</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mo">0o777</span><span class="p">,</span>
+        <span class="n">parents</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">exist_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a directory.</span>
+
+<span class="sd">        :param path: The directory path to create.</span>
+<span class="sd">        :param mode: Permission bits for the new directory.</span>
+<span class="sd">        :param parents: Whether to create parent directories as needed.</span>
+<span class="sd">        :param exist_ok: Whether to ignore if the directory already exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;mkdir&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">open</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+        <span class="n">buffering</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open the file with mode.</span>
+
+<span class="sd">        :param path: File path.</span>
+<span class="sd">        :param mode: File open mode.</span>
+<span class="sd">        :param buffering: Buffering policy.</span>
+<span class="sd">        :param encoding: Text encoding when opening in text mode.</span>
+<span class="sd">        :param errors: Error handling strategy for encoding/decoding.</span>
+<span class="sd">        :param newline: Newline handling in text mode.</span>
+<span class="sd">        :param kwargs: Extra open options for compatibility with megfile.</span>
+<span class="sd">        :return: Async file context manager.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;open&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">scandir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return an iterator of ``FileEntry`` objects corresponding to the entries</span>
+<span class="sd">            in the directory given by path.</span>
+
+<span class="sd">        :param path: Directory path to scan.</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :return: Async context manager yielding an async iterator of FileEntry objects.</span>
+<span class="sd">        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;scandir&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">scanfile</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iteratively traverse only files in given directory.</span>
+<span class="sd">        Every iteration on generator yields FileEntry object.</span>
+
+<span class="sd">        :param path: Directory or file path to traverse.</span>
+<span class="sd">        :param sort: Whether to request sorted traversal when supported.</span>
+<span class="sd">        :returns: Async context manager yielding an async iterator of FileEntry objects.</span>
+<span class="sd">        :rtype: T.AsyncContextManager[T.AsyncIterator[FileEntry]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;method &quot;scanfile&quot; not implemented: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        upload file</span>
+
+<span class="sd">        :param src_path: Given source path</span>
+<span class="sd">        :param dst_path: Given destination path</span>
+<span class="sd">        :param callback: Called periodically during upload with bytes written.</span>
+<span class="sd">        :return: ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;upload&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        download file</span>
+
+<span class="sd">        :param src_path: Given source path</span>
+<span class="sd">        :param dst_path: Given destination path</span>
+<span class="sd">        :param callback: Called periodically during download with bytes written.</span>
+<span class="sd">        :return: ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;download&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">callback</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        copy single file, not directory</span>
+
+<span class="sd">        :param src_path: Given source path</span>
+<span class="sd">        :param dst_path: Given destination path</span>
+<span class="sd">        :param callback: Called periodically during copy with bytes written.</span>
+<span class="sd">        :return: Destination path after copy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;copy&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        move file or directory</span>
+
+<span class="sd">        :param dst_path: Given destination path</span>
+<span class="sd">        :param overwrite: whether or not overwrite file when exists</span>
+<span class="sd">        :return: Destination path after move.</span>
+<span class="sd">        :raises FileExistsError: If destination exists and overwrite is False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;move&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">symlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a symbolic link pointing to self named dst_path.</span>
+
+<span class="sd">        :param src_path: The source path the symbolic link points to.</span>
+<span class="sd">        :param dst_path: The symbolic link path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;symlink&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a new path representing the symbolic link&#39;s target.</span>
+
+<span class="sd">        :param path: The symbolic link path.</span>
+<span class="sd">        :return: Target path of the symbolic link.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;readlink&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_symlink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return True if the path points to a symbolic link.</span>
+
+<span class="sd">        :param path: The path to check.</span>
+<span class="sd">        :return: True if the path is a symbolic link, otherwise False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;is_symlink&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">absolute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make the path absolute, without normalization or resolving symlinks.</span>
+<span class="sd">        Returns a new path object</span>
+
+<span class="sd">        :param path: The path to make absolute.</span>
+<span class="sd">        :return: Absolute path string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;absolute&#39; is unsupported on &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">samefile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">other_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return whether this path points to the same file</span>
+
+<span class="sd">        :param path: Path to compare.</span>
+<span class="sd">        :param other_path: Path to compare.</span>
+<span class="sd">        :return: True if both represent the same file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">path</span> <span class="o">==</span> <span class="n">other_path</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">same_endpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_filesystem</span><span class="p">:</span> <span class="s2">&quot;BaseFileSystem&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return whether this filesystem points to the same endpoint.</span>
+
+<span class="sd">        :param other_filesystem: Filesystem to compare.</span>
+<span class="sd">        :return: True if both represent the same endpoint.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the path part from a URI.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: Path part string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build URI for the filesystem by path part.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :return: Generated URI string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">Self</span><span class="p">],</span>
+        <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return new instance of this class</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: new instance of new path</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_filesystem_by_uri</span><span class="p">(</span>
+    <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseFileSystem</span><span class="p">:</span>
+    <span class="n">unaliased_uri</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">resolve_alias</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+    <span class="n">protocol</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">split_uri</span><span class="p">(</span><span class="n">unaliased_uri</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">protocol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">FILE_SYSTEMS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ProtocolNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;protocol </span><span class="si">{</span><span class="n">protocol</span><span class="si">!r}</span><span class="s2"> not found&quot;</span><span class="p">)</span>
+    <span class="n">path_class</span> <span class="o">=</span> <span class="n">FILE_SYSTEMS</span><span class="p">[</span><span class="n">protocol</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">path_class</span><span class="o">.</span><span class="n">from_uri</span><span class="p">(</span>
+        <span class="n">uri</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AioClosable</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async closable base class for file-like objects.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init_subclass__</span><span class="p">()</span>
+        <span class="n">close_impl</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;close&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">close_impl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_wrapped_close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;__closed__&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="k">await</span> <span class="n">close_impl</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;__closed__&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">_wrapped_close</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="n">close_impl</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">_wrapped_close</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="n">close_impl</span><span class="o">.</span><span class="vm">__qualname__</span>
+        <span class="n">_wrapped_close</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">close_impl</span><span class="o">.</span><span class="vm">__doc__</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">close</span> <span class="o">=</span> <span class="n">_wrapped_close</span>  <span class="c1"># type: ignore[assignment]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">closed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object is closed.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;__closed__&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Flush and close the file-like object.</span>
+
+<span class="sd">        This method has no effect if the file is already closed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>  <span class="c1"># pragma: no cover</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__await__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return self to provide a minimal awaitable interface.&quot;&quot;&quot;</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">():</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__aenter__</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">dummy</span><span class="p">()</span><span class="o">.</span><span class="fm">__await__</span><span class="p">()</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__aenter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Enter the async context and return the managed resource.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__aexit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ensure the file-like object is closed upon deletion.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">()</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AioFileLike</span><span class="p">(</span><span class="n">AioClosable</span><span class="p">,</span> <span class="n">T</span><span class="o">.</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">],</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async file-like base class.&quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the name of the file.&quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the mode of the file.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">fileno</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">io</span><span class="o">.</span><span class="n">UnsupportedOperation</span><span class="p">(</span><span class="s2">&quot;not a local file&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">isatty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2"> name=</span><span class="si">%r</span><span class="s2"> mode=</span><span class="si">%r</span><span class="s2">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">fullname</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">seekable</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object can be sought.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">seek</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">whence</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Change stream position.</span>
+
+<span class="sd">        Seek to byte `offset` relative to position indicated by `whence`:</span>
+<span class="sd">            0  Start of stream (the default).  `offset` should be &gt;= 0;</span>
+<span class="sd">            1  Current position - `offset` may be negative;</span>
+<span class="sd">            2  End of stream - `offset` usually negative.</span>
+
+<span class="sd">        Return the new absolute position.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="n">io</span><span class="o">.</span><span class="n">UnsupportedOperation</span><span class="p">(</span><span class="s2">&quot;not seekable&quot;</span><span class="p">)</span>  <span class="c1"># pragma: no cover</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readable</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object can be read.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># pragma: no cover</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">writable</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object can be written.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Flush write buffers, if applicable.</span>
+
+<span class="sd">        This is not implemented for read-only and non-blocking streams.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the current stream position.&quot;&quot;&quot;</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AioSeekable</span><span class="p">(</span><span class="n">AioFileLike</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">],</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async seekable file-like base class.&quot;&quot;&quot;</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">seekable</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object can be sought.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">seek</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">whence</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_SET</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Change stream position.</span>
+
+<span class="sd">        Seek to byte offset `cookie` relative to position indicated by `whence`:</span>
+<span class="sd">            0  Start of stream (the default).  `cookie` should be &gt;= 0;</span>
+<span class="sd">            1  Current position - `cookie` may be negative;</span>
+<span class="sd">            2  End of stream - `cookie` usually negative.</span>
+
+<span class="sd">        Return the new absolute position.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AioReadable</span><span class="p">(</span><span class="n">AioFileLike</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">],</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async readable file-like base class.&quot;&quot;&quot;</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readable</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object can be read.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read at most `size` bytes, returned as a bytes object.</span>
+
+<span class="sd">        If the `size` argument is negative, read until EOF is reached.</span>
+<span class="sd">        Return an empty bytes object at EOF.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Next line from the file, as a bytes object.</span>
+
+<span class="sd">        Retain newline. A non-negative `size` argument limits the maximum number of</span>
+<span class="sd">        bytes to return (an incomplete line may be returned then).</span>
+<span class="sd">        Return an empty bytes object at EOF.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readlines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hint</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of lines from the stream.&quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">hint</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># pyre-ignore[7]</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readinto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read bytes into buffer.</span>
+
+<span class="sd">        Returns number of bytes read (0 for EOF), or None if the object</span>
+<span class="sd">        is set not to block and has no data to read.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;&#39;readinto&#39; only works on binary files&quot;</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">buffer</span><span class="p">))</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">buffer</span><span class="p">[:</span><span class="n">size</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>  <span class="c1"># pyre-ignore[6]</span>
+        <span class="k">return</span> <span class="n">size</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__anext__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopAsyncIteration</span>
+        <span class="k">return</span> <span class="n">line</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__aiter__</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">Self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">truncate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;not writable&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;not writable&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">writelines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lines</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;not writable&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AioWritable</span><span class="p">(</span><span class="n">AioFileLike</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">],</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async writable file-like base class.&quot;&quot;&quot;</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">writable</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True if the file-like object can be written.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write bytes to file.</span>
+
+<span class="sd">        Return the number of bytes written.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">writelines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lines</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write `lines` to the file.</span>
+
+<span class="sd">        Note that newlines are not added.</span>
+<span class="sd">        `lines` can be any iterable object producing bytes-like objects.</span>
+<span class="sd">        This is equivalent to calling write() for each element.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">truncate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resize the stream to the given size in bytes.</span>
+
+<span class="sd">        :param size: resize size, defaults to None</span>
+<span class="sd">        :type size: int, optional</span>
+
+<span class="sd">        :raises OSError: When the stream is not support truncate.</span>
+<span class="sd">        :return: The new file size.</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="n">io</span><span class="o">.</span><span class="n">UnsupportedOperation</span><span class="p">(</span><span class="s2">&quot;not support truncate&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;not readable&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;not readable&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readlines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hint</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;not readable&quot;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

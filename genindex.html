@@ -41,10 +41,16 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -77,9 +83,11 @@
 <h1 id="index">Index</h1>
 
 <div class="genindex-jumpbox">
- <a href="#A"><strong>A</strong></a>
+ <a href="#Symbols"><strong>Symbols</strong></a>
+ | <a href="#A"><strong>A</strong></a>
  | <a href="#B"><strong>B</strong></a>
  | <a href="#C"><strong>C</strong></a>
+ | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
  | <a href="#F"><strong>F</strong></a>
  | <a href="#G"><strong>G</strong></a>
@@ -98,13 +106,475 @@
  | <a href="#W"><strong>W</strong></a>
  
 </div>
+<h2 id="Symbols">Symbols</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    --addressing-style
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-as">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --append
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-to-a">amf-to command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --debug
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-debug">amf command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --editor
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-edit-e">amf-edit command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --endpoint-url
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-e">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --follow
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-tail-f">amf-tail command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --force
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-f">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --full
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ll-f">amf-ll command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-f">amf-ls command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --human-readable
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ls-h">amf-ls command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --lines
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-head-n">amf-head command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-n">amf-tail command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --log-level
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-log-level">amf command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --long
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ls-l">amf-ls command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --no-cover
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-alias-no-cover">amf-config-alias command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-env-no-cover">amf-config-env command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-no-cover">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-no-cover">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --no-target-directory
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-T">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-T">amf-mv command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --path
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-alias-p">amf-config-alias command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-env-p">amf-config-env command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-p">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-p">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --profile-name
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-n">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-n">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --progress-bar
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-g">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-g">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-g">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --quiet
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-q">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --recursive
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-r">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-r">amf-ll command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-r">amf-ls command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-r">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-rm-r">amf-rm command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --root
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-r">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --session-token
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-st">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --signature-version
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-sv">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --skip
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-skip">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-skip">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-skip">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --stdout
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-to-o">amf-to command line option</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    --timeout
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-o">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --token
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-t">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --user
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-u">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --verbose
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-v">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --worker
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-w">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -a
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-to-a">amf-to command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -as
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-as">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -e
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-e">amf-config-s3 command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-edit-e">amf-edit command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -f
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ll-f">amf-ll command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-f">amf-ls command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-f">amf-sync command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-f">amf-tail command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -g
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-g">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-g">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-g">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -h
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ls-h">amf-ls command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -l
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ls-l">amf-ls command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -n
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-n">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-n">amf-config-s3 command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-head-n">amf-head command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-n">amf-tail command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -o
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-o">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-to-o">amf-to command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -p
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-alias-p">amf-config-alias command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-env-p">amf-config-env command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-p">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-p">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -q
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-q">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -r
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-r">amf-config-hdfs command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-r">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-r">amf-ll command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-r">amf-ls command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-r">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-rm-r">amf-rm command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -st
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-st">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -sv
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-sv">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -T
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-T">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-T">amf-mv command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -t
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-t">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -u
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-u">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -v
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-v">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -w
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-w">amf-sync command line option</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.absolute">absolute() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.absolute">absolute() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.absolute">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.absolute">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.absolute">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.absolute">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.absolute">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.absolute">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.abspath">abspath() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.Access">Access (class in aiomegfile.interfaces)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.access">access() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.access">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.access">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.access">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.access">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader">AioHttpAdaptiveReader (class in aiomegfile.filesystem.http)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader">AioHttpContentReader (class in aiomegfile.filesystem.http)</a>
+</li>
+      <li>
+    aiomegfile.filesystem.hdfs
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.hdfs.html#module-aiomegfile.filesystem.hdfs">module</a>
+</li>
+      </ul></li>
+      <li>
+    aiomegfile.filesystem.http
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#module-aiomegfile.filesystem.http">module</a>
 </li>
       </ul></li>
       <li>
@@ -115,19 +585,390 @@
 </li>
       </ul></li>
       <li>
+    aiomegfile.filesystem.s3
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.s3.html#module-aiomegfile.filesystem.s3">module</a>
+</li>
+      </ul></li>
+      <li>
+    aiomegfile.filesystem.sftp
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.sftp.html#module-aiomegfile.filesystem.sftp">module</a>
+</li>
+      </ul></li>
+      <li>
+    aiomegfile.filesystem.stdio
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.stdio.html#module-aiomegfile.filesystem.stdio">module</a>
+</li>
+      </ul></li>
+      <li>
+    aiomegfile.filesystem.webdav
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.webdav.html#module-aiomegfile.filesystem.webdav">module</a>
+</li>
+      </ul></li>
+      <li>
+    aiomegfile.interfaces
+
+      <ul>
+        <li><a href="aiomegfile.interfaces.html#module-aiomegfile.interfaces">module</a>
+</li>
+      </ul></li>
+      <li>
     aiomegfile.smart
 
       <ul>
         <li><a href="aiomegfile.smart.html#module-aiomegfile.smart">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     aiomegfile.smart_path
 
       <ul>
         <li><a href="aiomegfile.smart_path.html#module-aiomegfile.smart_path">module</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader">AioSTDReader (class in aiomegfile.filesystem.stdio)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter">AioSTDWriter (class in aiomegfile.filesystem.stdio)</a>
+</li>
+      <li>
+    amf command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-debug">--debug</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-log-level">--log-level</a>
+</li>
+      </ul></li>
+      <li>
+    amf-cat command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cat-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-config-alias command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-alias-no-cover">--no-cover</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-alias-p">--path</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-alias-p">-p</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-alias-arg-NAME">NAME</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-alias-arg-PROTOCOL_OR_PATH">PROTOCOL_OR_PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-config-env command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-env-no-cover">--no-cover</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-env-p">--path</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-env-p">-p</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-env-arg-EXPR">EXPR</a>
+</li>
+      </ul></li>
+      <li>
+    amf-config-hdfs command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-no-cover">--no-cover</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-p">--path</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-n">--profile-name</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-r">--root</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-o">--timeout</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-t">--token</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-u">--user</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-n">-n</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-o">-o</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-p">-p</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-r">-r</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-t">-t</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-u">-u</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-arg-URL">URL</a>
+</li>
+      </ul></li>
+      <li>
+    amf-config-s3 command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-as">--addressing-style</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-e">--endpoint-url</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-no-cover">--no-cover</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-p">--path</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-n">--profile-name</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-st">--session-token</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-sv">--signature-version</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-as">-as</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-e">-e</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-n">-n</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-p">-p</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-st">-st</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-sv">-sv</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-arg-AWS_ACCESS_KEY_ID">AWS_ACCESS_KEY_ID</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-config-s3-arg-AWS_SECRET_ACCESS_KEY">AWS_SECRET_ACCESS_KEY</a>
+</li>
+      </ul></li>
+      <li>
+    amf-cp command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-T">--no-target-directory</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-g">--progress-bar</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-r">--recursive</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-skip">--skip</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-g">-g</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-r">-r</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-T">-T</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-arg-DST_PATH">DST_PATH</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-cp-arg-SRC_PATH">SRC_PATH</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    amf-edit command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-edit-e">--editor</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-edit-e">-e</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-edit-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-head command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-head-n">--lines</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-head-n">-n</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-head-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-ll command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ll-f">--full</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-r">--recursive</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-f">-f</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-r">-r</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-ls command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-ls-f">--full</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-h">--human-readable</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-l">--long</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-r">--recursive</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-f">-f</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-h">-h</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-l">-l</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-r">-r</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-md5sum command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-md5sum-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-mkdir command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-mkdir-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-mtime command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-mtime-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-mv command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-mv-T">--no-target-directory</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-g">--progress-bar</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-r">--recursive</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-skip">--skip</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-g">-g</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-r">-r</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-T">-T</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-arg-DST_PATH">DST_PATH</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-arg-SRC_PATH">SRC_PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-rm command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-rm-r">--recursive</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-rm-r">-r</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-rm-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-size command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-size-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-stat command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-stat-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-sync command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-sync-f">--force</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-g">--progress-bar</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-q">--quiet</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-skip">--skip</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-v">--verbose</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-w">--worker</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-f">-f</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-g">-g</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-q">-q</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-v">-v</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-w">-w</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-arg-DST_PATH">DST_PATH</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-arg-SRC_PATH">SRC_PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-tail command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-tail-f">--follow</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-n">--lines</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-f">-f</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-n">-n</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-to command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-to-a">--append</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-to-o">--stdout</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-to-a">-a</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-to-o">-o</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-to-arg-PATH">PATH</a>
+</li>
+      </ul></li>
+      <li>
+    amf-touch command line option
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-touch-arg-PATH">PATH</a>
 </li>
       </ul></li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.anchor">anchor (aiomegfile.smart_path.SmartPath property)</a>
@@ -136,53 +977,183 @@
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.as_uri">as_uri() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
+      <li>
+    AWS_ACCESS_KEY_ID
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-arg-AWS_ACCESS_KEY_ID">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
+      <li>
+    AWS_SECRET_ACCESS_KEY
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-s3-arg-AWS_SECRET_ACCESS_KEY">amf-config-s3 command line option</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.build_uri">build_uri() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.build_uri">build_uri() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.build_uri">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
 </li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.build_uri">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.build_uri">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.build_uri">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.build_uri">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.build_uri">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.copy">copy() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.SmartCacher.cache_path">cache_path (aiomegfile.smart.SmartCacher attribute)</a>
+</li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.chmod">chmod() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.close">close() (aiomegfile.filesystem.http.AioHttpAdaptiveReader method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.close">(aiomegfile.filesystem.http.AioHttpContentReader method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.MultiPartWriter.close">(aiomegfile.filesystem.s3.MultiPartWriter method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.close">(aiomegfile.filesystem.stdio.AioSTDReader method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.close">(aiomegfile.filesystem.stdio.AioSTDWriter method)</a>
+</li>
+        <li><a href="aiomegfile.smart.html#aiomegfile.smart.SmartCacher.close">(aiomegfile.smart.SmartCacher method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.concat">concat() (aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.copy">copy() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.copy">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.copy">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.copy">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.copy">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.copy">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.copy_file">copy_file() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.copy_into">copy_into() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.ctime">ctime (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.cwd">cwd() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="D">D</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.download">download() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.download">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.download">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.download">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    DST_PATH
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-arg-DST_PATH">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-arg-DST_PATH">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-arg-DST_PATH">amf-sync command line option</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.exists">exists() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.exists">exists() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.exists">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.exists">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.exists">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.exists">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.exists">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.exists">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.exists">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.expanduser">expanduser() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li>
+    EXPR
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-env-arg-EXPR">amf-config-env command line option</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.extra">extra (aiomegfile.interfaces.StatResult attribute)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.from_uri">from_uri() (aiomegfile.filesystem.local.LocalFileSystem class method)</a>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry">FileEntry (class in aiomegfile.interfaces)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.flush">flush() (aiomegfile.filesystem.stdio.AioSTDWriter method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.from_uri">from_uri() (aiomegfile.filesystem.hdfs.HdfsFileSystem class method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.from_uri">(aiomegfile.filesystem.http.HttpFileSystem class method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.from_uri">(aiomegfile.filesystem.local.LocalFileSystem class method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.from_uri">(aiomegfile.filesystem.s3.S3FileSystem class method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.from_uri">(aiomegfile.filesystem.sftp.SftpFileSystem class method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.from_uri">(aiomegfile.filesystem.stdio.StdioFileSystem class method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.from_uri">(aiomegfile.filesystem.webdav.WebdavFileSystem class method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.from_uri">(aiomegfile.smart_path.SmartPath class method)</a>
 </li>
       </ul></li>
@@ -196,7 +1167,41 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.get_access_token">get_access_token() (in module aiomegfile.filesystem.s3)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.get_config_in_file">get_config_in_file() (in module aiomegfile.filesystem.s3)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.get_endpoint_url">get_endpoint_url() (in module aiomegfile.filesystem.s3)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.get_env_var">get_env_var() (in module aiomegfile.filesystem.s3)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.get_hdfs_client">get_hdfs_client() (in module aiomegfile.filesystem.hdfs)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.get_hdfs_config">get_hdfs_config() (in module aiomegfile.filesystem.hdfs)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.get_s3_client">get_s3_client() (in module aiomegfile.filesystem.s3)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.get_session">get_session() (in module aiomegfile.filesystem.s3)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.get_sftp_client">get_sftp_client() (in module aiomegfile.filesystem.sftp)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.get_webdav_client">get_webdav_client() (in module aiomegfile.filesystem.webdav)</a>
+</li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.getmtime">getmtime() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.getsize">getsize() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.glob">glob() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.glob_stat">glob_stat() (aiomegfile.filesystem.s3.S3FileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.glob_stat">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.group">group() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -206,6 +1211,16 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.hardlink_to">hardlink_to() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem">HdfsFileSystem (class in aiomegfile.filesystem.hdfs)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.home">home() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem">HttpFileSystem (class in aiomegfile.filesystem.http)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpsFileSystem">HttpsFileSystem (class in aiomegfile.filesystem.http)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -214,28 +1229,98 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.iglob">iglob() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_dir">is_dir() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.inode">inode() (aiomegfile.interfaces.FileEntry method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_absolute">is_absolute() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.is_absolute">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.is_absolute">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.is_absolute">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_dir">is_dir() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_dir">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_dir">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.is_dir">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.is_dir">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.is_dir">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.is_dir">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.is_dir">(aiomegfile.interfaces.FileEntry method)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.is_dir">(aiomegfile.interfaces.StatResult method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.is_dir">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_file">is_file() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_file">is_file() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_file">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_file">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.is_file">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.is_file">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.is_file">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.is_file">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.is_file">(aiomegfile.interfaces.FileEntry method)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.is_file">(aiomegfile.interfaces.StatResult method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.is_file">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.is_hdfs">is_hdfs() (in module aiomegfile.filesystem.hdfs)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.is_http">is_http() (in module aiomegfile.filesystem.http)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.is_relative_to">is_relative_to() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_symlink">is_symlink() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.is_s3">is_s3() (in module aiomegfile.filesystem.s3)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.is_sftp">is_sftp() (in module aiomegfile.filesystem.sftp)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_symlink">is_symlink() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.is_symlink">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.is_symlink">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.is_symlink">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.is_symlink">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.is_symlink">(aiomegfile.interfaces.FileEntry method)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.is_symlink">(aiomegfile.interfaces.StatResult method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.is_symlink">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
+      <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.is_webdav">is_webdav() (in module aiomegfile.filesystem.webdav)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.isdir">isdir (aiomegfile.interfaces.StatResult attribute)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.islnk">islnk (aiomegfile.interfaces.StatResult attribute)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.iterdir">iterdir() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
   </ul></td>
@@ -252,10 +1337,16 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem">LocalFileSystem (class in aiomegfile.filesystem.local)</a>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.lchmod">lchmod() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.listdir">listdir() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.load">load() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem">LocalFileSystem (class in aiomegfile.filesystem.local)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.lstat">lstat() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
   </ul></td>
@@ -266,17 +1357,61 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.match">match() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.mkdir">mkdir() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.md5">md5() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.md5">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.md5">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.mkdir">mkdir() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.mkdir">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.mkdir">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.mkdir">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.mkdir">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.mkdir">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.mkdir">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.mode">mode (aiomegfile.filesystem.http.AioHttpAdaptiveReader property)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.mode">(aiomegfile.filesystem.http.AioHttpContentReader property)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.mode">(aiomegfile.filesystem.stdio.AioSTDReader property)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.mode">(aiomegfile.filesystem.stdio.AioSTDWriter property)</a>
+</li>
+        <li><a href="aiomegfile.smart.html#aiomegfile.smart.SmartCacher.mode">(aiomegfile.smart.SmartCacher property)</a>
 </li>
       </ul></li>
       <li>
     module
 
       <ul>
+        <li><a href="aiomegfile.filesystem.hdfs.html#module-aiomegfile.filesystem.hdfs">aiomegfile.filesystem.hdfs</a>
+</li>
+        <li><a href="aiomegfile.filesystem.http.html#module-aiomegfile.filesystem.http">aiomegfile.filesystem.http</a>
+</li>
         <li><a href="aiomegfile.filesystem.local.html#module-aiomegfile.filesystem.local">aiomegfile.filesystem.local</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#module-aiomegfile.filesystem.s3">aiomegfile.filesystem.s3</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#module-aiomegfile.filesystem.sftp">aiomegfile.filesystem.sftp</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#module-aiomegfile.filesystem.stdio">aiomegfile.filesystem.stdio</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#module-aiomegfile.filesystem.webdav">aiomegfile.filesystem.webdav</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#module-aiomegfile.interfaces">aiomegfile.interfaces</a>
 </li>
         <li><a href="aiomegfile.smart.html#module-aiomegfile.smart">aiomegfile.smart</a>
 </li>
@@ -285,13 +1420,25 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.move">move() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.move">move() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.move">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.move">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.move">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.move">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.move">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.move_into">move_into() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.mtime">mtime (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.MultiPartWriter">MultiPartWriter (class in aiomegfile.filesystem.s3)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -299,20 +1446,57 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.name">name (aiomegfile.smart_path.SmartPath property)</a>
+      <li>
+    NAME
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-alias-arg-NAME">amf-config-alias command line option</a>
 </li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.name">name (aiomegfile.filesystem.http.AioHttpAdaptiveReader property)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.name">(aiomegfile.filesystem.http.AioHttpContentReader property)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.name">(aiomegfile.filesystem.stdio.AioSTDReader property)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.name">(aiomegfile.filesystem.stdio.AioSTDWriter property)</a>
+</li>
+        <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.name">(aiomegfile.interfaces.FileEntry attribute)</a>
+</li>
+        <li><a href="aiomegfile.smart.html#aiomegfile.smart.SmartCacher.name">(aiomegfile.smart.SmartCacher property)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.name">(aiomegfile.smart_path.SmartPath property)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="O">O</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.open">open() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.open">open() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.open">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.open">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.open">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.open">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.open">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.open">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.open">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.owner">owner() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -323,40 +1507,156 @@
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.parents">parents (aiomegfile.smart_path.SmartPath property)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.parse_uri">parse_uri() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.parse_s3_path">parse_s3_path() (in module aiomegfile.filesystem.s3)</a>
 </li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.parse_uri">parse_uri() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.parse_uri">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.parse_uri">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.parse_uri">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.parse_uri">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.parse_uri">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.parse_uri">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+      </ul></li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.parts">parts (aiomegfile.smart_path.SmartPath property)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.protocol">protocol (aiomegfile.filesystem.local.LocalFileSystem attribute)</a>
+      <li>
+    PATH
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-cat-arg-PATH">amf-cat command line option</a>
 </li>
+        <li><a href="cli.html#cmdoption-amf-edit-arg-PATH">amf-edit command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-head-arg-PATH">amf-head command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ll-arg-PATH">amf-ll command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-ls-arg-PATH">amf-ls command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-md5sum-arg-PATH">amf-md5sum command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mkdir-arg-PATH">amf-mkdir command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mtime-arg-PATH">amf-mtime command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-rm-arg-PATH">amf-rm command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-size-arg-PATH">amf-size command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-stat-arg-PATH">amf-stat command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-tail-arg-PATH">amf-tail command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-to-arg-PATH">amf-to command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-touch-arg-PATH">amf-touch command line option</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.path">path (aiomegfile.interfaces.FileEntry attribute)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.protocol">protocol (aiomegfile.filesystem.hdfs.HdfsFileSystem attribute)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.protocol">(aiomegfile.filesystem.http.HttpFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpsFileSystem.protocol">(aiomegfile.filesystem.http.HttpsFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.protocol">(aiomegfile.filesystem.local.LocalFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.protocol">(aiomegfile.filesystem.s3.S3FileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.protocol">(aiomegfile.filesystem.sftp.SftpFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.protocol">(aiomegfile.filesystem.stdio.StdioFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.protocol">(aiomegfile.filesystem.webdav.WebdavFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavsFileSystem.protocol">(aiomegfile.filesystem.webdav.WebdavsFileSystem attribute)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.protocol">(aiomegfile.smart_path.SmartPath property)</a>
+</li>
+      </ul></li>
+      <li>
+    PROTOCOL_OR_PATH
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-alias-arg-PROTOCOL_OR_PATH">amf-config-alias command line option</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.Access.READ">READ (aiomegfile.interfaces.Access attribute)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.read">read() (aiomegfile.filesystem.http.AioHttpAdaptiveReader method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.read">(aiomegfile.filesystem.http.AioHttpContentReader method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.read">(aiomegfile.filesystem.stdio.AioSTDReader method)</a>
+</li>
+      </ul></li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.read_bytes">read_bytes() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.read_text">read_text() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.readlink">readlink() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.readline">readline() (aiomegfile.filesystem.http.AioHttpAdaptiveReader method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.readline">(aiomegfile.filesystem.http.AioHttpContentReader method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.readline">(aiomegfile.filesystem.stdio.AioSTDReader method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.readlink">readlink() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.readlink">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.readlink">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.readlink">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.readlink">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.realpath">realpath() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.relative_to">relative_to() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.remove">remove() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.relpath">relpath() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.remove">remove() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.remove">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.remove">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.remove">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.remove">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.remove">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.remove">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.rename">rename() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.replace">replace() (aiomegfile.smart_path.SmartPath method)</a>
@@ -375,19 +1675,87 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.same_endpoint">same_endpoint() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem">S3FileSystem (class in aiomegfile.filesystem.s3)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.samefile">samefile() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.same_endpoint">same_endpoint() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
 
       <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.same_endpoint">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.same_endpoint">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.same_endpoint">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.same_endpoint">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.same_endpoint">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.same_endpoint">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.samefile">samefile() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.samefile">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.samefile">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.samefile">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.samefile">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.scandir">scandir() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.save">save() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.scanfile">scanfile() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.scan">scan() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.scan_stat">scan_stat() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.scandir">scandir() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.scandir">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.scandir">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.scandir">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.scandir">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.scandir">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.scandir">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.scandir">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.scanfile">scanfile() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.scanfile">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.scanfile">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.scanfile">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.scanfile">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.scanfile">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.scanfile">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.seek">seek() (aiomegfile.filesystem.http.AioHttpAdaptiveReader method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem">SftpFileSystem (class in aiomegfile.filesystem.sftp)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.size">size (aiomegfile.interfaces.StatResult property)</a>
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_abspath">smart_abspath() (in module aiomegfile.smart)</a>
+</li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_cache">smart_cache() (in module aiomegfile.smart)</a>
+</li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_combine_open">smart_combine_open() (in module aiomegfile.smart)</a>
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_concat">smart_concat() (in module aiomegfile.smart)</a>
 </li>
@@ -395,7 +1763,11 @@
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_exists">smart_exists() (in module aiomegfile.smart)</a>
 </li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_getmd5">smart_getmd5() (in module aiomegfile.smart)</a>
+</li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_glob">smart_glob() (in module aiomegfile.smart)</a>
+</li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_glob_stat">smart_glob_stat() (in module aiomegfile.smart)</a>
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_iglob">smart_iglob() (in module aiomegfile.smart)</a>
 </li>
@@ -443,6 +1815,8 @@
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_scan">smart_scan() (in module aiomegfile.smart)</a>
 </li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_scan_stat">smart_scan_stat() (in module aiomegfile.smart)</a>
+</li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_scandir">smart_scandir() (in module aiomegfile.smart)</a>
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_stat">smart_stat() (in module aiomegfile.smart)</a>
@@ -451,28 +1825,97 @@
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_sync">smart_sync() (in module aiomegfile.smart)</a>
 </li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_sync_with_progress">smart_sync_with_progress() (in module aiomegfile.smart)</a>
+</li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_touch">smart_touch() (in module aiomegfile.smart)</a>
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_unlink">smart_unlink() (in module aiomegfile.smart)</a>
 </li>
       <li><a href="aiomegfile.smart.html#aiomegfile.smart.smart_walk">smart_walk() (in module aiomegfile.smart)</a>
 </li>
+      <li><a href="aiomegfile.smart.html#aiomegfile.smart.SmartCacher">SmartCacher (class in aiomegfile.smart)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath">SmartPath (class in aiomegfile.smart_path)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.stat">stat() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li>
+    SRC_PATH
 
       <ul>
+        <li><a href="cli.html#cmdoption-amf-cp-arg-SRC_PATH">amf-cp command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-mv-arg-SRC_PATH">amf-mv command line option</a>
+</li>
+        <li><a href="cli.html#cmdoption-amf-sync-arg-SRC_PATH">amf-sync command line option</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_atime">st_atime (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_atime_ns">st_atime_ns (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_ctime">st_ctime (aiomegfile.interfaces.StatResult attribute)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_ctime_ns">st_ctime_ns (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_dev">st_dev (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_gid">st_gid (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_ino">st_ino (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_mode">st_mode (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_mtime">st_mtime (aiomegfile.interfaces.StatResult attribute)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_mtime_ns">st_mtime_ns (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_nlink">st_nlink (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_size">st_size (aiomegfile.interfaces.StatResult attribute)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult.st_uid">st_uid (aiomegfile.interfaces.StatResult property)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry.stat">stat (aiomegfile.interfaces.FileEntry attribute)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.stat">stat() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.stat">(aiomegfile.filesystem.http.HttpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.stat">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.stat">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.stat">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.stat">(aiomegfile.filesystem.stdio.StdioFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.stat">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
         <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.stat">(aiomegfile.smart_path.SmartPath method)</a>
 </li>
       </ul></li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult">StatResult (class in aiomegfile.interfaces)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem">StdioFileSystem (class in aiomegfile.filesystem.stdio)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.stem">stem (aiomegfile.smart_path.SmartPath property)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.suffix">suffix (aiomegfile.smart_path.SmartPath property)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.suffixes">suffixes (aiomegfile.smart_path.SmartPath property)</a>
 </li>
-      <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.symlink">symlink() (aiomegfile.filesystem.local.LocalFileSystem method)</a>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.symlink">symlink() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem.symlink">(aiomegfile.filesystem.local.LocalFileSystem method)</a>
 </li>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.symlink">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.symlink">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.symlink">(aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      </ul></li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.symlink_to">symlink_to() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
   </ul></td>
@@ -480,6 +1923,18 @@
 
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpAdaptiveReader.tell">tell() (aiomegfile.filesystem.http.AioHttpAdaptiveReader method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.AioHttpContentReader.tell">(aiomegfile.filesystem.http.AioHttpContentReader method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.tell">(aiomegfile.filesystem.stdio.AioSTDReader method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.tell">(aiomegfile.filesystem.stdio.AioSTDWriter method)</a>
+</li>
+      </ul></li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.touch">touch() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
@@ -491,9 +1946,34 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.unlink">unlink() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
+      <li><a href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.upload">upload() (aiomegfile.filesystem.hdfs.HdfsFileSystem method)</a>
+
+      <ul>
+        <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.S3FileSystem.upload">(aiomegfile.filesystem.s3.S3FileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.upload">(aiomegfile.filesystem.sftp.SftpFileSystem method)</a>
+</li>
+        <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem.upload">(aiomegfile.filesystem.webdav.WebdavFileSystem method)</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.MultiPartWriter.upload_part">upload_part() (aiomegfile.filesystem.s3.MultiPartWriter method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.MultiPartWriter.upload_part_by_paths">upload_part_by_paths() (aiomegfile.filesystem.s3.MultiPartWriter method)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.s3.html#aiomegfile.filesystem.s3.MultiPartWriter.upload_part_copy">upload_part_copy() (aiomegfile.filesystem.s3.MultiPartWriter method)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.URIPathParents">URIPathParents (class in aiomegfile.smart_path)</a>
+</li>
+      <li>
+    URL
+
+      <ul>
+        <li><a href="cli.html#cmdoption-amf-config-hdfs-arg-URL">amf-config-hdfs command line option</a>
+</li>
+      </ul></li>
+      <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.utime">utime() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -503,6 +1983,10 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.walk">walk() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
+      <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavFileSystem">WebdavFileSystem (class in aiomegfile.filesystem.webdav)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.webdav.html#aiomegfile.filesystem.webdav.WebdavsFileSystem">WebdavsFileSystem (class in aiomegfile.filesystem.webdav)</a>
+</li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.with_name">with_name() (aiomegfile.smart_path.SmartPath method)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.with_stem">with_stem() (aiomegfile.smart_path.SmartPath method)</a>
@@ -510,6 +1994,10 @@
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.with_suffix">with_suffix() (aiomegfile.smart_path.SmartPath method)</a>
+</li>
+      <li><a href="aiomegfile.interfaces.html#aiomegfile.interfaces.Access.WRITE">WRITE (aiomegfile.interfaces.Access attribute)</a>
+</li>
+      <li><a href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.write">write() (aiomegfile.filesystem.stdio.AioSTDWriter method)</a>
 </li>
       <li><a href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath.write_bytes">write_bytes() (aiomegfile.smart_path.SmartPath method)</a>
 </li>

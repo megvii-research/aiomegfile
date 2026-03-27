@@ -21,8 +21,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="CHANGELOG" href="changelog.html" />
-    <link rel="prev" title="aiomegfile.smart_path module" href="aiomegfile.smart_path.html" /> 
+    <link rel="next" title="aiomegfile.filesystem.s3 module" href="aiomegfile.filesystem.s3.html" />
+    <link rel="prev" title="aiomegfile.interfaces module" href="aiomegfile.interfaces.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -44,17 +44,29 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="aiomegfile.html">API Reference</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#smart-module">Smart Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#smart-modules">Smart Modules</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a><ul class="current">
 <li class="toctree-l3 current"><a class="current reference internal" href="#">aiomegfile.filesystem.local module</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#aiomegfile.filesystem.local.LocalFileSystem"><code class="docutils literal notranslate"><span class="pre">LocalFileSystem</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.s3.html">aiomegfile.filesystem.s3 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html">aiomegfile.filesystem.http module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.sftp.html">aiomegfile.filesystem.sftp module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.stdio.html">aiomegfile.filesystem.stdio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html">aiomegfile.filesystem.hdfs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.webdav.html">aiomegfile.filesystem.webdav module</a></li>
 </ul>
 </li>
 </ul>
@@ -111,8 +123,23 @@ Returns a new path object.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.access">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.Access" title="aiomegfile.interfaces.Access"><span class="pre">Access</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Access.READ</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.access" title="Link to this definition"></a></dt>
+<dd><p>Test if path has access permission described by mode
+Using <code class="docutils literal notranslate"><span class="pre">os.access</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>mode</strong> – access mode</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Access: Enum, the read/write access that path has.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.build_uri">
-<span class="sig-name descname"><span class="pre">build_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.build_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.build_uri" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">build_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.build_uri" title="Link to this definition"></a></dt>
 <dd><p>Build URI for the filesystem by path part.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -161,7 +188,7 @@ Returns a new path object.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.from_uri">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#aiomegfile.filesystem.local.LocalFileSystem" title="aiomegfile.filesystem.local.LocalFileSystem"><span class="pre">LocalFileSystem</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.from_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.from_uri" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.from_uri" title="Link to this definition"></a></dt>
 <dd><p>Create LocalFileSystem from uri string.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -263,7 +290,7 @@ Returns a new path object.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.open">
-<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffering</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.open" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'r'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffering</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newline</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.open" title="Link to this definition"></a></dt>
 <dd><p>Open the file with mode.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -274,6 +301,7 @@ Returns a new path object.</p>
 <li><p><strong>encoding</strong> – Text encoding when using text modes.</p></li>
 <li><p><strong>errors</strong> – Error handling strategy for encoding/decoding.</p></li>
 <li><p><strong>newline</strong> – Newline handling in text mode.</p></li>
+<li><p><strong>kwargs</strong> – Extra open options for compatibility with megfile.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -367,7 +395,7 @@ If path is a directory, remove it and all its contents recursively.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.scandir">
-<span class="sig-name descname"><span class="pre">scandir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">FileEntry</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.scandir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.scandir" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">scandir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.scandir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.scandir" title="Link to this definition"></a></dt>
 <dd><p>Return an async context manager for iterating directory entries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -381,22 +409,28 @@ If path is a directory, remove it and all its contents recursively.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.scanfile">
-<span class="sig-name descname"><span class="pre">scanfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><span class="pre">FileEntry</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.scanfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.scanfile" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">scanfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span><span class="p"><span class="pre">[</span></span><span class="pre">AsyncIterator</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry"><span class="pre">FileEntry</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.scanfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.scanfile" title="Link to this definition"></a></dt>
 <dd><p>Iteratively traverse only files in given directory.
 Every iteration on generator yields FileEntry object.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Async context manager yielding an async iterator of FileEntry objects.</p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Directory or file path to traverse.</p></li>
+<li><p><strong>sort</strong> – Whether to return entries in sorted order.</p></li>
+</ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>T.AsyncContextManager[T.AsyncIterator[FileEntry]]</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Async context manager yielding an async iterator of FileEntry objects.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>T.AsyncContextManager[T.AsyncIterator[<a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.FileEntry" title="aiomegfile.interfaces.FileEntry">FileEntry</a>]]</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.local.LocalFileSystem.stat">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">StatResult</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.stat" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/local.html#LocalFileSystem.stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.local.LocalFileSystem.stat" title="Link to this definition"></a></dt>
 <dd><p>Get the status of the path.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -436,8 +470,8 @@ Every iteration on generator yields FileEntry object.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="aiomegfile.smart_path.html" class="btn btn-neutral float-left" title="aiomegfile.smart_path module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="changelog.html" class="btn btn-neutral float-right" title="CHANGELOG" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="aiomegfile.interfaces.html" class="btn btn-neutral float-left" title="aiomegfile.interfaces module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aiomegfile.filesystem.s3.html" class="btn btn-neutral float-right" title="aiomegfile.filesystem.s3 module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

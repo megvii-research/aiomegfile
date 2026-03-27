@@ -43,10 +43,16 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -79,91 +85,101 @@
   <section id="welcome-to-aiomegfile-s-documentation">
 <h1>Welcome to aiomegfile’s documentation!<a class="headerlink" href="#welcome-to-aiomegfile-s-documentation" title="Link to this heading"></a></h1>
 <div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="readme.html#aiomegfile-asyncio-implementation-of-megfile">aiomegfile - Asyncio implementation of megfile</a></li>
-<li class="toctree-l2"><a class="reference internal" href="readme.html#support-protocols">Support Protocols</a></li>
+<li class="toctree-l2"><a class="reference internal" href="readme.html#supported-protocols">Supported Protocols</a></li>
 <li class="toctree-l2"><a class="reference internal" href="readme.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="readme.html#quick-start">Quick Start</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="readme.html#functional-interface-example">Functional Interface Example</a></li>
-<li class="toctree-l3"><a class="reference internal" href="readme.html#smartpath-interface">SmartPath Interface</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="readme.html#id1">Quick Start</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="readme.html#id2">Functional Interface Example</a></li>
-<li class="toctree-l3"><a class="reference internal" href="readme.html#id3">SmartPath Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="readme.html#functional-api">Functional API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="readme.html#smartpath"><code class="docutils literal notranslate"><span class="pre">SmartPath</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="readme.html#syncing-data">Syncing Data</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="readme.html#cli">CLI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="readme.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="readme.html#documentation">Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="readme.html#how-to-contribute">How to Contribute</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#base-installation">Base Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#optional-extras">Optional Extras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#development-setup">Development Setup</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="protocols.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="protocols.html#supported-backends">Supported Backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="protocols.html#path-semantics">Path Semantics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="protocols.html#alias-support">Alias Support</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#config-files">Config Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#main-runtime-file">Main Runtime File</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#common-environment-variables">Common Environment Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#protocol-specific-settings">Protocol-specific Settings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#sftp">SFTP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#webdav">WebDAV</a></li>
+<li class="toctree-l3"><a class="reference internal" href="configuration.html#hdfs">HDFS</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#using-cli-helpers">Using CLI Helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#alias-resolution">Alias Resolution</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="cli.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cli.html#quick-examples">Quick Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#command-groups">Command Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#protocol-support">Protocol Support</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cli.html#configuration">Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cli.html#reference">Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#completion">Completion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#reference">Reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cli.html#amf">amf</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-cat">cat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-completion">completion</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-config">config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-cp">cp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-edit">edit</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-head">head</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-ll">ll</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-ls">ls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-md5sum">md5sum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-mkdir">mkdir</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-mtime">mtime</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-mv">mv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-rm">rm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-size">size</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-stat">stat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-sync">sync</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-tail">tail</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-to">to</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-touch">touch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.html#amf-version">version</a></li>
 </ul>
 </li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#smart-module">Smart Module</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.smart.html">aiomegfile.smart module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_abspath"><code class="docutils literal notranslate"><span class="pre">smart_abspath()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_concat"><code class="docutils literal notranslate"><span class="pre">smart_concat()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_copy"><code class="docutils literal notranslate"><span class="pre">smart_copy()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_exists"><code class="docutils literal notranslate"><span class="pre">smart_exists()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_glob"><code class="docutils literal notranslate"><span class="pre">smart_glob()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_iglob"><code class="docutils literal notranslate"><span class="pre">smart_iglob()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_isabs"><code class="docutils literal notranslate"><span class="pre">smart_isabs()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_isdir"><code class="docutils literal notranslate"><span class="pre">smart_isdir()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_isfile"><code class="docutils literal notranslate"><span class="pre">smart_isfile()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_islink"><code class="docutils literal notranslate"><span class="pre">smart_islink()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_listdir"><code class="docutils literal notranslate"><span class="pre">smart_listdir()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_load_content"><code class="docutils literal notranslate"><span class="pre">smart_load_content()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_load_from"><code class="docutils literal notranslate"><span class="pre">smart_load_from()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_load_text"><code class="docutils literal notranslate"><span class="pre">smart_load_text()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_makedirs"><code class="docutils literal notranslate"><span class="pre">smart_makedirs()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_move"><code class="docutils literal notranslate"><span class="pre">smart_move()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_open"><code class="docutils literal notranslate"><span class="pre">smart_open()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_path_join"><code class="docutils literal notranslate"><span class="pre">smart_path_join()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_readlink"><code class="docutils literal notranslate"><span class="pre">smart_readlink()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_realpath"><code class="docutils literal notranslate"><span class="pre">smart_realpath()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_relpath"><code class="docutils literal notranslate"><span class="pre">smart_relpath()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_remove"><code class="docutils literal notranslate"><span class="pre">smart_remove()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_rename"><code class="docutils literal notranslate"><span class="pre">smart_rename()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_save_as"><code class="docutils literal notranslate"><span class="pre">smart_save_as()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_save_content"><code class="docutils literal notranslate"><span class="pre">smart_save_content()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_save_text"><code class="docutils literal notranslate"><span class="pre">smart_save_text()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_scan"><code class="docutils literal notranslate"><span class="pre">smart_scan()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_scandir"><code class="docutils literal notranslate"><span class="pre">smart_scandir()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_stat"><code class="docutils literal notranslate"><span class="pre">smart_stat()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_symlink"><code class="docutils literal notranslate"><span class="pre">smart_symlink()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_sync"><code class="docutils literal notranslate"><span class="pre">smart_sync()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_touch"><code class="docutils literal notranslate"><span class="pre">smart_touch()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_unlink"><code class="docutils literal notranslate"><span class="pre">smart_unlink()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart.html#aiomegfile.smart.smart_walk"><code class="docutils literal notranslate"><span class="pre">smart_walk()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.smart_path.html">aiomegfile.smart_path module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart_path.html#aiomegfile.smart_path.SmartPath"><code class="docutils literal notranslate"><span class="pre">SmartPath</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.smart_path.html#aiomegfile.smart_path.URIPathParents"><code class="docutils literal notranslate"><span class="pre">URIPathParents</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.local.html">aiomegfile.filesystem.local module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="aiomegfile.filesystem.local.html#aiomegfile.filesystem.local.LocalFileSystem"><code class="docutils literal notranslate"><span class="pre">LocalFileSystem</span></code></a></li>
-</ul>
-</li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#smart-modules">Smart Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="changelog.html#id1">0.0.2 - 2026.03.02</a></li>
-<li class="toctree-l2"><a class="reference internal" href="changelog.html#id2">0.0.1 - 2026.02.27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#id1">0.0.3 - 2026.03.27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#id2">0.0.2 - 2026.03.02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#id3">0.0.1 - 2026.02.27</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>

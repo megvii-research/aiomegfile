@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.filesystem.stdio &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../aiomegfile.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aiomegfile.filesystem.stdio</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aiomegfile.filesystem.stdio</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AioReadable</span><span class="p">,</span>
+    <span class="n">AioWritable</span><span class="p">,</span>
+    <span class="n">BaseFileSystem</span><span class="p">,</span>
+    <span class="n">FileEntry</span><span class="p">,</span>
+    <span class="n">StatResult</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiomegfile.utils.path</span><span class="w"> </span><span class="kn">import</span> <span class="n">split_uri</span>
+
+<span class="n">_VALID_STDIO_PATHS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;2&quot;</span><span class="p">}</span>
+<span class="n">_VALID_MODES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;rb&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">,</span> <span class="s2">&quot;wt&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="AioSTDReader">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AioSTDReader</span><span class="p">(</span><span class="n">AioReadable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async wrapper around ``sys.stdin``.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize stdio reader.</span>
+
+<span class="sd">        :param mode: Reader mode.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_handler</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">buffer</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_handler</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return reader name.</span>
+
+<span class="sd">        :return: Stream name.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;stdin&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return open mode.</span>
+
+<span class="sd">        :return: Open mode.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_closed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Raise when stream is already closed.</span>
+
+<span class="sd">        :raises IOError: If stream is closed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s2">&quot;file already closed: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AioSTDReader.read">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.read">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read data from stdin.</span>
+
+<span class="sd">        :param size: Maximum size to read.</span>
+<span class="sd">        :return: Read data.</span>
+<span class="sd">        :rtype: T.AnyStr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_closed</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">read</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">read</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioSTDReader.readline">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.readline">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">readline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read one line from stdin.</span>
+
+<span class="sd">        :param size: Maximum size to read.</span>
+<span class="sd">        :return: Line data.</span>
+<span class="sd">        :rtype: T.AnyStr</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_closed</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">readline</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">readline</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioSTDReader.tell">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDReader.tell">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return current offset.</span>
+
+<span class="sd">        :raises io.UnsupportedOperation: Always raised for stdio stream.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="n">io</span><span class="o">.</span><span class="n">UnsupportedOperation</span><span class="p">(</span><span class="s2">&quot;not tellable&quot;</span><span class="p">)</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Close reader handle.</span>
+
+<span class="sd">        ``stdin`` itself is not closed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="AioSTDWriter">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AioSTDWriter</span><span class="p">(</span><span class="n">AioWritable</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Async wrapper around ``sys.stdout`` or ``sys.stderr``.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize stdio writer.</span>
+
+<span class="sd">        :param path: stdio path without protocol.</span>
+<span class="sd">        :param mode: Writer mode.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="o">==</span> <span class="s2">&quot;2&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="s2">&quot;stderr&quot;</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="s2">&quot;stdout&quot;</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span>
+
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="n">handler</span><span class="o">.</span><span class="n">buffer</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handler</span> <span class="o">=</span> <span class="n">handler</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return writer name.</span>
+
+<span class="sd">        :return: Stream name.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return open mode.</span>
+
+<span class="sd">        :return: Open mode.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_closed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Raise when stream is already closed.</span>
+
+<span class="sd">        :raises IOError: If stream is closed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s2">&quot;file already closed: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AioSTDWriter.write">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.write">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">AnyStr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write data to stdout or stderr.</span>
+
+<span class="sd">        :param data: Data to write.</span>
+<span class="sd">        :return: Number of written items.</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_closed</span><span class="p">()</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">write</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioSTDWriter.flush">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.flush">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Flush writer buffer.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_closed</span><span class="p">()</span>
+        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handler</span><span class="o">.</span><span class="n">flush</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AioSTDWriter.tell">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.AioSTDWriter.tell">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tell</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return current offset.</span>
+
+<span class="sd">        :raises io.UnsupportedOperation: Always raised for stdio stream.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="n">io</span><span class="o">.</span><span class="n">UnsupportedOperation</span><span class="p">(</span><span class="s2">&quot;not tellable&quot;</span><span class="p">)</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Close writer handle.</span>
+
+<span class="sd">        ``stdout``/``stderr`` itself is not closed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="StdioFileSystem">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">StdioFileSystem</span><span class="p">(</span><span class="n">BaseFileSystem</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filesystem adapter for ``stdio://`` paths.&quot;&quot;&quot;</span>
+
+    <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;stdio&quot;</span>
+
+<div class="viewcode-block" id="StdioFileSystem.is_dir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.is_dir">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return False for stdio streams.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param followlinks: Unused compatibility argument.</span>
+<span class="sd">        :return: Always False.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">path</span><span class="p">,</span> <span class="n">followlinks</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.is_file">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.is_file">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when path is a valid stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param followlinks: Unused compatibility argument.</span>
+<span class="sd">        :return: Whether path is valid stdio path.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">followlinks</span>
+        <span class="k">return</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">_VALID_STDIO_PATHS</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.exists">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.exists">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when path is a valid stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param followlinks: Unused compatibility argument.</span>
+<span class="sd">        :return: Whether path is valid stdio path.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">followlinks</span>
+        <span class="k">return</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">_VALID_STDIO_PATHS</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.stat">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.stat">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stat operation is unsupported for stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param followlinks: Unused compatibility argument.</span>
+<span class="sd">        :raises OSError: Always raised.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">path</span><span class="p">,</span> <span class="n">followlinks</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;stdio path does not support stat&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.remove">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.remove">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove operation is unsupported for stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param missing_ok: Unused compatibility argument.</span>
+<span class="sd">        :raises OSError: Always raised.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">path</span><span class="p">,</span> <span class="n">missing_ok</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;stdio path cannot be removed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.mkdir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.mkdir">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">mkdir</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mo">0o777</span><span class="p">,</span>
+        <span class="n">parents</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">exist_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Directory operation is unsupported for stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param mode: Unused compatibility argument.</span>
+<span class="sd">        :param parents: Unused compatibility argument.</span>
+<span class="sd">        :param exist_ok: Unused compatibility argument.</span>
+<span class="sd">        :raises NotADirectoryError: Always raised.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">exist_ok</span>
+        <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="s2">&quot;stdio path is not a directory&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.open">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.open">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">open</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+        <span class="n">buffering</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">encoding</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">errors</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">newline</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open stdio stream in read or write mode.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param mode: Stream mode. Supports ``rb``, ``wb``, ``rt``, ``wt``, ``r``, ``w``.</span>
+<span class="sd">        :param buffering: Unused compatibility argument.</span>
+<span class="sd">        :param encoding: Unused compatibility argument.</span>
+<span class="sd">        :param errors: Unused compatibility argument.</span>
+<span class="sd">        :param newline: Unused compatibility argument.</span>
+<span class="sd">        :param kwargs: Unused compatibility arguments.</span>
+<span class="sd">        :raises ValueError: If mode/path is not acceptable.</span>
+<span class="sd">        :return: Async stdio reader or writer.</span>
+<span class="sd">        :rtype: T.AsyncContextManager[T.Any]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">buffering</span><span class="p">,</span> <span class="n">encoding</span><span class="p">,</span> <span class="n">errors</span><span class="p">,</span> <span class="n">newline</span><span class="p">,</span> <span class="n">kwargs</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_VALID_MODES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unacceptable mode: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">mode</span><span class="p">)</span>
+
+        <span class="n">uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_VALID_STDIO_PATHS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unacceptable path: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;2&quot;</span><span class="p">}</span> <span class="ow">and</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;cannot open for reading: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">path</span> <span class="o">==</span> <span class="s2">&quot;0&quot;</span> <span class="ow">and</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;cannot open for writing: </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">uri</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">AioSTDReader</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">AioSTDWriter</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.scandir">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.scandir">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">scandir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Directory scan is unsupported for stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :raises NotADirectoryError: Always raised.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="s2">&quot;stdio path is not a directory&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.scanfile">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.scanfile">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">scanfile</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncContextManager</span><span class="p">[</span><span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="n">FileEntry</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;File scan is unsupported for stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :param sort: Compatibility flag for protocol-aligned scanfile APIs.</span>
+<span class="sd">        :raises NotADirectoryError: Always raised.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">sort</span>
+        <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="s2">&quot;stdio path is not a directory&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.absolute">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.absolute">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">absolute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return path unchanged for stdio stream.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :return: Original path.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.same_endpoint">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.same_endpoint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">same_endpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_filesystem</span><span class="p">:</span> <span class="n">BaseFileSystem</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether filesystem points to same stdio endpoint.</span>
+
+<span class="sd">        :param other_filesystem: Filesystem to compare.</span>
+<span class="sd">        :return: True when both are ``StdioFileSystem``.</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other_filesystem</span><span class="p">,</span> <span class="n">StdioFileSystem</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StdioFileSystem.parse_uri">
+<a class="viewcode-back" href="../../../aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.parse_uri">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse path part from URI.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: Path without protocol.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">split_uri</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build stdio URI from path part.</span>
+
+<span class="sd">        :param path: Path without protocol.</span>
+<span class="sd">        :return: URI string.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;StdioFileSystem&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new filesystem instance from URI.</span>
+
+<span class="sd">        :param uri: URI string.</span>
+<span class="sd">        :return: New filesystem instance.</span>
+<span class="sd">        :rtype: StdioFileSystem</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">uri</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

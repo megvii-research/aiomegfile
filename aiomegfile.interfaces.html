@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aiomegfile.interfaces module &mdash; aiomegfile  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="aiomegfile.filesystem.local module" href="aiomegfile.filesystem.local.html" />
+    <link rel="prev" title="aiomegfile.smart_path module" href="aiomegfile.smart_path.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            aiomegfile
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="protocols.html">Protocol Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="aiomegfile.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="aiomegfile.html#smart-modules">Smart Modules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.smart.html">aiomegfile.smart module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.smart_path.html">aiomegfile.smart_path module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">aiomegfile.interfaces module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.interfaces.Access"><code class="docutils literal notranslate"><span class="pre">Access</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.interfaces.FileEntry"><code class="docutils literal notranslate"><span class="pre">FileEntry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#aiomegfile.interfaces.StatResult"><code class="docutils literal notranslate"><span class="pre">StatResult</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="aiomegfile.html#filesystem-modules">FileSystem Modules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGELOG</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">aiomegfile</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="aiomegfile.html">API Reference</a></li>
+      <li class="breadcrumb-item active">aiomegfile.interfaces module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/aiomegfile.interfaces.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-aiomegfile.interfaces">
+<span id="aiomegfile-interfaces-module"></span><h1>aiomegfile.interfaces module<a class="headerlink" href="#module-aiomegfile.interfaces" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.Access">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.interfaces.</span></span><span class="sig-name descname"><span class="pre">Access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#Access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.Access" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>An enumeration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.Access.READ">
+<span class="sig-name descname"><span class="pre">READ</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#aiomegfile.interfaces.Access.READ" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.Access.WRITE">
+<span class="sig-name descname"><span class="pre">WRITE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#aiomegfile.interfaces.Access.WRITE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.interfaces.</span></span><span class="sig-name descname"><span class="pre">FileEntry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stat</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#FileEntry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.FileEntry" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">NamedTuple</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.inode">
+<span class="sig-name descname"><span class="pre">inode</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#FileEntry.inode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.inode" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.is_dir">
+<span class="sig-name descname"><span class="pre">is_dir</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#FileEntry.is_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.is_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.is_file">
+<span class="sig-name descname"><span class="pre">is_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#FileEntry.is_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.is_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.is_symlink">
+<span class="sig-name descname"><span class="pre">is_symlink</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#FileEntry.is_symlink"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.is_symlink" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.name" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.path">
+<span class="sig-name descname"><span class="pre">path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.path" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.FileEntry.stat">
+<span class="sig-name descname"><span class="pre">stat</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></em><a class="headerlink" href="#aiomegfile.interfaces.FileEntry.stat" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">aiomegfile.interfaces.</span></span><span class="sig-name descname"><span class="pre">StatResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">st_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_ctime</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_mtime</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">islnk</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#StatResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.StatResult" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">NamedTuple</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.ctime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ctime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.ctime" title="Link to this definition"></a></dt>
+<dd><p>Platform dependent:</p>
+<p>the time of most recent metadata change on Unix,
+the time of creation on Windows, expressed in seconds.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.extra">
+<span class="sig-name descname"><span class="pre">extra</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.extra" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 5</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.is_dir">
+<span class="sig-name descname"><span class="pre">is_dir</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#StatResult.is_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.StatResult.is_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.is_file">
+<span class="sig-name descname"><span class="pre">is_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#StatResult.is_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.StatResult.is_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.is_symlink">
+<span class="sig-name descname"><span class="pre">is_symlink</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/interfaces.html#StatResult.is_symlink"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.interfaces.StatResult.is_symlink" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.isdir">
+<span class="sig-name descname"><span class="pre">isdir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.isdir" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.islnk">
+<span class="sig-name descname"><span class="pre">islnk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.islnk" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 4</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.mtime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mtime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.mtime" title="Link to this definition"></a></dt>
+<dd><p>Time of most recent content modification expressed in seconds.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.size" title="Link to this definition"></a></dt>
+<dd><p>Size of the file in bytes.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_atime">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_atime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_atime" title="Link to this definition"></a></dt>
+<dd><p>Time of most recent access expressed in seconds.
+Only support fs.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_atime_ns">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_atime_ns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_atime_ns" title="Link to this definition"></a></dt>
+<dd><p>Time of most recent access expressed in nanoseconds as an integer.
+Only support fs.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_ctime">
+<span class="sig-name descname"><span class="pre">st_ctime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_ctime" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_ctime_ns">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_ctime_ns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_ctime_ns" title="Link to this definition"></a></dt>
+<dd><p>Platform dependent:</p>
+<blockquote>
+<div><p>the time of most recent metadata change on Unix,
+the time of creation on Windows, expressed in nanoseconds as an integer.</p>
+</div></blockquote>
+<p>Only support fs.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_dev">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_dev</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_dev" title="Link to this definition"></a></dt>
+<dd><p>Identifier of the device on which this file resides.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_gid">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_gid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_gid" title="Link to this definition"></a></dt>
+<dd><p>Group identifier of the file owner.
+Only support fs.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_ino">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_ino</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_ino" title="Link to this definition"></a></dt>
+<dd><p>Platform dependent, but if non-zero, uniquely identifies the file for
+a given value of st_dev. Typically:</p>
+<p>the inode number on Unix,
+the file index on Windows,
+the decimal of etag on oss.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_mode" title="Link to this definition"></a></dt>
+<dd><p>File mode: file type and file mode bits (permissions).
+Only support fs.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_mtime">
+<span class="sig-name descname"><span class="pre">st_mtime</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_mtime" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_mtime_ns">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_mtime_ns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_mtime_ns" title="Link to this definition"></a></dt>
+<dd><p>Time of most recent content modification expressed in nanoseconds as an integer.
+Only support fs.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_nlink">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_nlink</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_nlink" title="Link to this definition"></a></dt>
+<dd><p>Number of hard links.
+Only support fs.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_size">
+<span class="sig-name descname"><span class="pre">st_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_size" title="Link to this definition"></a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="aiomegfile.interfaces.StatResult.st_uid">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">st_uid</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#aiomegfile.interfaces.StatResult.st_uid" title="Link to this definition"></a></dt>
+<dd><p>User identifier of the file owner.
+Only support fs.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="aiomegfile.smart_path.html" class="btn btn-neutral float-left" title="aiomegfile.smart_path module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="aiomegfile.filesystem.local.html" class="btn btn-neutral float-right" title="aiomegfile.filesystem.local module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, r-eng.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
