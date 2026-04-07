@@ -22,6 +22,7 @@ from aiomegfile.lib.glob import FSFunc, get_non_glob_dir, has_magic, iglob
 from aiomegfile.smart import (
     smart_cache,
     smart_copy,
+    smart_copy_file,
     smart_exists,
     smart_getmd5,
     smart_getmtime,
@@ -44,7 +45,6 @@ from aiomegfile.smart_path import SmartPath
 from aiomegfile.utils.alias import CONFIG_PATH, CaseSensitiveConfigParser
 from aiomegfile.utils.async_tools import maybe_await
 from aiomegfile.utils.parse import get_human_size
-from aiomegfile.utils.path import copyfileobj
 
 options: dict[str, T.Any] = {}
 DEFAULT_HDFS_TIMEOUT = 10
@@ -529,9 +529,11 @@ async def _copy_file_with_progress(
         """Update progress for copied bytes."""
         sbar.update(length)
 
-    async with smart_open(src_path, "rb") as src_file:
-        async with smart_open(dst_path, "wb") as dst_file:
-            await copyfileobj(src_file, dst_file, callback=callback)
+    await smart_copy_file(
+        src_path,
+        dst_path,
+        callback=callback,
+    )
     sbar.close()
 
 

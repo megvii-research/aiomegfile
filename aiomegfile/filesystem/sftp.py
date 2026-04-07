@@ -14,14 +14,11 @@ from dataclasses import dataclass
 
 import asyncssh
 
-from aiomegfile.config import (
-    READER_BLOCK_SIZE,
-    READER_MAX_BUFFER_SIZE,
-    SFTP_MAX_RETRY_TIMES,
-)
+from aiomegfile.config import SFTP_MAX_RETRY_TIMES
 from aiomegfile.errors.sftp import sftp_retry, translate_sftp_error
 from aiomegfile.interfaces import (
     Access,
+    AioReadable,
     AioScannableManager,
     AioSeekable,
     AioWritable,
@@ -29,7 +26,6 @@ from aiomegfile.interfaces import (
     FileEntry,
     StatResult,
 )
-from aiomegfile.lib.prefetch_reader.sftp_prefetch_reader import AioSftpPrefetchReader
 from aiomegfile.utils.path import PathLike, fspath
 
 logger = logging.getLogger(__name__)
@@ -489,6 +485,304 @@ def is_sftp(path: PathLike) -> bool:
     """
     parsed = urllib.parse.urlsplit(fspath(path))
     return parsed.scheme == "sftp" and bool(parsed.netloc)
+
+
+class AioSftpReadableFile(AioReadable[T.AnyStr], AioSeekable[T.AnyStr]):
+    """Async readable SFTP file wrapper backed by native AsyncSSH handles."""
+
+    def __init__(
+        self,
+        filesystem: "SftpFileSystem",
+        path: str,
+        mode: str,
+        encoding: T.Optional[str],
+        errors: T.Optional[str],
+        read_chunk_size: int = 64 * 1024,
+    ) -> None:
+        """Initialize readable SFTP file adapter.
+
+        :param filesystem: Owning filesystem instance.
+        :param path: Path without protocol.
+        :param mode: File mode.
+        :param encoding: Text encoding in text mode.
+        :param errors: Text error handling mode.
+        :param read_chunk_size: Chunk size used by binary ``readline``.
+        """
+        self._filesystem = filesystem
+        self._path = path
+        self._mode = mode
+        self._encoding = encoding or "utf-8"
+        self._errors = errors or "backslashreplace"
+        self._read_chunk_size = max(int(read_chunk_size), 1)
+
+        self._connection = None
+        self._client = None
+        self._file = None
+        self._pending = bytearray()
+        self._offset = 0
+
+    @property
+    def name(self) -> str:
+        """Return full URI of the opened file.
+
+        :return: Full URI.
+        :rtype: str
+        """
+        return self._filesystem.build_uri(self._path)
+
+    @property
+    def mode(self) -> str:
+        """Return open mode.
+
+        :return: File mode.
+        :rtype: str
+        """
+        return self._mode
+
+    @property
+    def _is_binary(self) -> bool:
+        """Return whether current file is opened in binary mode."""
+        return "b" in self._mode
+
+    async def __aenter__(self):
+        """Enter async context and open remote file.
+
+        :return: Opened readable file.
+        :rtype: AioSftpReadableFile
+        """
+        self._connection, self._client = await self._filesystem._open_client()
+
+        try:
+            remote_path = await self._filesystem._resolve_remote_path(
+                self._client,
+                self._path,
+            )
+            self._file = await self._filesystem._open_remote_file(
+                self._client,
+                remote_path,
+                self._mode,
+                encoding=(None if self._is_binary else self._encoding),
+                errors=self._errors,
+            )
+        except Exception as error:
+            translated = translate_sftp_error(error, self.name)
+            raise translated from error
+
+        return self
+
+    def _ensure_open(self) -> None:
+        """Validate the remote file is still open.
+
+        :raises IOError: If file has been closed.
+        """
+        if self.closed:
+            raise IOError(f"file already closed: {self.name!r}")
+        if self._file is None:
+            raise IOError(f"file not open: {self.name!r}")
+
+    async def _read_raw(self, size: int) -> bytes:
+        """Read raw bytes from native AsyncSSH file object.
+
+        :param size: Number of bytes to read, ``-1`` means read to EOF.
+        :return: Raw bytes.
+        :rtype: bytes
+        """
+        try:
+            data = await self._file.read(size)
+        except Exception as error:
+            translated = translate_sftp_error(error, self.name)
+            raise translated from error
+
+        if data is None:
+            return b""
+        if isinstance(data, str):
+            return data.encode(self._encoding, errors=self._errors)
+        return bytes(data)
+
+    async def read(self, size: T.Optional[int] = None) -> T.AnyStr:
+        """Read file content.
+
+        :param size: Maximum bytes/chars to read.
+        :return: Bytes in binary mode, str in text mode.
+        """
+        self._ensure_open()
+
+        if not self._is_binary:
+            try:
+                data = await self._file.read(-1 if size is None else int(size))
+            except Exception as error:
+                translated = translate_sftp_error(error, self.name)
+                raise translated from error
+            return T.cast(T.AnyStr, data or "")
+
+        if size == 0:
+            return T.cast(T.AnyStr, b"")
+
+        if size is None or int(size) < 0:
+            data = bytes(self._pending)
+            self._pending.clear()
+            data += await self._read_raw(-1)
+            self._offset += len(data)
+            return T.cast(T.AnyStr, data)
+
+        remaining = int(size)
+        if len(self._pending) >= remaining:
+            data = bytes(self._pending[:remaining])
+            del self._pending[:remaining]
+            self._offset += len(data)
+            return T.cast(T.AnyStr, data)
+
+        data = bytes(self._pending)
+        self._pending.clear()
+        data += await self._read_raw(remaining - len(data))
+        self._offset += len(data)
+        return T.cast(T.AnyStr, data)
+
+    async def readline(self, size: T.Optional[int] = None) -> T.AnyStr:
+        """Read one line from the file.
+
+        :param size: Maximum bytes/chars to read.
+        :return: Bytes in binary mode, str in text mode.
+        """
+        self._ensure_open()
+
+        if not self._is_binary:
+            limit = None if size is None or int(size) < 0 else int(size)
+            pieces: list[str] = []
+            total = 0
+
+            while True:
+                if limit is not None and total >= limit:
+                    break
+                try:
+                    chunk = await self._file.read(1)
+                except Exception as error:
+                    translated = translate_sftp_error(error, self.name)
+                    raise translated from error
+                if not chunk:
+                    break
+                pieces.append(chunk)
+                total += len(chunk)
+                if chunk == "\n":
+                    break
+
+            return T.cast(T.AnyStr, "".join(pieces))
+
+        limit = None if size is None or int(size) < 0 else int(size)
+        if limit == 0:
+            return T.cast(T.AnyStr, b"")
+
+        line = bytearray()
+
+        while True:
+            if limit is not None and len(line) >= limit:
+                break
+
+            if self._pending:
+                chunk = bytes(self._pending)
+                self._pending.clear()
+            else:
+                read_size = self._read_chunk_size
+                if limit is not None:
+                    read_size = min(read_size, limit - len(line))
+                chunk = await self._read_raw(read_size)
+                if not chunk:
+                    break
+
+            allowed = chunk
+            overflow = b""
+            if limit is not None and len(line) + len(chunk) > limit:
+                split_at = limit - len(line)
+                allowed = chunk[:split_at]
+                overflow = chunk[split_at:]
+
+            newline_index = allowed.find(b"\n")
+            if newline_index >= 0:
+                line_end = newline_index + 1
+                line.extend(allowed[:line_end])
+                self._pending.extend(allowed[line_end:])
+                self._pending.extend(overflow)
+                break
+
+            line.extend(allowed)
+            self._pending.extend(overflow)
+
+        self._offset += len(line)
+        return T.cast(T.AnyStr, bytes(line))
+
+    async def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
+        """Seek stream position.
+
+        :param offset: Offset value.
+        :param whence: Seek origin.
+        :return: New absolute position.
+        :rtype: int
+        """
+        self._ensure_open()
+
+        if not self._is_binary:
+            try:
+                position = await self._file.seek(offset, whence)
+            except Exception as error:
+                translated = translate_sftp_error(error, self.name)
+                raise translated from error
+            return int(position)
+
+        if whence == os.SEEK_SET:
+            target = int(offset)
+            try:
+                position = await self._file.seek(target, os.SEEK_SET)
+            except Exception as error:
+                translated = translate_sftp_error(error, self.name)
+                raise translated from error
+        elif whence == os.SEEK_CUR:
+            target = self._offset + int(offset)
+            try:
+                position = await self._file.seek(target, os.SEEK_SET)
+            except Exception as error:
+                translated = translate_sftp_error(error, self.name)
+                raise translated from error
+        elif whence == os.SEEK_END:
+            try:
+                position = await self._file.seek(offset, os.SEEK_END)
+            except Exception as error:
+                translated = translate_sftp_error(error, self.name)
+                raise translated from error
+        else:
+            raise ValueError(f"invalid whence: {whence!r}")
+
+        self._pending.clear()
+        self._offset = int(position)
+        return self._offset
+
+    async def tell(self) -> int:
+        """Return current stream position.
+
+        :return: Stream position.
+        :rtype: int
+        """
+        self._ensure_open()
+
+        if self._is_binary:
+            return self._offset
+
+        try:
+            position = await self._file.tell()
+        except Exception as error:
+            translated = translate_sftp_error(error, self.name)
+            raise translated from error
+        return int(position)
+
+    async def close(self) -> None:
+        """Close file and release local wrapper state."""
+        if self._file is not None:
+            with suppress(Exception):
+                await self._file.close()
+            self._file = None
+
+        self._pending.clear()
+        self._connection = None
+        self._client = None
 
 
 class AioSftpWritableFile(AioWritable[T.AnyStr], AioSeekable[T.AnyStr]):
@@ -1325,7 +1619,9 @@ class SftpFileSystem(BaseFileSystem):
     ) -> T.AsyncContextManager:
         """Open path as async reader or writer.
 
-        Read mode uses ``AioSftpPrefetchReader``.
+        Read mode uses native AsyncSSH file handles wrapped in
+        ``AioSftpReadableFile``. Extra reader tuning kwargs are accepted for
+        compatibility but ignored.
 
         :param path: Path without protocol.
         :param mode: File open mode.
@@ -1333,11 +1629,11 @@ class SftpFileSystem(BaseFileSystem):
         :param encoding: Text encoding in text mode.
         :param errors: Text error handling.
         :param newline: Currently unused compatibility argument.
-        :param kwargs: Extra prefetch parameters.
+        :param kwargs: Extra compatibility parameters ignored for SFTP reads.
         :return: Async context manager for opened file.
         :rtype: T.AsyncContextManager
         """
-        _ = buffering, newline
+        _ = buffering, newline, kwargs
 
         normalized_mode = mode.replace("t", "")
         if "+" in normalized_mode:
@@ -1346,34 +1642,12 @@ class SftpFileSystem(BaseFileSystem):
             raise ValueError(f"unacceptable mode: {mode!r}")
 
         if normalized_mode in {"r", "rb"}:
-            block_size = kwargs.get("block_size")
-            max_buffer_size = kwargs.get("max_buffer_size")
-            block_forward = kwargs.get("block_forward")
-            max_retries = kwargs.get("max_retries")
-
-            return AioSftpPrefetchReader(
+            return AioSftpReadableFile(
+                self,
                 path,
-                filesystem=self,
-                mode=normalized_mode,
+                normalized_mode,
                 encoding=encoding,
                 errors=errors,
-                newline=newline,
-                block_size=(
-                    int(block_size) if block_size is not None else READER_BLOCK_SIZE
-                ),
-                max_buffer_size=(
-                    int(max_buffer_size)
-                    if max_buffer_size is not None
-                    else READER_MAX_BUFFER_SIZE
-                ),
-                block_forward=(
-                    int(block_forward) if block_forward is not None else None
-                ),
-                max_retries=(
-                    int(max_retries)
-                    if max_retries is not None
-                    else SFTP_MAX_RETRY_TIMES
-                ),
             )
 
         return AioSftpWritableFile(
