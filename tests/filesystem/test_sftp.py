@@ -1,6 +1,7 @@
 """Tests for SftpFileSystem and is_sftp."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 
@@ -379,6 +380,22 @@ class TestSftpClientCache:
         lock_path_slot_1 = sftp_module._build_sftp_connect_lock_path(endpoint)
         lock_path_slot_2 = sftp_module._build_sftp_connect_lock_path(endpoint)
         assert lock_path_slot_1 != lock_path_slot_2
+
+    def test_acquire_lock_file_uses_valid_text_mode(self, tmp_path: Path) -> None:
+        """Test lock file acquisition opens a writable text handle."""
+        lock_path = tmp_path / "connect.lock"
+
+        lock_file = sftp_module._acquire_lock_file(str(lock_path))
+        try:
+            assert lock_path.exists() is True
+            assert lock_file.mode == "w"
+            lock_file.write("locked")
+            lock_file.flush()
+            assert lock_path.read_text(encoding="utf-8") == "locked"
+        finally:
+            sftp_module._release_lock_file(lock_file)
+
+        assert lock_file.closed is True
 
     def test_get_sftp_max_unauth_connections_from_env(self, monkeypatch):
         """Test env parsing for max unauthenticated connection slots."""

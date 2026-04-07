@@ -33,6 +33,8 @@ from aiomegfile.lib.prefetch_reader.sftp_prefetch_reader import AioSftpPrefetchR
 from aiomegfile.utils.path import PathLike, fspath
 
 logger = logging.getLogger(__name__)
+asyncssh.set_log_level(logging.ERROR)
+asyncssh.set_sftp_log_level(logging.ERROR)
 
 __all__ = [
     "get_sftp_client",
@@ -115,30 +117,30 @@ def _build_sftp_connect_lock_path(endpoint: _SftpEndpoint) -> str:
     return os.path.join(_SFTP_CONNECT_LOCK_DIR, lock_name)
 
 
-def _acquire_lock_file(lock_path: str):
+def _acquire_lock_file(lock_path: str) -> int:
     """Acquire an exclusive lock on the given lock file path.
 
     :param lock_path: Absolute lock file path.
     :return: Open lock file handle.
-    :rtype: typing.IO[str]
+    :rtype: int
     """
     import fcntl
 
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
-    lock_file = open(
+    lock_file = os.open(
         lock_path,
-        mode=os.O_WRONLY | os.O_CREAT | os.O_TRUNC,  # type: ignore
-        encoding="utf-8",
+        os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+        0o666,
     )
     try:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
     except Exception:
-        lock_file.close()
+        os.close(lock_file)
         raise
     return lock_file
 
 
-def _release_lock_file(lock_file) -> None:
+def _release_lock_file(lock_file: T.Optional[int]) -> None:
     """Release and close an acquired lock file.
 
     :param lock_file: Open lock file handle.
@@ -148,9 +150,9 @@ def _release_lock_file(lock_file) -> None:
     if lock_file is None:
         return
     with suppress(Exception):
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
     with suppress(Exception):
-        lock_file.close()
+        os.close(lock_file)
 
 
 @asynccontextmanager
