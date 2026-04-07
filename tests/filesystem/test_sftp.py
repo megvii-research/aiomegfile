@@ -1,6 +1,8 @@
 """Tests for SftpFileSystem and is_sftp."""
 
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +23,8 @@ def filesystem(monkeypatch):
     client = FakeSFTPClient()
     client.files["/abs.txt"] = b"absolute"
     client.files["/home/test/rel.txt"] = b"relative"
+    client.files["/lines.txt"] = b"line1\nline2\n"
+    client.files["/utf8.txt"] = "你a\n".encode("utf-8")
 
     filesystem = SftpFileSystem(
         host="example.com",
@@ -92,12 +96,20 @@ class TestSftpFileSystem:
         monkeypatch.setenv("SFTP_KEEPALIVE_INTERVAL", "7.5")
         assert sftp_module._get_keepalive_interval() == pytest.approx(7.5)
 
-    async def test_open_uses_sftp_retry_config_default(self, filesystem, monkeypatch):
-        """Test SFTP read open uses module retry default when omitted."""
+    async def test_open_read_accepts_compatibility_kwargs(self, filesystem):
+        """Test SFTP read open ignores legacy prefetch kwargs compatibly."""
         fs, _ = filesystem
-        monkeypatch.setattr(sftp_module, "SFTP_MAX_RETRY_TIMES", 6)
-        reader = fs.open("//abs.txt", "rb")
-        assert reader._max_retries == 6
+
+        async with fs.open(
+            "//abs.txt",
+            "rb",
+            block_size=1,
+            max_buffer_size=1,
+            block_forward=8,
+            max_retries=99,
+        ) as reader:
+            assert await reader.read(3) == b"abs"
+            assert await reader.tell() == 3
 
     async def test_open_read_absolute_and_relative(self, filesystem):
         """Test opening and reading absolute and home-relative files."""
@@ -108,6 +120,30 @@ class TestSftpFileSystem:
 
         async with fs.open("rel.txt", "rb") as reader:
             assert await reader.read() == b"relative"
+
+    async def test_open_readline_and_seek(self, filesystem):
+        """Test binary and text reads via native AsyncSSH wrappers."""
+        fs, _ = filesystem
+
+        async with fs.open("//lines.txt", "rb") as reader:
+            assert await reader.readline() == b"line1\n"
+            assert await reader.tell() == 6
+            assert await reader.read() == b"line2\n"
+
+        async with fs.open("//lines.txt", "r") as reader:
+            assert await reader.readline() == "line1\n"
+            await reader.seek(0)
+            assert await reader.read(5) == "line1"
+
+    async def test_open_text_seek_and_tell_use_byte_offsets(self, filesystem):
+        """Text-mode seek/tell should operate on byte offsets."""
+        fs, _ = filesystem
+
+        async with fs.open("//utf8.txt", "r", encoding="utf-8") as reader:
+            assert await reader.read(3) == "你"
+            assert await reader.tell() == 3
+            await reader.seek(0)
+            assert await reader.readline() == "你a\n"
 
     async def test_open_write_and_append(self, filesystem):
         """Test writing and appending binary content."""
@@ -379,6 +415,20 @@ class TestSftpClientCache:
         lock_path_slot_1 = sftp_module._build_sftp_connect_lock_path(endpoint)
         lock_path_slot_2 = sftp_module._build_sftp_connect_lock_path(endpoint)
         assert lock_path_slot_1 != lock_path_slot_2
+
+    def test_acquire_lock_file_uses_valid_text_mode(self, tmp_path: Path) -> None:
+        """Test lock file acquisition opens a writable file descriptor."""
+        lock_path = tmp_path / "connect.lock"
+
+        lock_file = sftp_module._acquire_lock_file(str(lock_path))
+        try:
+            assert lock_path.exists() is True
+            assert isinstance(lock_file, int)
+            os.write(lock_file, b"locked")
+            os.fsync(lock_file)
+            assert lock_path.read_text(encoding="utf-8") == "locked"
+        finally:
+            sftp_module._release_lock_file(lock_file)
 
     def test_get_sftp_max_unauth_connections_from_env(self, monkeypatch):
         """Test env parsing for max unauthenticated connection slots."""

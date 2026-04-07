@@ -15,6 +15,7 @@ import aiomegfile  # noqa: F401
 from aiomegfile.__version__ import __version__
 from aiomegfile.cli import (
     PathType,
+    _copy_file_with_progress,
     _run_async,
     _safe_makedirs,
     _tail_follow_content,
@@ -151,6 +152,54 @@ async def test_tail_follow_content_outputs_and_returns_offset(tmp_path, monkeypa
     offset = await _tail_follow_content(str(path), 0)
     assert offset == path.stat().st_size
     assert output.getvalue() == data
+
+
+async def test_copy_file_with_progress_uses_protocol_copy(monkeypatch) -> None:
+    """Single-file progress copy should use protocol-native copy helpers."""
+
+    updates: list[int] = []
+    copy_calls: list[tuple[str, str, bool]] = []
+    closed: list[bool] = []
+
+    class _FakeBar:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def update(self, value: int) -> None:
+            updates.append(value)
+
+        def close(self) -> None:
+            closed.append(True)
+
+    async def _fake_exists(_path: str) -> bool:
+        return False
+
+    async def _fake_stat(_path: str):
+        return type("Stat", (), {"st_size": 5})()
+
+    async def _fake_copy_file(
+        src_path: str,
+        dst_path: str,
+        *,
+        followlinks: bool = False,
+        callback=None,
+    ) -> str:
+        copy_calls.append((src_path, dst_path, followlinks))
+        if callback:
+            callback(2)
+            callback(3)
+        return dst_path
+
+    monkeypatch.setattr("aiomegfile.cli.tqdm", _FakeBar)
+    monkeypatch.setattr("aiomegfile.cli.smart_exists", _fake_exists)
+    monkeypatch.setattr("aiomegfile.cli.smart_stat", _fake_stat)
+    monkeypatch.setattr("aiomegfile.cli.smart_copy_file", _fake_copy_file)
+
+    await _copy_file_with_progress("src", "dst", overwrite=True, skip=False)
+
+    assert copy_calls == [("src", "dst", False)]
+    assert updates == [2, 3]
+    assert closed == [True]
 
 
 def test_safe_makedirs_creates_nested(tmp_path) -> None:
