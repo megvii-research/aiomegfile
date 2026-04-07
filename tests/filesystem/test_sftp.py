@@ -24,6 +24,7 @@ def filesystem(monkeypatch):
     client.files["/abs.txt"] = b"absolute"
     client.files["/home/test/rel.txt"] = b"relative"
     client.files["/lines.txt"] = b"line1\nline2\n"
+    client.files["/utf8.txt"] = "你a\n".encode("utf-8")
 
     filesystem = SftpFileSystem(
         host="example.com",
@@ -133,6 +134,16 @@ class TestSftpFileSystem:
             assert await reader.readline() == "line1\n"
             await reader.seek(0)
             assert await reader.read(5) == "line1"
+
+    async def test_open_text_seek_and_tell_use_byte_offsets(self, filesystem):
+        """Text-mode seek/tell should operate on byte offsets."""
+        fs, _ = filesystem
+
+        async with fs.open("//utf8.txt", "r", encoding="utf-8") as reader:
+            assert await reader.read(3) == "你"
+            assert await reader.tell() == 3
+            await reader.seek(0)
+            assert await reader.readline() == "你a\n"
 
     async def test_open_write_and_append(self, filesystem):
         """Test writing and appending binary content."""
