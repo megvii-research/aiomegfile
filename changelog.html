@@ -55,9 +55,10 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.html">API Reference</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">CHANGELOG</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#id1">0.0.3 - 2026.03.27</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id2">0.0.2 - 2026.03.02</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id3">0.0.1 - 2026.02.27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">0.0.4 - 2026.04.08</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id2">0.0.3 - 2026.03.27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id3">0.0.2 - 2026.03.02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id4">0.0.1 - 2026.02.27</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/aiomegfile">Github</a></li>
@@ -90,7 +91,23 @@
   <section id="changelog">
 <h1>CHANGELOG<a class="headerlink" href="#changelog" title="Link to this heading"></a></h1>
 <section id="id1">
-<h2>0.0.3 - 2026.03.27<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<h2>0.0.4 - 2026.04.08<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>fix</p>
+<ul>
+<li><p>Fix the file locking issue when opening files via SFTP.</p></li>
+</ul>
+</li>
+<li><p>perf</p>
+<ul>
+<li><p>Replace the SFTP prefetch reader with <code class="docutils literal notranslate"><span class="pre">asyncssh</span> <span class="pre">open</span></code>.</p></li>
+<li><p>Set AsyncSSH’s log level to <code class="docutils literal notranslate"><span class="pre">error</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="id2">
+<h2>0.0.3 - 2026.03.27<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>feat</p>
 <ul>
@@ -111,8 +128,8 @@
 </li>
 </ul>
 </section>
-<section id="id2">
-<h2>0.0.2 - 2026.03.02<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
+<section id="id3">
+<h2>0.0.2 - 2026.03.02<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>feat</p>
 <ul>
@@ -126,8 +143,8 @@
 </li>
 </ul>
 </section>
-<section id="id3">
-<h2>0.0.1 - 2026.02.27<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
+<section id="id4">
+<h2>0.0.1 - 2026.02.27<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>First release.</p></li>
 </ul>
