@@ -1,3 +1,11 @@
+## 0.0.4 - 2026.04.08
+- fix
+    - Fix the file locking issue when opening files via SFTP.
+- perf
+    - Replace the SFTP prefetch reader with `asyncssh open`.
+    - Set AsyncSSH’s log level to `error`.
+
+
 ## 0.0.3 - 2026.03.27
 - feat
     - Support http, sftp, stdio, webdav and hdfs.
