@@ -1,3 +1,7 @@
+## 0.0.5 - 2026.05.22
+- fix
+    - Fix the bug where `smart_iglob` returns empty results.
+
 ## 0.0.4 - 2026.04.08
 - fix
     - Fix the file locking issue when opening files via SFTP.
