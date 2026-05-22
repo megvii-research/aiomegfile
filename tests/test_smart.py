@@ -425,6 +425,21 @@ async def test_smart_glob_stat_s3(s3_filesystem):
     assert {entry.stat.st_size for entry in entries} == {len(data)}
 
 
+async def test_smart_iglob_s3_pathname_pattern(s3_filesystem):
+    """smart_iglob should match an S3 pathname pattern directly."""
+    await _create_bucket(s3_filesystem)
+    key = "glob/pathname/nested/meta.json"
+    await _put_object(s3_filesystem, key, b"{}")
+    await _put_object(s3_filesystem, "glob/pathname/nested/other.json", b"{}")
+
+    pattern = f"s3://{_bucket_name}/glob/pathname/**/meta.json"
+    collected = []
+    async for item in smart_iglob(pattern):
+        collected.append(item)
+
+    assert collected == [f"s3://{_bucket_name}/{key}"]
+
+
 async def test_smart_glob_stat_passes_sort_to_s3(monkeypatch):
     """smart_glob_stat should forward the sort flag to S3 glob_stat."""
     seen_sort: list[bool] = []

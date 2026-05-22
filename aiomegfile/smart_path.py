@@ -1027,8 +1027,11 @@ class SmartPath(os.PathLike):
         """
 
         if hasattr(self.filesystem, "glob_stat"):
+            glob_path = self._path
+            if pattern:
+                glob_path = os.path.join(self._path, pattern)
             iterator = self.filesystem.glob_stat(
-                os.path.join(self._path, pattern),
+                glob_path,
                 recursive=recursive,
                 missing_ok=missing_ok,
                 sort=sort,
