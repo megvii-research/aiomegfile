@@ -668,7 +668,11 @@
 <div class="viewcode-block" id="smart_glob">
 <a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_glob">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_glob</span><span class="p">(</span>
-    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return paths whose paths match the glob pattern.</span>
 
@@ -676,12 +680,16 @@
 <span class="sd">    :param recursive: If False, ``**`` will not search directory recursively.</span>
 <span class="sd">    :param missing_ok: If False and target path doesn&#39;t match any file,</span>
 <span class="sd">        raise FileNotFoundError.</span>
+<span class="sd">    :param sort: Whether to request sorted traversal when supported by the</span>
+<span class="sd">        filesystem.</span>
 <span class="sd">    :return: List of matching path strings.</span>
 <span class="sd">    :rtype: T.List[str]</span>
 <span class="sd">    :raises FileNotFoundError: If no matches and missing_ok is False.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">smart_path</span> <span class="o">=</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">smart_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span>
+        <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span>
+    <span class="p">)</span>
     <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span></div>
 
 
@@ -720,7 +728,11 @@
 <div class="viewcode-block" id="smart_iglob">
 <a class="viewcode-back" href="../../aiomegfile.smart.html#aiomegfile.smart.smart_iglob">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">smart_iglob</span><span class="p">(</span>
-    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
+    <span class="n">recursive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">missing_ok</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">AsyncIterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Yield paths whose paths match the glob pattern.</span>
 
@@ -728,11 +740,13 @@
 <span class="sd">    :param recursive: If False, ``**`` will not search directory recursively.</span>
 <span class="sd">    :param missing_ok: If False and target path doesn&#39;t match any file,</span>
 <span class="sd">        raise FileNotFoundError.</span>
+<span class="sd">    :param sort: Whether to request sorted traversal when supported by the</span>
+<span class="sd">        filesystem.</span>
 <span class="sd">    :return: Async iterator of matching path strings.</span>
 <span class="sd">    :rtype: T.AsyncIterator[str]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">SmartPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">iglob</span><span class="p">(</span>
-        <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span>
+        <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="n">recursive</span><span class="p">,</span> <span class="n">missing_ok</span><span class="o">=</span><span class="n">missing_ok</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span>
     <span class="p">):</span>
         <span class="k">yield</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span></div>
 
