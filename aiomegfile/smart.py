@@ -508,7 +508,11 @@ async def smart_walk(
 
 
 async def smart_glob(
-    path: PathLike, recursive: bool = True, missing_ok: bool = True
+    path: PathLike,
+    recursive: bool = True,
+    missing_ok: bool = True,
+    *,
+    sort: bool = False,
 ) -> T.List[str]:
     """Return paths whose paths match the glob pattern.
 
@@ -516,12 +520,16 @@ async def smart_glob(
     :param recursive: If False, ``**`` will not search directory recursively.
     :param missing_ok: If False and target path doesn't match any file,
         raise FileNotFoundError.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: List of matching path strings.
     :rtype: T.List[str]
     :raises FileNotFoundError: If no matches and missing_ok is False.
     """
     smart_path = SmartPath(path)
-    results = await smart_path.glob("", recursive=recursive, missing_ok=missing_ok)
+    results = await smart_path.glob(
+        "", recursive=recursive, missing_ok=missing_ok, sort=sort
+    )
     return [str(item) for item in results]
 
 
@@ -554,7 +562,11 @@ async def smart_glob_stat(
 
 
 async def smart_iglob(
-    path: PathLike, recursive: bool = True, missing_ok: bool = True
+    path: PathLike,
+    recursive: bool = True,
+    missing_ok: bool = True,
+    *,
+    sort: bool = False,
 ) -> T.AsyncIterator[str]:
     """Yield paths whose paths match the glob pattern.
 
@@ -562,11 +574,13 @@ async def smart_iglob(
     :param recursive: If False, ``**`` will not search directory recursively.
     :param missing_ok: If False and target path doesn't match any file,
         raise FileNotFoundError.
+    :param sort: Whether to request sorted traversal when supported by the
+        filesystem.
     :return: Async iterator of matching path strings.
     :rtype: T.AsyncIterator[str]
     """
     async for item in SmartPath(path).iglob(
-        "", recursive=recursive, missing_ok=missing_ok
+        "", recursive=recursive, missing_ok=missing_ok, sort=sort
     ):
         yield str(item)
 
