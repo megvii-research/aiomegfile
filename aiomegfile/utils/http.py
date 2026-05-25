@@ -103,7 +103,8 @@ async def request_headers(
 
     @http_retry(max_retries=max_retries)
     async def _request_once() -> tuple[dict[str, str], int]:
-        assert request_session is not None
+        if request_session is None:
+            raise RuntimeError("HTTP session is not initialized")
         try:
             async with request_session.head(url) as response:
                 headers = dict(response.headers.items())
