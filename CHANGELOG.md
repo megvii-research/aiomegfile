@@ -1,3 +1,7 @@
+## 0.0.6 - 2026.05.25
+- feat
+    - Support sort param in `smart_glob` and `smart_iglob`.
+
 ## 0.0.5 - 2026.05.22
 - fix
     - Fix the bug where `smart_iglob` returns empty results.
