@@ -213,7 +213,7 @@ async def test_glob_collects_from_iglob(monkeypatch, tmp_path):
 async def test_rglob_prefixes_pattern(monkeypatch, tmp_path):
     called = []
 
-    async def fake_glob(self, pattern, recursive):
+    async def fake_glob(self, pattern, recursive, *, sort: bool = False):
         called.append(pattern)
         return []
 
