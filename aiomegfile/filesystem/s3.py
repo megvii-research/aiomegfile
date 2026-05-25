@@ -1058,7 +1058,7 @@ class S3FileSystem(BaseFileSystem):
             prefix = _become_prefix(key)
 
             async for resp in self._list_objects_recursive(
-                bucket, prefix, delimiter="/"
+                bucket, prefix, delimiter="/", sort=True
             ):
                 # Yield files
                 for content in resp.get("Contents", []):

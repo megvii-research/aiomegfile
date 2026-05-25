@@ -1181,7 +1181,7 @@ class SmartPath(os.PathLike):
         if not pattern:
             pattern = ""
         pattern = "**/" + pattern.lstrip("/")
-        return await self.glob(pattern=pattern, recursive=recursive)
+        return await self.glob(pattern=pattern, recursive=recursive, sort=sort)
 
     async def copy_file(
         self,
