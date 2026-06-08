@@ -31,10 +31,9 @@ from aiomegfile.errors import (
     S3FileExistsError,
     S3FileNotFoundError,
     S3IsADirectoryError,
-    S3NameTooLongError,
-    S3NotALinkError,
     S3PermissionError,
     S3UnknownError,
+    S3UnsupportedError,
     SameFileError,
     raise_s3_error,
     translate_s3_error,
@@ -631,9 +630,10 @@ class S3FileSystem(BaseFileSystem):
         """Return True if the path points to a directory.
 
         :param path: Path to check.
-        :param followlinks: Whether to follow symbolic links.
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :return: True if the path is a directory, otherwise False.
         """
+        _ = followlinks
         client = await self._get_client()
         bucket, key = parse_s3_path(path)
         if not bucket:  # s3:// => True, s3:///key => False
@@ -663,14 +663,10 @@ class S3FileSystem(BaseFileSystem):
         """Return True if the path points to a regular file.
 
         :param path: Path to check.
-        :param followlinks: Whether to follow symbolic links.
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :return: True if the path is a regular file, otherwise False.
         """
-        if followlinks:
-            try:
-                path = await self.readlink(path)
-            except S3NotALinkError:
-                pass
+        _ = followlinks
 
         client = await self._get_client()
         bucket, key = parse_s3_path(path)
@@ -691,14 +687,10 @@ class S3FileSystem(BaseFileSystem):
         """Return whether the path points to an existing file or directory.
 
         :param path: Path to check.
-        :param followlinks: Whether to follow symbolic links.
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :return: True if the path exists, otherwise False.
         """
-        if followlinks:
-            try:
-                path = await self.readlink(path)
-            except S3NotALinkError:
-                pass
+        _ = followlinks
 
         bucket, key = parse_s3_path(path)
         if not bucket:  # s3:// => True, s3:///key => False
@@ -728,10 +720,11 @@ class S3FileSystem(BaseFileSystem):
         """Get the status of the path.
 
         :param path: Path to stat.
-        :param followlinks: Whether to follow symbolic links.
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :raises FileNotFoundError: If the path does not exist.
         :return: Populated StatResult for the path.
         """
+        _ = followlinks
         bucket, key = parse_s3_path(path)
         if not bucket:
             raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
@@ -739,26 +732,13 @@ class S3FileSystem(BaseFileSystem):
         if not await self.is_file(path):
             return await self._get_dir_stat(path)
 
-        islnk = False
         client = await self._get_client()
 
         with raise_s3_error(self.build_uri(path)):
             content = await client.head_object(Bucket=bucket, Key=key)
-        if "Metadata" in content:
-            metadata = dict(
-                (key.lower(), value) for key, value in content["Metadata"].items()
-            )
-            if metadata and "symlink_to" in metadata:
-                islnk = True
-                if islnk and followlinks:
-                    s3_url = metadata["symlink_to"]
-                    bucket, key = parse_s3_path(s3_url)
-                    with raise_s3_error(self.build_uri(s3_url[len("s3://") :])):
-                        content = await client.head_object(Bucket=bucket, Key=key)
         stat_record = StatResult(
             st_size=content["ContentLength"],
             st_mtime=content["LastModified"].timestamp(),
-            islnk=islnk,
             extra=content,
         )
         return stat_record
@@ -770,7 +750,7 @@ class S3FileSystem(BaseFileSystem):
 
         :param path: S3 path to compute MD5.
         :param recalculate: If True, recompute MD5 by reading the object.
-        :param followlinks: If True, follow symbolic links.
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :return: MD5 hex digest.
         :rtype: str
         """
@@ -779,13 +759,6 @@ class S3FileSystem(BaseFileSystem):
             raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
 
         stat = await self.stat(path, followlinks=False)
-        if followlinks and stat.islnk:
-            target_path = await self.readlink(path)
-            return await self.md5(
-                target_path,
-                recalculate=recalculate,
-                followlinks=followlinks,
-            )
 
         if stat.isdir:
             hash_md5 = hashlib.md5()  # nosec
@@ -804,14 +777,8 @@ class S3FileSystem(BaseFileSystem):
             return hash_md5.hexdigest()
 
         if recalculate:
-            target_path = path
-            if followlinks:
-                try:
-                    target_path = await self.readlink(path)
-                except (S3NotALinkError, S3FileNotFoundError, S3IsADirectoryError):
-                    pass
             hash_md5 = hashlib.md5()  # nosec
-            async with self.open(target_path, "rb") as fileobj:
+            async with self.open(path, "rb") as fileobj:
                 while True:
                     chunk = await fileobj.read(DEFAULT_HASH_BUFFER_SIZE)
                     if not chunk:
@@ -1134,43 +1101,7 @@ class S3FileSystem(BaseFileSystem):
                 if not contents:
                     continue
 
-                max_workers = max(GLOBAL_MAX_WORKERS, 1)
-                semaphore = asyncio.Semaphore(max_workers)
-
-                async def _check_symlink(path: str) -> bool:
-                    """Check whether a path is a symbolic link with concurrency control.
-
-                    :param path: Path to check.
-                    :return: True if path is a symlink, otherwise False.
-                    """
-                    async with semaphore:
-                        return await self.is_symlink(path)
-
-                islnk_values = [False] * len(contents)
-                pending_tasks: T.List[T.Tuple[int, asyncio.Task[bool]]] = []
-                for index, content in enumerate(contents):
-                    if content["Key"].endswith("/"):
-                        continue
-                    if content["Size"] == 0:
-                        current_path = f"{bucket}/{content['Key']}"
-                        pending_tasks.append(
-                            (index, asyncio.create_task(_check_symlink(current_path)))
-                        )
-
-                if pending_tasks:
-                    tasks = [task for _, task in pending_tasks]
-                    try:
-                        results = await asyncio.gather(*tasks)
-                    except Exception:
-                        for task in tasks:
-                            if not task.done():
-                                task.cancel()
-                        await asyncio.gather(*tasks, return_exceptions=True)
-                        raise
-                    for (index, _), result in zip(pending_tasks, results):
-                        islnk_values[index] = result
-
-                for index, content in enumerate(contents):
+                for content in contents:
                     if content["Key"].endswith("/"):
                         continue
                     current_path = f"{bucket}/{content['Key']}"
@@ -1181,7 +1112,6 @@ class S3FileSystem(BaseFileSystem):
                             st_size=content["Size"],
                             st_mtime=content["LastModified"].timestamp(),
                             isdir=False,
-                            islnk=islnk_values[index],
                             extra=content,
                         ),
                     )
@@ -1249,7 +1179,7 @@ class S3FileSystem(BaseFileSystem):
 
         :param s3_pathname: S3 path without protocol.
         :param recursive: If False, ``**`` will not search directory recursively.
-        :param followlinks: Whether to follow symbolic links.
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :param sort: Whether to preserve lexicographic listing order.
         :return: Async iterator of FileEntry objects.
         """
@@ -1374,7 +1304,6 @@ class S3FileSystem(BaseFileSystem):
                         st_size=content["Size"],
                         st_mtime=content["LastModified"].timestamp(),
                         isdir=False,
-                        islnk=bool(content.get("islnk", False)),
                         extra=content,
                     )
                     yield FileEntry(
@@ -1731,14 +1660,10 @@ class S3FileSystem(BaseFileSystem):
         :param dst_path: Given destination path
         :param callback: Called periodically during copy, and the input parameter is
             the data size (in bytes) of copy since the last call
-        :param followlinks: False if regard symlink as file, else True
+        :param followlinks: Ignored because S3 symlinks are unsupported.
         :return: Destination path after copy.
         """
-        if followlinks:
-            try:
-                src_path = await self.readlink(src_path)
-            except S3NotALinkError:
-                pass
+        _ = followlinks
 
         src_bucket, src_key = parse_s3_path(src_path)
         if not src_bucket:
@@ -1886,80 +1811,36 @@ class S3FileSystem(BaseFileSystem):
         return dst_path
 
     async def symlink(self, src_path: str, dst_path: str) -> None:
-        """Create a symbolic link pointing to self named dst_path.
+        """Raise because S3 symlinks are unsupported.
 
-        :param src_path: The source path the symbolic link points to.
-        :param dst_path: The symbolic link path.
+        :param src_path: Source path.
+        :param dst_path: Destination path.
+        :raises S3UnsupportedError: Always.
         """
-        if len(fspath(dst_path).encode()) > 1024:
-            raise S3NameTooLongError(
-                "File name too long: %r" % self.build_uri(dst_path)
-            )
-        src_bucket, _ = parse_s3_path(src_path)
-        dst_bucket, dst_key = parse_s3_path(dst_path)
-
-        if not src_bucket:
-            raise S3BucketNotFoundError(
-                f"Empty bucket name: {self.build_uri(src_path)!r}"
-            )
-        if not dst_bucket:
-            raise S3BucketNotFoundError(
-                f"Empty bucket name: {self.build_uri(dst_path)!r}"
-            )
-        if not dst_key or dst_key.endswith("/"):
-            raise S3IsADirectoryError("Is a directory: %r" % self.build_uri(dst_path))
-
-        try:
-            src_path = await self.readlink(src_path)
-        except S3NotALinkError:
-            pass
-        client = await self._get_client()
-        await client.put_object(
-            Bucket=dst_bucket,
-            Key=dst_key,
-            Metadata={"symlink_to": self.build_uri(src_path)},
-        )
+        _ = src_path
+        _ = dst_path
+        raise S3UnsupportedError("'symlink' is unsupported on 's3' protocol")
 
     async def readlink(self, path: str) -> str:
+        """Raise because S3 symlinks are unsupported.
+
+        :param path: Path.
+        :return: Never returns.
+        :rtype: str
+        :raises S3UnsupportedError: Always.
         """
-        Return a new path representing the symbolic link's target.
-
-        :param path: The symbolic link path.
-        :return: Target path of the symbolic link.
-        """
-        bucket, key = parse_s3_path(path)
-        if not bucket:
-            raise S3BucketNotFoundError(f"Empty bucket name: {self.build_uri(path)!r}")
-        if not key or key.endswith("/"):
-            raise S3IsADirectoryError(f"Is a directory: {self.build_uri(path)!r}")
-
-        client = await self._get_client()
-        try:
-            resp = await client.head_object(Bucket=bucket, Key=key)
-            metadata = dict(
-                (key.lower(), value) for key, value in resp["Metadata"].items()
-            )
-        except Exception as error:
-            if isinstance(error, (S3UnknownError, S3ConfigError, S3PermissionError)):
-                raise error
-            metadata = {}
-
-        if "symlink_to" not in metadata:
-            raise S3NotALinkError(f"Not a symbolic link: {self.build_uri(path)!r}")
-        else:
-            return self.parse_uri(metadata["symlink_to"])
+        _ = path
+        raise S3UnsupportedError("'readlink' is unsupported on 's3' protocol")
 
     async def is_symlink(self, path: str) -> bool:
-        """Return True if the path points to a symbolic link.
+        """Return False because S3 symlinks are unsupported.
 
         :param path: The path to check.
-        :return: True if the path is a symbolic link, otherwise False.
+        :return: Always False.
+        :rtype: bool
         """
-        try:
-            await self.readlink(path)
-            return True
-        except (S3NotALinkError, S3FileNotFoundError, S3IsADirectoryError):
-            return False
+        _ = path
+        return False
 
     async def _group_src_paths_by_block(
         self, src_paths: T.List[PathLike], block_size: int = READER_BLOCK_SIZE
