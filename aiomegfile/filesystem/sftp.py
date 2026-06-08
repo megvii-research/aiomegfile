@@ -1054,7 +1054,7 @@ class SftpFileSystem(BaseFileSystem):
         _, sftp_client = await self._open_client()
         yield sftp_client
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return True when path points to a directory.
 
         :param path: Path without protocol.
@@ -1078,7 +1078,7 @@ class SftpFileSystem(BaseFileSystem):
                 return False
             raise translated from error
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True when path points to a regular file.
 
         :param path: Path without protocol.
@@ -1102,7 +1102,7 @@ class SftpFileSystem(BaseFileSystem):
                 return False
             raise translated from error
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether path exists.
 
         :param path: Path without protocol.
@@ -1126,7 +1126,7 @@ class SftpFileSystem(BaseFileSystem):
                 return False
             raise translated from error
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Return stat information for path.
 
         :param path: Path without protocol.
@@ -1395,7 +1395,7 @@ class SftpFileSystem(BaseFileSystem):
                     dst_remote,
                     preserve=False,
                     recurse=False,
-                    follow_symlinks=False,
+                    follow_symlinks=True,
                     sparse=True,
                     progress_handler=self._build_progress_handler(callback),
                 )
@@ -1433,7 +1433,7 @@ class SftpFileSystem(BaseFileSystem):
                     dst_path,
                     preserve=False,
                     recurse=False,
-                    follow_symlinks=False,
+                    follow_symlinks=True,
                     sparse=True,
                     progress_handler=self._build_progress_handler(callback),
                 )

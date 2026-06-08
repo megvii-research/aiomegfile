@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 
-async def smart_exists(path: PathLike, *, followlinks: bool = False) -> bool:
+async def smart_exists(path: PathLike, *, followlinks: bool = True) -> bool:
     """Return whether the path points to an existing file or directory.
 
     :param path: Path to check.
@@ -68,7 +68,7 @@ async def smart_exists(path: PathLike, *, followlinks: bool = False) -> bool:
     return await SmartPath(path).exists(followlinks=followlinks)
 
 
-async def smart_isdir(path: PathLike, *, followlinks: bool = False) -> bool:
+async def smart_isdir(path: PathLike, *, followlinks: bool = True) -> bool:
     """Return True if the path points to a directory.
 
     :param path: Path to check.
@@ -78,7 +78,7 @@ async def smart_isdir(path: PathLike, *, followlinks: bool = False) -> bool:
     return await SmartPath(path).is_dir(followlinks=followlinks)
 
 
-async def smart_isfile(path: PathLike, *, followlinks: bool = False) -> bool:
+async def smart_isfile(path: PathLike, *, followlinks: bool = True) -> bool:
     """Return True if the path points to a regular file.
 
     :param path: Path to check.
@@ -97,7 +97,7 @@ async def smart_islink(path: PathLike) -> bool:
     return await SmartPath(path).is_symlink()
 
 
-async def smart_stat(path: PathLike, *, follow_symlinks: bool = False) -> StatResult:
+async def smart_stat(path: PathLike, *, follow_symlinks: bool = True) -> StatResult:
     """Get the status of the path.
 
     :param path: Path to stat.
@@ -118,7 +118,7 @@ async def smart_lstat(path: PathLike) -> StatResult:
     return await SmartPath(path).lstat()
 
 
-async def smart_getsize(path: PathLike, *, follow_symlinks: bool = False) -> int:
+async def smart_getsize(path: PathLike, *, follow_symlinks: bool = True) -> int:
     """Return the size of the file at the given path.
 
     :param path: Path to the file.
@@ -130,7 +130,7 @@ async def smart_getsize(path: PathLike, *, follow_symlinks: bool = False) -> int
     return stat_result.st_size
 
 
-async def smart_getmtime(path: PathLike, *, follow_symlinks: bool = False) -> float:
+async def smart_getmtime(path: PathLike, *, follow_symlinks: bool = True) -> float:
     """Return the last modification time of the file at the given path.
 
     :param path: Path to the file.
@@ -415,7 +415,7 @@ async def smart_copy(
     src_path: PathLike,
     dst_path: PathLike,
     callback: T.Optional[T.Callable[[int], None]] = None,
-    followlinks: bool = False,
+    followlinks: bool = True,
 ) -> str:
     """Copy a file or directory and return the destination path string.
 
@@ -438,7 +438,7 @@ async def smart_copy_file(
     src_path: PathLike,
     dst_path: PathLike,
     *,
-    followlinks: bool = False,
+    followlinks: bool = True,
     callback: T.Optional[T.Callable[[int], None]] = None,
 ) -> str:
     """Copy a file and return the destination path string.
@@ -1241,7 +1241,7 @@ async def smart_sync(
     src_path: PathLike,
     dst_path: PathLike,
     callback: T.Optional[T.Callable[[str, int], None]] = None,
-    followlinks: bool = False,
+    followlinks: bool = True,
     callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     force: bool = False,
     *,
@@ -1330,7 +1330,7 @@ async def smart_sync_with_progress(
     src_path: PathLike,
     dst_path: PathLike,
     callback: T.Optional[T.Callable[[str, int], None]] = None,
-    followlinks: bool = False,
+    followlinks: bool = True,
     force: bool = False,
     *,
     callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
@@ -1342,7 +1342,7 @@ async def smart_sync_with_progress(
     :param dst_path: Given destination path.
     :param callback: Called periodically during copy with source path and bytes
         written.
-    :param followlinks: False if regard symlink as file, else True.
+    :param followlinks: True if regard symlink as file, else False.
     :param force: Sync file forcible, do not ignore same files.
     :param callback_after_copy_file: Called after copy success, and the input parameter
         is src file path and dst file path.

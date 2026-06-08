@@ -181,7 +181,7 @@ class StdioFileSystem(BaseFileSystem):
 
     protocol = "stdio"
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return False for stdio streams.
 
         :param path: Path without protocol.
@@ -192,7 +192,7 @@ class StdioFileSystem(BaseFileSystem):
         _ = path, followlinks
         return False
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True when path is a valid stdio stream.
 
         :param path: Path without protocol.
@@ -203,7 +203,7 @@ class StdioFileSystem(BaseFileSystem):
         _ = followlinks
         return path in _VALID_STDIO_PATHS
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return True when path is a valid stdio stream.
 
         :param path: Path without protocol.
@@ -214,7 +214,7 @@ class StdioFileSystem(BaseFileSystem):
         _ = followlinks
         return path in _VALID_STDIO_PATHS
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Stat operation is unsupported for stdio stream.
 
         :param path: Path without protocol.

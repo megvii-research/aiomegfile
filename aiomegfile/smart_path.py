@@ -566,7 +566,7 @@ class SmartPath(os.PathLike):
             return self.parents[0]  # pytype: disable=bad-return-type # pyre-ignore[7]
         return self.from_uri(self.filesystem.build_uri(""))
 
-    async def is_dir(self, followlinks: bool = False) -> bool:
+    async def is_dir(self, followlinks: bool = True) -> bool:
         """Return True if the path points to a directory.
 
         :param followlinks: Whether to follow symbolic links.
@@ -574,7 +574,7 @@ class SmartPath(os.PathLike):
         """
         return await self.filesystem.is_dir(self._path, followlinks=followlinks)
 
-    async def is_file(self, followlinks: bool = False) -> bool:
+    async def is_file(self, followlinks: bool = True) -> bool:
         """Return True if the path points to a regular file.
 
         :param followlinks: Whether to follow symbolic links.
@@ -589,7 +589,7 @@ class SmartPath(os.PathLike):
         """
         return await self.filesystem.is_symlink(self._path)
 
-    async def exists(self, *, followlinks: bool = False) -> bool:
+    async def exists(self, *, followlinks: bool = True) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param followlinks: Whether to follow symbolic links.
@@ -597,7 +597,7 @@ class SmartPath(os.PathLike):
         """
         return await self.filesystem.exists(self._path, followlinks=followlinks)
 
-    async def stat(self, *, follow_symlinks: bool = False) -> StatResult:
+    async def stat(self, *, follow_symlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param follow_symlinks: Whether to follow symbolic links when resolving.
@@ -685,12 +685,12 @@ class SmartPath(os.PathLike):
             )
         await asyncio.to_thread(os.utime, self._path, (atime, mtime))
 
-    async def getmtime(self, *, follow_symlinks: bool = False) -> float:
+    async def getmtime(self, *, follow_symlinks: bool = True) -> float:
         """Return the time of last modification of the file as a timestamp."""
         stat_result = await self.stat(follow_symlinks=follow_symlinks)
         return stat_result.st_mtime
 
-    async def getsize(self, *, follow_symlinks: bool = False) -> int:
+    async def getsize(self, *, follow_symlinks: bool = True) -> int:
         """Return the size of the file in bytes."""
         stat_result = await self.stat(follow_symlinks=follow_symlinks)
         return stat_result.st_size
@@ -1244,7 +1244,7 @@ class SmartPath(os.PathLike):
         target: PathLike,
         *,
         callback: T.Optional[T.Callable[[int], None]] = None,
-        follow_symlinks: bool = False,
+        follow_symlinks: bool = True,
     ) -> "SmartPath":
         """
         copy file
@@ -1335,7 +1335,7 @@ class SmartPath(os.PathLike):
         target_dir: PathLike,
         *,
         callback: T.Optional[T.Callable[[int], None]] = None,
-        follow_symlinks: bool = False,
+        follow_symlinks: bool = True,
     ) -> "SmartPath":
         """
         copy file or directory into dst directory

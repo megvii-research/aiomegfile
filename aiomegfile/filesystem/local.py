@@ -32,7 +32,7 @@ class LocalFileSystem(BaseFileSystem):
         """
         self.protocol_in_path = protocol_in_path
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a directory.
 
         :param path: Path to check.
@@ -47,7 +47,7 @@ class LocalFileSystem(BaseFileSystem):
         except OSError:
             return False
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a regular file.
 
         :param path: Path to check.
@@ -62,7 +62,7 @@ class LocalFileSystem(BaseFileSystem):
         except OSError:
             return False
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param path: Path to check.
@@ -77,7 +77,7 @@ class LocalFileSystem(BaseFileSystem):
         except OSError:
             return False
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param path: Path to stat.
