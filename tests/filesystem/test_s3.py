@@ -856,30 +856,32 @@ class TestS3FileSystem:
         assert await filesystem.exists(f"{_bucket_name}/moved_dir/file2.txt") is True
         assert await filesystem.exists(f"{_bucket_name}/move_dir") is False
 
-    async def test_move_overwrite(self, filesystem):
-        """Test move with overwrite flag."""
+    async def test_move_overwrites_existing_file(self, filesystem):
+        """Test move overwrites existing destination objects."""
         await self._create_bucket(filesystem)
 
         await self._put_object(filesystem, "move_overwrite_src.txt", b"source")
         await self._put_object(filesystem, "move_overwrite_dst.txt", b"destination")
 
-        # Should succeed with overwrite=True (default)
         await filesystem.move(
             f"{_bucket_name}/move_overwrite_src.txt",
             f"{_bucket_name}/move_overwrite_dst.txt",
-            overwrite=True,
+        )
+        assert (
+            await self._get_object_content(filesystem, "move_overwrite_dst.txt")
+            == b"source"
         )
 
-        # Create new source for next test
         await self._put_object(filesystem, "move_overwrite_src2.txt", b"source2")
 
-        # Should fail with overwrite=False when destination exists
-        with pytest.raises(S3FileExistsError):
-            await filesystem.move(
-                f"{_bucket_name}/move_overwrite_src2.txt",
-                f"{_bucket_name}/move_overwrite_dst.txt",
-                overwrite=False,
-            )
+        await filesystem.move(
+            f"{_bucket_name}/move_overwrite_src2.txt",
+            f"{_bucket_name}/move_overwrite_dst.txt",
+        )
+        assert (
+            await self._get_object_content(filesystem, "move_overwrite_dst.txt")
+            == b"source2"
+        )
 
     async def test_symlink_and_readlink_are_unsupported(self, filesystem):
         """Test S3 symlink creation and reading are unsupported."""

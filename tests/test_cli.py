@@ -171,9 +171,6 @@ async def test_copy_file_with_progress_uses_protocol_copy(monkeypatch) -> None:
         def close(self) -> None:
             closed.append(True)
 
-    async def _fake_exists(_path: str) -> bool:
-        return False
-
     async def _fake_stat(_path: str):
         return type("Stat", (), {"st_size": 5})()
 
@@ -191,11 +188,10 @@ async def test_copy_file_with_progress_uses_protocol_copy(monkeypatch) -> None:
         return dst_path
 
     monkeypatch.setattr("aiomegfile.cli.tqdm", _FakeBar)
-    monkeypatch.setattr("aiomegfile.cli.smart_exists", _fake_exists)
     monkeypatch.setattr("aiomegfile.cli.smart_stat", _fake_stat)
     monkeypatch.setattr("aiomegfile.cli.smart_copy_file", _fake_copy_file)
 
-    await _copy_file_with_progress("src", "dst", overwrite=True, skip=False)
+    await _copy_file_with_progress("src", "dst")
 
     assert copy_calls == [("src", "dst", False)]
     assert updates == [2, 3]

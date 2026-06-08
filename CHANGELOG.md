@@ -13,12 +13,10 @@
     - Replace the SFTP prefetch reader with `asyncssh open`.
     - Set AsyncSSH’s log level to `error`.
 
-
 ## 0.0.3 - 2026.03.27
 - feat
     - Support http, sftp, stdio, webdav and hdfs.
     - Cli support more commands.
-    - Megfile patch supported.
 - perf
     - Speed up s3 list files and smart sync.
 - docs

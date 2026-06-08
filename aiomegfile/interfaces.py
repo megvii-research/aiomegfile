@@ -486,14 +486,12 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError(f"'copy' is unsupported on '{type(self)}'")
 
-    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str) -> str:
         """
         move file or directory
 
         :param dst_path: Given destination path
-        :param overwrite: whether or not overwrite file when exists
         :return: Destination path after move.
-        :raises FileExistsError: If destination exists and overwrite is False.
         """
         raise NotImplementedError(f"'move' is unsupported on '{type(self)}'")
 

@@ -1390,20 +1390,17 @@ class WebdavFileSystem(BaseFileSystem):
 
         return dst_path
 
-    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str) -> str:
         """Move file or directory on WebDAV.
 
         :param src_path: Source path without protocol.
         :param dst_path: Destination path without protocol.
-        :param overwrite: Whether to overwrite destination when exists.
         :return: Destination path after move.
         :rtype: str
-        :raises FileExistsError: If destination exists and ``overwrite`` is False.
         """
         src_remote = self._normalize_remote_path(src_path)
         dst_remote = self._normalize_remote_path(dst_path)
         src_uri = self.build_uri(src_remote)
-        dst_uri = self.build_uri(dst_remote)
 
         if src_remote == dst_remote:
             return dst_path
@@ -1421,23 +1418,11 @@ class WebdavFileSystem(BaseFileSystem):
         if not src_exists:
             raise WebdavFileNotFoundError(f"No such file: {src_uri!r}")
 
-        dst_exists = T.cast(
-            bool,
-            await _call_webdav(
-                dst_uri,
-                self.max_retries,
-                lambda: client.exists(dst_remote),
-                client,
-            ),
-        )
-        if dst_exists and not overwrite:
-            raise WebdavFileExistsError(f"File exists: {dst_uri!r}")
-
         await self._ensure_parent_directory(client, dst_remote)
         await _call_webdav(
             src_uri,
             self.max_retries,
-            lambda: client.move(src_remote, dst_remote, overwrite=overwrite),
+            lambda: client.move(src_remote, dst_remote, overwrite=True),
             client,
         )
 

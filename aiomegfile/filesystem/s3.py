@@ -1709,19 +1709,14 @@ class S3FileSystem(BaseFileSystem):
                 )
             raise error from e
 
-    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str) -> str:
         """
         Move file or directory.
 
         :param src_path: Given source path.
         :param dst_path: Given destination path.
-        :param overwrite: Whether to overwrite file when exists.
         :return: Destination path after move.
-        :raises FileExistsError: If destination exists and overwrite is False.
         """
-        if not overwrite and await self.exists(dst_path):
-            raise S3FileExistsError(f"File exists: {self.build_uri(dst_path)!r}")
-
         src_bucket, src_key = parse_s3_path(src_path)
         if not src_bucket:
             raise S3BucketNotFoundError(

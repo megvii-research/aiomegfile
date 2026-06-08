@@ -216,11 +216,13 @@ class TestWebdavFileSystem:
         with pytest.raises(OSError):
             await fs.copy("/data/file.txt", "/data/file.txt")
 
-    async def test_move_overwrite_false_raises(self, filesystem):
-        """Test move raises when destination exists and overwrite is False."""
-        fs, _ = filesystem
-        with pytest.raises(FileExistsError):
-            await fs.move("/data/file.txt", "/data/sub/nested.txt", overwrite=False)
+    async def test_move_overwrites_existing_file(self, filesystem):
+        """Test move overwrites an existing destination file."""
+        fs, client = filesystem
+        await fs.move("/data/file.txt", "/data/sub/nested.txt")
+
+        assert "/data/file.txt" not in client.files
+        assert client.files["/data/sub/nested.txt"] == b"line1\nline2\n"
 
     async def test_remove_missing_ok(self, filesystem):
         """Test remove supports missing_ok behavior."""

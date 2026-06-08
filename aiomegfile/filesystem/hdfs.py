@@ -785,18 +785,15 @@ class HdfsFileSystem(BaseFileSystem):
                 await copyfileobj(src_file, dst_file, callback=callback)
         return dst_path
 
-    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str) -> str:
         """Move a file or directory to another HDFS path.
 
         :param src_path: Source HDFS path without protocol.
         :param dst_path: Destination HDFS path without protocol.
-        :param overwrite: Whether to overwrite the destination path.
         :return: Destination path.
         :rtype: str
         """
-        if not overwrite and await self.exists(dst_path):
-            raise HdfsFileExistsError(f"File exists: {self.build_uri(dst_path)!r}")
-        if overwrite and await self.exists(dst_path):
+        if await self.exists(dst_path):
             await self.remove(dst_path, missing_ok=True)
 
         parent_path = posixpath.dirname(dst_path)

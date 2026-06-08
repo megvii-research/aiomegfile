@@ -23,7 +23,6 @@ from aiomegfile.smart import (
     smart_cache,
     smart_copy,
     smart_copy_file,
-    smart_exists,
     smart_getmd5,
     smart_getmtime,
     smart_getsize,
@@ -501,21 +500,12 @@ def ll(path: str, recursive: bool, full: bool) -> None:
 async def _copy_file_with_progress(
     src_path: str,
     dst_path: str,
-    *,
-    overwrite: bool,
-    skip: bool,
 ) -> None:
     """Copy a file with a progress bar.
 
     :param src_path: Source file path.
     :param dst_path: Destination file path.
-    :param overwrite: Whether to overwrite existing files.
-    :param skip: Whether to skip existing files.
     """
-    if skip and await smart_exists(dst_path):
-        return
-    if not overwrite and await smart_exists(dst_path):
-        raise FileExistsError(f"Destination path already exists: {dst_path}")
     file_size = (await smart_stat(src_path)).st_size
     sbar = tqdm(
         total=file_size,
@@ -537,7 +527,7 @@ async def _copy_file_with_progress(
     sbar.close()
 
 
-@cli.command(short_help="Copy files from source to dest, skipping already copied.")
+@cli.command(short_help="Copy files from source to dest.")
 @click.argument("src_path", type=PathType())
 @click.argument("dst_path", type=PathType())
 @click.option(
@@ -553,14 +543,12 @@ async def _copy_file_with_progress(
     help="Treat dst_path as a normal file.",
 )
 @click.option("-g", "--progress-bar", is_flag=True, help="Show progress bar.")
-@click.option("--skip", is_flag=True, help="Skip existed files.")
 def cp(
     src_path: str,
     dst_path: str,
     recursive: bool,
     no_target_directory: bool,
     progress_bar: bool,
-    skip: bool,
 ) -> None:
     """Copy files from source to destination."""
 
@@ -593,7 +581,6 @@ def cp(
                     src_path,
                     dst_path,
                     followlinks=True,
-                    overwrite=not skip,
                     callback=callback if progress_bar else None,
                 )
             finally:
@@ -601,15 +588,8 @@ def cp(
                     pbar.close()
         else:
             if progress_bar:
-                await _copy_file_with_progress(
-                    src_path,
-                    dst_path,
-                    overwrite=not skip,
-                    skip=skip,
-                )
+                await _copy_file_with_progress(src_path, dst_path)
             else:
-                if skip and await smart_exists(dst_path):
-                    return
                 await smart_copy(src_path, dst_path, followlinks=True)
 
     _run_async(_run())
@@ -631,14 +611,12 @@ def cp(
     help="Treat dst_path as a normal file.",
 )
 @click.option("-g", "--progress-bar", is_flag=True, help="Show progress bar.")
-@click.option("--skip", is_flag=True, help="Skip existed files.")
 def mv(
     src_path: str,
     dst_path: str,
     recursive: bool,
     no_target_directory: bool,
     progress_bar: bool,
-    skip: bool,
 ) -> None:
     """Move files from source to destination."""
 
@@ -653,9 +631,6 @@ def mv(
         src_fs = SmartPath(src_path).filesystem
         dst_fs = SmartPath(dst_path).filesystem
         same_endpoint = src_fs.same_endpoint(dst_fs)
-        dst_exists = await smart_exists(dst_path)
-        if skip and dst_exists and same_endpoint:
-            return
 
         if progress_bar:
             if recursive:
@@ -664,14 +639,6 @@ def mv(
                         await smart_move(src_path, dst_path)
                         tbar.update(1)
                 else:
-                    if skip and dst_exists:
-                        await smart_sync(
-                            src_path,
-                            dst_path,
-                            followlinks=True,
-                            overwrite=False,
-                        )
-                        return
                     pbar = tqdm(
                         total=None,
                         unit="B",
@@ -689,42 +656,20 @@ def mv(
                             src_path,
                             dst_path,
                             followlinks=True,
-                            overwrite=not skip,
                             callback=callback,
                         )
-                        if not (skip and dst_exists):
-                            await smart_remove(src_path)
+                        await smart_remove(src_path)
                     finally:
                         pbar.close()
             else:
                 if same_endpoint:
-                    if skip and dst_exists:
-                        return
                     with tqdm(total=1) as tbar:
                         await smart_rename(src_path, dst_path)
                         tbar.update(1)
                 else:
-                    if skip and dst_exists:
-                        return
-                    await _copy_file_with_progress(
-                        src_path,
-                        dst_path,
-                        overwrite=not skip,
-                        skip=skip,
-                    )
-                    if not (skip and dst_exists):
-                        await smart_unlink(src_path)
+                    await _copy_file_with_progress(src_path, dst_path)
+                    await smart_unlink(src_path)
         else:
-            if skip and dst_exists:
-                if same_endpoint:
-                    return
-                await smart_sync(
-                    src_path,
-                    dst_path,
-                    followlinks=True,
-                    overwrite=False,
-                )
-                return
             move_func = smart_move if recursive else smart_rename
             await move_func(src_path, dst_path)
 
@@ -756,7 +701,6 @@ def rm(path: str, recursive: bool) -> None:
 @click.option(
     "-f", "--force", is_flag=True, help="Copy files forcible, ignore same files."
 )
-@click.option("--skip", is_flag=True, help="Skip existed files.")
 @click.option("-w", "--worker", type=click.INT, default=-1, help="Number of workers.")
 @click.option("-g", "--progress-bar", is_flag=True, help="Show progress bar.")
 @click.option("-v", "--verbose", is_flag=True, help="Show more progress log.")
@@ -765,7 +709,6 @@ def sync(
     src_path: str,
     dst_path: str,
     force: bool,
-    skip: bool,
     worker: int,
     progress_bar: bool,
     verbose: bool,
@@ -795,7 +738,6 @@ def sync(
                 dst_path,
                 followlinks=True,
                 force=force,
-                overwrite=not skip,
                 worker=worker,
                 callback_after_copy_file=callback_after_copy_file
                 if verbose_enabled
@@ -815,7 +757,6 @@ def sync(
                 dst_path,
                 followlinks=True,
                 force=force,
-                overwrite=not skip,
                 worker=worker,
                 callback_after_copy_file=callback_after_copy_file
                 if verbose_enabled
