@@ -319,8 +319,9 @@ class TestHdfsFileSystem:
         with pytest.raises(HdfsFileExistsError):
             await fs.mkdir("docs", exist_ok=False)
 
-        with pytest.raises(HdfsFileExistsError):
-            await fs.move("docs/readme.txt", "docs/data.json", overwrite=False)
+        await fs.move("docs/readme.txt", "docs/data.json")
+        assert "/workspace/docs/readme.txt" not in client.files
+        assert client.files["/workspace/docs/data.json"] == b"hello\nworld\n"
 
     async def test_upload_download_and_misc(self, filesystem, tmp_path) -> None:
         """Test upload/download and helper methods.

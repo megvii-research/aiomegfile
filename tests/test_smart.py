@@ -869,16 +869,16 @@ async def test_smart_copy_move_rename(tmp_path):
     assert not rename_src.exists()
 
 
-async def test_smart_copy_no_overwrite(tmp_path):
-    """smart_copy should not overwrite when overwrite is False."""
+async def test_smart_copy_overwrites_existing_file(tmp_path):
+    """smart_copy should overwrite existing destination files."""
     src_file = tmp_path / "src.txt"
     src_file.write_text("new")
     dst_file = tmp_path / "dst.txt"
     dst_file.write_text("old")
 
-    await smart_copy(src_file, dst_file, overwrite=False)
+    await smart_copy(src_file, dst_file)
 
-    assert dst_file.read_text() == "old"
+    assert dst_file.read_text() == "new"
 
 
 async def test_smart_sync_directory(tmp_path):
@@ -908,16 +908,16 @@ async def test_smart_sync_file(tmp_path):
     assert dst_file.read_text() == "sync"
 
 
-async def test_smart_sync_no_overwrite(tmp_path):
-    """Test syncing does not overwrite when overwrite is disabled."""
+async def test_smart_sync_overwrites_changed_file(tmp_path):
+    """Test syncing overwrites changed destination files."""
     src_file = tmp_path / "src.txt"
-    src_file.write_text("new")
+    src_file.write_text("new-content")
     dst_file = tmp_path / "dst.txt"
     dst_file.write_text("old")
 
-    await smart_sync(src_file, dst_file, overwrite=False)
+    await smart_sync(src_file, dst_file)
 
-    assert dst_file.read_text() == "old"
+    assert dst_file.read_text() == "new-content"
 
 
 async def test_smart_sync_skip_when_dest_newer(tmp_path):
@@ -953,8 +953,8 @@ async def test_smart_sync_fs_to_s3(tmp_path, s3_filesystem):
     assert await smart_load_content(f"{dst_prefix}/sub/bravo.txt") == b"bravo"
 
 
-async def test_smart_sync_fs_to_s3_mtime_overwrite_force(tmp_path, s3_filesystem):
-    """Test fs->s3 sync with mtime, overwrite, and force behavior."""
+async def test_smart_sync_fs_to_s3_mtime_and_force(tmp_path, s3_filesystem):
+    """Test fs->s3 sync with mtime and force behavior."""
     await _create_bucket(s3_filesystem)
     src_dir = tmp_path / "src"
     src_dir.mkdir()
@@ -976,11 +976,13 @@ async def test_smart_sync_fs_to_s3_mtime_overwrite_force(tmp_path, s3_filesystem
     assert await smart_load_content(dst_file) == b"alpha"
 
     src_file.write_text("candy")
-    await smart_sync(src_dir, dst_prefix, overwrite=False)
-    assert await smart_load_content(dst_file) == b"alpha"
-
-    await smart_sync(src_dir, dst_prefix, force=True, overwrite=False)
+    await smart_sync(src_dir, dst_prefix)
     assert await smart_load_content(dst_file) == b"candy"
+
+    src_file.write_text("delta")
+    os.utime(src_file, (older_time, older_time))
+    await smart_sync(src_dir, dst_prefix, force=True)
+    assert await smart_load_content(dst_file) == b"delta"
 
 
 async def test_smart_sync_s3_to_fs(tmp_path, s3_filesystem):

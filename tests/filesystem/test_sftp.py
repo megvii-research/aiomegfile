@@ -208,12 +208,14 @@ class TestSftpFileSystem:
         with pytest.raises(OSError):
             await fs.copy("//abs.txt", "//abs.txt")
 
-    async def test_move_overwrite_false_raises(self, filesystem):
-        """Test move raises when destination exists and overwrite is False."""
+    async def test_move_overwrites_existing_file(self, filesystem):
+        """Test move overwrites an existing destination file."""
         fs, client = filesystem
         client.files["/exists.txt"] = b"existing"
-        with pytest.raises(FileExistsError):
-            await fs.move("//abs.txt", "//exists.txt", overwrite=False)
+        await fs.move("//abs.txt", "//exists.txt")
+
+        assert "/abs.txt" not in client.files
+        assert client.files["/exists.txt"] == b"absolute"
 
     async def test_remove_missing_ok(self, filesystem):
         """Test remove supports missing_ok behavior."""

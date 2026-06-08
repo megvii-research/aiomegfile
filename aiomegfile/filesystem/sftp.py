@@ -1441,12 +1441,11 @@ class SftpFileSystem(BaseFileSystem):
             translated = translate_sftp_error(error, uri)
             raise translated from error
 
-    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str) -> str:
         """Move file or directory to a destination path.
 
         :param src_path: Source path without protocol.
         :param dst_path: Destination path without protocol.
-        :param overwrite: Overwrite destination when it exists.
         :return: Destination path without protocol.
         :rtype: str
         """
@@ -1456,10 +1455,7 @@ class SftpFileSystem(BaseFileSystem):
                 src_remote = await self._resolve_remote_path(sftp_client, src_path)
                 dst_remote = await self._resolve_remote_path(sftp_client, dst_path)
 
-                if not overwrite and await sftp_client.exists(dst_remote):
-                    raise FileExistsError(f"File exists: {self.build_uri(dst_path)!r}")
-
-                if overwrite and await sftp_client.exists(dst_remote):
+                if await sftp_client.exists(dst_remote):
                     await self._remove_remote_path(
                         sftp_client,
                         dst_remote,

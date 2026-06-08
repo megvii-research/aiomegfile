@@ -304,18 +304,14 @@ class LocalFileSystem(BaseFileSystem):
 
         return AioScannableManager(aiterator())
 
-    async def move(self, src_path: str, dst_path: str, overwrite: bool = True) -> str:
+    async def move(self, src_path: str, dst_path: str) -> str:
         """
         Move file or directory.
 
         :param src_path: Source path to move.
         :param dst_path: Given destination path
-        :param overwrite: whether or not overwrite file when exists
-        :raises FileExistsError: If overwrite is False and destination exists.
         :return: The destination path
         """
-        if not overwrite and await aiofiles.ospath.exists(dst_path):
-            raise FileExistsError(f"Destination path already exists: {dst_path}")
         dir_path = os.path.dirname(dst_path)
         if dir_path and dir_path != ".":
             await self.mkdir(dir_path, parents=True, exist_ok=True)

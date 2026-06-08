@@ -416,7 +416,6 @@ async def smart_copy(
     dst_path: PathLike,
     callback: T.Optional[T.Callable[[int], None]] = None,
     followlinks: bool = False,
-    overwrite: bool = True,
 ) -> str:
     """Copy a file or directory and return the destination path string.
 
@@ -424,7 +423,6 @@ async def smart_copy(
     :param dst_path: Destination path.
     :param callback: Called periodically during copy with bytes written.
     :param followlinks: Whether to follow symbolic links.
-    :param overwrite: Whether to overwrite destination when it exists.
     :return: Destination path string.
     :rtype: str
     """
@@ -432,7 +430,6 @@ async def smart_copy(
         dst_path,
         follow_symlinks=followlinks,
         callback=callback,
-        overwrite=overwrite,
     )
     return str(result)
 
@@ -463,33 +460,27 @@ async def smart_copy_file(
     return str(result)
 
 
-async def smart_move(
-    src_path: PathLike, dst_path: PathLike, overwrite: bool = True
-) -> str:
+async def smart_move(src_path: PathLike, dst_path: PathLike) -> str:
     """Move a file or directory and return the destination path string.
 
     :param src_path: Source path to move.
     :param dst_path: Destination path.
-    :param overwrite: Whether to overwrite destination when it exists.
     :return: Destination path string.
     :rtype: str
     """
-    result = await SmartPath(src_path).move(dst_path, overwrite=overwrite)
+    result = await SmartPath(src_path).move(dst_path)
     return str(result)
 
 
-async def smart_rename(
-    src_path: PathLike, dst_path: PathLike, overwrite: bool = True
-) -> str:
+async def smart_rename(src_path: PathLike, dst_path: PathLike) -> str:
     """Rename a file or directory and return the destination path string.
 
     :param src_path: Source path to rename.
     :param dst_path: Destination path.
-    :param overwrite: Whether to overwrite destination when it exists.
     :return: Destination path string.
     :rtype: str
     """
-    result = await SmartPath(src_path).rename(dst_path, overwrite=overwrite)
+    result = await SmartPath(src_path).rename(dst_path)
     return str(result)
 
 
@@ -1004,7 +995,6 @@ async def _run_sync_fast(
     callback: T.Optional[T.Callable[[str, int], None]],
     callback_after_copy_file: T.Optional[T.Callable[[str, str], None]],
     force: bool,
-    overwrite: bool,
     worker: int,
     sync_type: str,
 ) -> None:
@@ -1017,7 +1007,6 @@ async def _run_sync_fast(
     :param callback: Callback for copied bytes.
     :param callback_after_copy_file: Callback after each file copy.
     :param force: Whether to force copy even if files are the same.
-    :param overwrite: Whether to overwrite existing files.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :param sync_type: Sync type for file comparison.
     """
@@ -1107,9 +1096,7 @@ async def _run_sync_fast(
             if src_key == dst_key:
                 should_sync = True
                 if not force:
-                    if not overwrite:
-                        should_sync = False
-                    elif is_same_file(src_entry.stat, dst_entry.stat, sync_type):
+                    if is_same_file(src_entry.stat, dst_entry.stat, sync_type):
                         should_sync = False
                 if should_sync:
                     copy_tasks.add(
@@ -1161,7 +1148,6 @@ async def _run_sync(
     callback: T.Optional[T.Callable[[str, int], None]],
     callback_after_copy_file: T.Optional[T.Callable[[str, str], None]],
     force: bool,
-    overwrite: bool,
     worker: int,
     sync_type: str,
 ) -> None:
@@ -1176,7 +1162,6 @@ async def _run_sync(
     :param callback: Callback for copied bytes.
     :param callback_after_copy_file: Callback after each file copy.
     :param force: Whether to force copy even if files are the same.
-    :param overwrite: Whether to overwrite existing files.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :param sync_type: Sync type for file comparison.
     """
@@ -1207,9 +1192,7 @@ async def _run_sync(
                 except (FileNotFoundError, NotImplementedError):
                     pass
                 else:
-                    if not overwrite:
-                        should_sync = False
-                    elif is_same_file(src_entry.stat, dst_stat, sync_type):
+                    if is_same_file(src_entry.stat, dst_stat, sync_type):
                         should_sync = False
 
             if should_sync:
@@ -1261,7 +1244,6 @@ async def smart_sync(
     followlinks: bool = False,
     callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     force: bool = False,
-    overwrite: bool = True,
     *,
     worker: int = -1,
 ) -> None:
@@ -1282,9 +1264,7 @@ async def smart_sync(
     :param callback_after_copy_file: Called after copy success, and the input parameter
         is src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
-    :param force: Sync file forcible, do not ignore same files, priority is higher than
-        ``overwrite``.
-    :param overwrite: Whether to overwrite files when they already exist.
+    :param force: Sync file forcible, do not ignore same files.
     :raises FileNotFoundError: If source path does not exist.
     """
     src_path_str = fspath(src_path)
@@ -1329,7 +1309,6 @@ async def smart_sync(
             callback=callback,
             callback_after_copy_file=callback_after_copy_file,
             force=force,
-            overwrite=overwrite,
             worker=worker,
             sync_type=sync_type,
         )
@@ -1342,7 +1321,6 @@ async def smart_sync(
         callback=callback,
         callback_after_copy_file=callback_after_copy_file,
         force=force,
-        overwrite=overwrite,
         worker=worker,
         sync_type=sync_type,
     )
@@ -1354,7 +1332,6 @@ async def smart_sync_with_progress(
     callback: T.Optional[T.Callable[[str, int], None]] = None,
     followlinks: bool = False,
     force: bool = False,
-    overwrite: bool = True,
     *,
     callback_after_copy_file: T.Optional[T.Callable[[str, str], None]] = None,
     worker: int = -1,
@@ -1366,9 +1343,7 @@ async def smart_sync_with_progress(
     :param callback: Called periodically during copy with source path and bytes
         written.
     :param followlinks: False if regard symlink as file, else True.
-    :param force: Sync file forcible, do not ignore same files, priority is higher than
-        ``overwrite``.
-    :param overwrite: Whether to overwrite files when they already exist.
+    :param force: Sync file forcible, do not ignore same files.
     :param callback_after_copy_file: Called after copy success, and the input parameter
         is src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
@@ -1462,7 +1437,6 @@ async def smart_sync_with_progress(
                 callback=tqdm_callback,
                 callback_after_copy_file=tqdm_after_copy_file,
                 force=force,
-                overwrite=overwrite,
                 worker=worker,
                 sync_type=sync_type,
             )
@@ -1475,7 +1449,6 @@ async def smart_sync_with_progress(
             callback=tqdm_callback,
             callback_after_copy_file=tqdm_after_copy_file,
             force=force,
-            overwrite=overwrite,
             worker=worker,
             sync_type=sync_type,
         )

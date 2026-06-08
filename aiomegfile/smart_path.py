@@ -1245,7 +1245,6 @@ class SmartPath(os.PathLike):
         *,
         callback: T.Optional[T.Callable[[int], None]] = None,
         follow_symlinks: bool = False,
-        overwrite: bool = True,
     ) -> "SmartPath":
         """
         copy file
@@ -1253,7 +1252,6 @@ class SmartPath(os.PathLike):
         :param target: Given destination path
         :param callback: Called periodically during copy with bytes written.
         :param follow_symlinks: whether or not follow symbolic link
-        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath.
         """
 
@@ -1263,7 +1261,6 @@ class SmartPath(os.PathLike):
                 target=target,
                 callback=callback,
                 follow_symlinks=False,
-                overwrite=overwrite,
             )
 
         target_path = self.from_uri(target)
@@ -1286,8 +1283,6 @@ class SmartPath(os.PathLike):
                     )
                     relative_path = await current_src_path.relative_to(self)
                     current_target_path = await target_path.joinpath(relative_path)
-                    if not overwrite and await current_target_path.exists():
-                        return
                     await current_target_path.parent.mkdir(parents=True, exist_ok=True)
                     await current_src_path.copy_file(
                         target=current_target_path,
@@ -1332,8 +1327,6 @@ class SmartPath(os.PathLike):
                     raise
             return target_path
 
-        if not overwrite and await target_path.exists():
-            return target_path
         await self.copy_file(target=target_path, callback=callback)
         return target_path
 
@@ -1343,7 +1336,6 @@ class SmartPath(os.PathLike):
         *,
         callback: T.Optional[T.Callable[[int], None]] = None,
         follow_symlinks: bool = False,
-        overwrite: bool = True,
     ) -> "SmartPath":
         """
         copy file or directory into dst directory
@@ -1351,7 +1343,6 @@ class SmartPath(os.PathLike):
         :param target_dir: Given destination path
         :param callback: Called periodically during copy with bytes written.
         :param follow_symlinks: whether or not follow symbolic link
-        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath.
         """
         target = await self.from_uri(target_dir).joinpath(self.name)
@@ -1360,65 +1351,54 @@ class SmartPath(os.PathLike):
             target=target,
             callback=callback,
             follow_symlinks=follow_symlinks,
-            overwrite=overwrite,
         )
         return target
 
-    async def _move(self, target: PathLike, overwrite: bool = False) -> "SmartPath":
+    async def _move(self, target: PathLike) -> "SmartPath":
         """
         move file only
 
         :param target: Given destination path
-        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath after move.
         """
         target_path = self.from_uri(target)
 
         if target_path.filesystem.same_endpoint(self.filesystem):
-            await self.filesystem.move(
-                self._path, dst_path=target_path._path, overwrite=overwrite
-            )
+            await self.filesystem.move(self._path, dst_path=target_path._path)
         else:
-            if not overwrite and await target_path.exists():
-                raise FileExistsError(f"File exists: {fspath(target_path)}")
-            await self.copy(target=target_path, overwrite=overwrite)
+            await self.copy(target=target_path)
             await self.filesystem.remove(self._path)
         return target_path
 
-    async def rename(self, target: PathLike, overwrite: bool = True) -> "SmartPath":
+    async def rename(self, target: PathLike) -> "SmartPath":
         """
         rename file
 
         :param target: Given destination path
-        :param overwrite: whether or not overwrite file when exists
         :return: Target SmartPath after rename.
-        :raises FileExistsError: If destination exists and overwrite is False.
         """
-        return await self._move(target=target, overwrite=overwrite)
+        return await self._move(target=target)
 
-    async def replace(self, target: PathLike, overwrite: bool = True) -> "SmartPath":
+    async def replace(self, target: PathLike) -> "SmartPath":
         """
         move file
 
         :param target: Given destination path
-        :param overwrite: whether or not overwrite file when exists
         :return: Destination SmartPath after replace.
         """
-        return await self._move(target=target, overwrite=overwrite)
+        return await self._move(target=target)
 
     async def move(
         self,
         target: PathLike,
-        overwrite: bool = True,
     ) -> "SmartPath":
         """
         move file
 
         :param target: Given destination path
-        :param overwrite: whether or not overwrite file when exists
         :return: Destination SmartPath after move.
         """
-        return await self._move(target=target, overwrite=overwrite)
+        return await self._move(target=target)
 
     async def move_into(
         self,

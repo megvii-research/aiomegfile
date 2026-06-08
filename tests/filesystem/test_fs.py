@@ -204,15 +204,19 @@ class TestLocalFileSystem:
         assert os.path.exists(dst_path)
         assert not os.path.exists(temp_file)
 
-    async def test_move_no_overwrite(self, temp_file, temp_dir):
-        """Test move method with overwrite=False."""
+    async def test_move_overwrites_existing_file(self, temp_file, temp_dir):
+        """Test move method overwrites an existing file."""
         dst_path = os.path.join(temp_dir, "existing_file.txt")
         with open(dst_path, "w") as f:
             f.write("existing")
 
         protocol = self._create_protocol()
-        with pytest.raises(FileExistsError):
-            await protocol.move(temp_file, dst_path, overwrite=False)
+        result = await protocol.move(temp_file, dst_path)
+
+        assert result == dst_path
+        with open(dst_path) as f:
+            assert f.read() == "Hello, World!"
+        assert not os.path.exists(temp_file)
 
     async def test_symlink_and_readlink(self, temp_file, temp_dir):
         """Test symlink and readlink methods."""
