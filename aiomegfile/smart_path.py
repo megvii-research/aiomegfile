@@ -776,7 +776,7 @@ class SmartPath(os.PathLike):
         :param missing_ok: If False, raise when the path does not exist.
         :raises IsADirectoryError: If the target is a directory.
         """
-        if await self.is_dir():
+        if await self.is_dir(followlinks=False):
             raise IsADirectoryError(f"Is a directory: {fspath(self)}")
         return await self.filesystem.remove(self._path, missing_ok=missing_ok)
 
@@ -1265,7 +1265,7 @@ class SmartPath(os.PathLike):
 
         target_path = self.from_uri(target)
 
-        if await self.is_dir():
+        if await self.is_dir(followlinks=follow_symlinks):
             max_workers = max(GLOBAL_MAX_WORKERS, 1)
             semaphore = asyncio.Semaphore(max_workers)
             max_in_flight = max_workers * 2

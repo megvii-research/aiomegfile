@@ -817,6 +817,66 @@ async def test_smart_sync_with_progress(tmp_path):
     assert str(file_a) in copied["paths"]
 
 
+@pytest.mark.parametrize(
+    "sync_func_name",
+    ["smart_sync", "smart_sync_with_progress"],
+)
+async def test_smart_sync_passes_followlinks_to_exists(
+    tmp_path,
+    monkeypatch,
+    sync_func_name,
+):
+    """Sync entry points should pass explicit followlinks to exists checks."""
+    src_path = tmp_path / "src"
+    dst_path = tmp_path / "dst"
+    exists_calls = []
+
+    async def fake_smart_exists(path, *, followlinks: bool = True) -> bool:
+        """Record exists calls and pretend every path exists."""
+        exists_calls.append((str(path), followlinks))
+        return True
+
+    async def empty_sync_entries():
+        """Yield no sync entries."""
+        for item in ():
+            yield item
+
+    def fake_get_sync_source(*args, **kwargs):
+        """Return an empty async iterator for source entries."""
+        _ = args, kwargs
+        return str(src_path), empty_sync_entries()
+
+    def fake_iter_sync_entries(*args, **kwargs):
+        """Return an empty async iterator for destination entries."""
+        _ = args, kwargs
+        return empty_sync_entries()
+
+    async def fake_run_sync_fast(*args, **kwargs) -> None:
+        """Skip the actual fast sync loop."""
+        _ = args, kwargs
+
+    async def fake_run_sync(*args, **kwargs) -> None:
+        """Skip the actual slow sync loop."""
+        _ = args, kwargs
+
+    monkeypatch.setattr(smart_module, "smart_exists", fake_smart_exists)
+    monkeypatch.setattr(smart_module, "_get_sync_source", fake_get_sync_source)
+    monkeypatch.setattr(smart_module, "_iter_sync_entries", fake_iter_sync_entries)
+    monkeypatch.setattr(smart_module, "_run_sync_fast", fake_run_sync_fast)
+    monkeypatch.setattr(smart_module, "_run_sync", fake_run_sync)
+
+    await getattr(smart_module, sync_func_name)(
+        src_path,
+        dst_path,
+        followlinks=False,
+    )
+
+    assert exists_calls[:2] == [
+        (str(src_path), False),
+        (str(dst_path), False),
+    ]
+
+
 async def test_smart_load_from(tmp_path):
     """Test smart_load_from returns a binary reader with content."""
     file_path = tmp_path / "load.bin"
@@ -879,6 +939,32 @@ async def test_smart_copy_overwrites_existing_file(tmp_path):
     await smart_copy(src_file, dst_file)
 
     assert dst_file.read_text() == "new"
+
+
+async def test_smart_copy_directory_symlink_followlinks_false_uses_file_branch(
+    tmp_path,
+    monkeypatch,
+):
+    """smart_copy should not recurse into a directory symlink when not following."""
+    real_dir = tmp_path / "real_dir"
+    real_dir.mkdir()
+    (real_dir / "child.txt").write_text("child")
+    link_dir = tmp_path / "link_dir"
+    os.symlink(real_dir, link_dir)
+    dst_path = tmp_path / "dst"
+    copy_calls = []
+
+    async def fake_copy_file(self, target, callback=None):
+        """Record SmartPath.copy_file calls without touching the filesystem."""
+        _ = callback
+        copy_calls.append((str(self), str(target)))
+        return SmartPath(target)
+
+    monkeypatch.setattr(SmartPath, "copy_file", fake_copy_file)
+
+    await smart_copy(link_dir, dst_path, followlinks=False)
+
+    assert copy_calls == [(str(link_dir), str(dst_path))]
 
 
 async def test_smart_sync_directory(tmp_path):

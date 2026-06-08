@@ -181,6 +181,19 @@ class TestLocalFileSystem:
         await protocol.remove(new_dir)
         assert not os.path.exists(new_dir)
 
+    async def test_remove_directory_symlink(self, temp_dir):
+        """Test remove unlinks a directory symlink without removing the target."""
+        real_dir = os.path.join(temp_dir, "real_dir")
+        link_dir = os.path.join(temp_dir, "link_dir")
+        os.mkdir(real_dir)
+        os.symlink(real_dir, link_dir)
+
+        protocol = self._create_protocol()
+        await protocol.remove(link_dir)
+
+        assert not os.path.lexists(link_dir)
+        assert os.path.isdir(real_dir)
+
     async def test_remove_missing_ok(self, temp_dir):
         """Test remove method with missing_ok=True."""
         file_path = os.path.join(temp_dir, "not_exist")

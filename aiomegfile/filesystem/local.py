@@ -107,7 +107,7 @@ class LocalFileSystem(BaseFileSystem):
         :raises FileNotFoundError: When missing_ok is False and the path is absent.
         """
         try:
-            if await self.is_dir(path):
+            if await self.is_dir(path, followlinks=False):
                 await asyncio.to_thread(shutil.rmtree, path)
             else:
                 await aiofiles.os.unlink(path)
