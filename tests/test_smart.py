@@ -408,6 +408,20 @@ async def test_smart_getmd5_s3_etag(s3_filesystem):
     assert await smart_getmd5(path, recalculate=True) == expected
 
 
+async def test_smart_getmd5_s3_ignores_followlinks(s3_filesystem):
+    """smart_getmd5 should ignore followlinks for S3 objects."""
+    await _create_bucket(s3_filesystem)
+    key = "md5/followlinks.txt"
+    data = b"s3-md5-followlinks"
+    await _put_object(s3_filesystem, key, data)
+
+    path = f"s3://{_bucket_name}/{key}"
+    expected = hashlib.md5(data).hexdigest()  # nosec
+
+    assert await smart_getmd5(path, followlinks=True) == expected
+    assert await smart_getmd5(path, recalculate=True, followlinks=True) == expected
+
+
 async def test_smart_glob_stat_s3(s3_filesystem):
     """smart_glob_stat should return entries for S3 paths."""
     await _create_bucket(s3_filesystem)
@@ -1250,6 +1264,21 @@ async def test_smart_copy_file_followlinks(tmp_path):
     await smart_copy_file(link_path, dst_path, followlinks=True)
 
     assert dst_path.read_text(encoding="utf-8") == "linked"
+
+
+async def test_smart_copy_file_s3_ignores_followlinks(s3_filesystem):
+    """smart_copy_file should ignore followlinks for S3 objects."""
+    await _create_bucket(s3_filesystem)
+    src_key = "copy/followlinks-src.txt"
+    dst_key = "copy/followlinks-dst.txt"
+    await _put_object(s3_filesystem, src_key, b"s3-copy-followlinks")
+
+    src_path = f"s3://{_bucket_name}/{src_key}"
+    dst_path = f"s3://{_bucket_name}/{dst_key}"
+
+    await smart_copy_file(src_path, dst_path, followlinks=True)
+
+    assert await smart_load_content(dst_path) == b"s3-copy-followlinks"
 
 
 async def test_smart_relpath_raises_for_unrelated_paths(tmp_path):

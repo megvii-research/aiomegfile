@@ -10,8 +10,7 @@ from aiomegfile.errors import (
     S3FileExistsError,
     S3FileNotFoundError,
     S3IsADirectoryError,
-    S3NameTooLongError,
-    S3NotALinkError,
+    S3UnsupportedError,
     SameFileError,
 )
 from aiomegfile.filesystem.s3 import (
@@ -882,87 +881,61 @@ class TestS3FileSystem:
                 overwrite=False,
             )
 
-    @pytest.mark.skip(
-        reason="moto ThreadedMotoServer does not support returning user metadata"
-    )
-    async def test_symlink_and_readlink(self, filesystem):
-        """Test symlink creation and reading."""
-        await self._create_bucket(filesystem)
+    async def test_symlink_and_readlink_are_unsupported(self, filesystem):
+        """Test S3 symlink creation and reading are unsupported."""
+        with pytest.raises(S3UnsupportedError):
+            await filesystem.symlink(
+                f"{_bucket_name}/symlink_src.txt",
+                f"{_bucket_name}/symlink_dst.txt",
+            )
 
-        await self._put_object(filesystem, "symlink_src.txt", b"content")
+        with pytest.raises(S3UnsupportedError):
+            await filesystem.readlink(f"{_bucket_name}/symlink_dst.txt")
 
-        # Create symlink
-        await filesystem.symlink(
-            f"{_bucket_name}/symlink_src.txt",
-            f"{_bucket_name}/symlink_dst.txt",
-        )
-
-        # Verify symlink exists
-        assert await filesystem.exists(f"{_bucket_name}/symlink_dst.txt") is True
-
-        # Read symlink
-        target = await filesystem.readlink(f"{_bucket_name}/symlink_dst.txt")
-        assert target == f"{_bucket_name}/symlink_src.txt"
-
-    @pytest.mark.skip(
-        reason="moto ThreadedMotoServer does not support returning user metadata"
-    )
     async def test_is_symlink(self, filesystem):
-        """Test is_symlink method."""
+        """Test S3 never reports objects as symlinks."""
         await self._create_bucket(filesystem)
 
-        await self._put_object(filesystem, "regular_file.txt", b"content")
-        await filesystem.symlink(
-            f"{_bucket_name}/regular_file.txt",
-            f"{_bucket_name}/link_file.txt",
+        client = await filesystem._get_client()
+        await client.put_object(
+            Bucket=_bucket_name,
+            Key="legacy_link_file.txt",
+            Body=b"",
+            Metadata={"symlink_to": f"s3://{_bucket_name}/regular_file.txt"},
         )
 
-        assert await filesystem.is_symlink(f"{_bucket_name}/link_file.txt") is True
-        assert await filesystem.is_symlink(f"{_bucket_name}/regular_file.txt") is False
+        path = f"{_bucket_name}/legacy_link_file.txt"
+        stat_result = await filesystem.stat(path, followlinks=True)
+        assert await filesystem.is_symlink(path) is False
+        assert stat_result.islnk is False
         assert await filesystem.is_symlink(f"{_bucket_name}/nonexistent.txt") is False
 
     async def test_readlink_not_a_link(self, filesystem):
-        """Test readlink raises error for non-symlink."""
+        """Test readlink raises unsupported for regular files."""
         await self._create_bucket(filesystem)
 
         await self._put_object(filesystem, "regular.txt", b"content")
 
-        with pytest.raises(S3NotALinkError):
+        with pytest.raises(S3UnsupportedError):
             await filesystem.readlink(f"{_bucket_name}/regular.txt")
 
     async def test_symlink_errors(self, filesystem):
-        """Test symlink error cases."""
-        await self._create_bucket(filesystem)
-
-        await self._put_object(filesystem, "src.txt", b"content")
-
-        # Empty source bucket
-        with pytest.raises(S3BucketNotFoundError):
+        """Test symlink always raises unsupported."""
+        with pytest.raises(S3UnsupportedError):
             await filesystem.symlink("/src", f"{_bucket_name}/dst")
 
-        # Empty destination bucket
-        with pytest.raises(S3BucketNotFoundError):
+        with pytest.raises(S3UnsupportedError):
             await filesystem.symlink(f"{_bucket_name}/src.txt", "/dst")
 
-        # Destination is directory
-        with pytest.raises(S3IsADirectoryError):
+        with pytest.raises(S3UnsupportedError):
             await filesystem.symlink(f"{_bucket_name}/src.txt", f"{_bucket_name}/dst/")
 
-        # Name too long
-        long_path = f"{_bucket_name}/" + "a" * 1024
-        with pytest.raises(S3NameTooLongError):
-            await filesystem.symlink(f"{_bucket_name}/src.txt", long_path)
-
     async def test_readlink_errors(self, filesystem):
-        """Test readlink error cases."""
-        await self._create_bucket(filesystem)
-
-        # Empty bucket
-        with pytest.raises(S3BucketNotFoundError):
+        """Test readlink always raises unsupported."""
+        with pytest.raises(S3UnsupportedError):
             await filesystem.readlink("/path")
 
-        # Directory path
-        with pytest.raises(S3IsADirectoryError):
+        with pytest.raises(S3UnsupportedError):
             await filesystem.readlink(f"{_bucket_name}/path/")
 
     async def test_build_uri(self, filesystem):

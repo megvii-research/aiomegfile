@@ -98,6 +98,7 @@ __all__ = [
     "S3_RETRY_ERROR_CODES",
     "S3_RETRY_EXCEPTIONS",
     "S3UnknownError",
+    "S3UnsupportedError",
     "SameFileError",
     "client_error_code",
     "client_error_message",
@@ -155,6 +156,10 @@ class S3NameTooLongError(S3FileNotFoundError, PermissionError):
 
 class S3InvalidRangeError(S3Exception):
     """Raised when requested byte range is invalid."""
+
+
+class S3UnsupportedError(S3Exception, NotImplementedError, OSError):
+    """Raised when an S3 operation is unsupported."""
 
 
 class S3UnknownError(S3Exception, UnknownError):
