@@ -397,7 +397,7 @@ class HdfsFileSystem(BaseFileSystem):
         """
         return get_hdfs_client(self._profile_name)
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param path: HDFS path without protocol.
@@ -421,7 +421,7 @@ class HdfsFileSystem(BaseFileSystem):
             translated = translate_hdfs_error(error, self.build_uri(path))
             raise translated from error
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param path: HDFS path without protocol.
@@ -446,7 +446,7 @@ class HdfsFileSystem(BaseFileSystem):
             raise translated from error
         return _make_stat_result(stat_data)
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a directory.
 
         :param path: HDFS path without protocol.
@@ -460,7 +460,7 @@ class HdfsFileSystem(BaseFileSystem):
         except FileNotFoundError:
             return False
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a regular file.
 
         :param path: HDFS path without protocol.

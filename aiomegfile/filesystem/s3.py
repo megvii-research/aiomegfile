@@ -626,7 +626,7 @@ class S3FileSystem(BaseFileSystem):
         )
         return self._client
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a directory.
 
         :param path: Path to check.
@@ -659,7 +659,7 @@ class S3FileSystem(BaseFileSystem):
             len(resp.get("Contents", [])) > 0 or len(resp.get("CommonPrefixes", [])) > 0
         )
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a regular file.
 
         :param path: Path to check.
@@ -683,7 +683,7 @@ class S3FileSystem(BaseFileSystem):
             return False
         return True
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param path: Path to check.
@@ -716,7 +716,7 @@ class S3FileSystem(BaseFileSystem):
             _, path_str, _ = split_uri(path_str)
         return path_str.lstrip("/")
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param path: Path to stat.
@@ -1651,7 +1651,7 @@ class S3FileSystem(BaseFileSystem):
         src_path: str,
         dst_path: str,
         callback: T.Optional[T.Callable[[int], None]] = None,
-        followlinks: bool = False,
+        followlinks: bool = True,
     ) -> str:
         """
         Copy single file, not directory

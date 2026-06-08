@@ -323,7 +323,7 @@ class BaseFileSystem(ABC):
             _from_uri_with_alias.__alias_wrapped__ = True
             cls.from_uri = classmethod(_from_uri_with_alias)
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a directory.
 
         :param path: The path to check.
@@ -332,7 +332,7 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "is_dir" not implemented: %r' % self)
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a regular file.
 
         :param path: The path to check.
@@ -341,7 +341,7 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "is_file" not implemented: %r' % self)
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether the path points to an existing file or directory.
 
         :param path: The path to check.
@@ -350,7 +350,7 @@ class BaseFileSystem(ABC):
         """
         raise NotImplementedError('method "exists" not implemented: %r' % self)
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get the status of the path.
 
         :param path: File path.

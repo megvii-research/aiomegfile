@@ -520,7 +520,7 @@ class HttpFileSystem(BaseFileSystem):
         """
         self._timeout = timeout
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return whether path points to a directory.
 
         HTTP resources are treated as files only.
@@ -532,7 +532,7 @@ class HttpFileSystem(BaseFileSystem):
         """
         return False
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return whether path points to an existing HTTP resource.
 
         :param path: Target path without protocol.
@@ -542,7 +542,16 @@ class HttpFileSystem(BaseFileSystem):
         """
         return await self.exists(path, followlinks=followlinks)
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def is_symlink(self, path: str) -> bool:
+        """
+        Return True if the path points to a symbolic link.
+
+        :param path: The path to check.
+        :return: True if the path is a symbolic link, otherwise False.
+        """
+        return False
+
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether path points to an existing HTTP resource.
 
         :param path: Target path without protocol.
@@ -559,7 +568,7 @@ class HttpFileSystem(BaseFileSystem):
         except Exception:
             return False
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get metadata for an HTTP resource.
 
         :param path: Target path without protocol.

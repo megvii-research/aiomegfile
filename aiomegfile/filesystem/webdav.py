@@ -778,7 +778,7 @@ class WebdavFileSystem(BaseFileSystem):
             return f"/{name}"
         return f"{normalized_base.rstrip('/')}/{name}"
 
-    async def is_dir(self, path: str, followlinks: bool = False) -> bool:
+    async def is_dir(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a directory.
 
         :param path: The path to check.
@@ -799,7 +799,7 @@ class WebdavFileSystem(BaseFileSystem):
         except WebdavFileNotFoundError:
             return False
 
-    async def is_file(self, path: str, followlinks: bool = False) -> bool:
+    async def is_file(self, path: str, followlinks: bool = True) -> bool:
         """Return True if the path points to a regular file.
 
         :param path: The path to check.
@@ -820,7 +820,7 @@ class WebdavFileSystem(BaseFileSystem):
         except WebdavFileNotFoundError:
             return False
 
-    async def exists(self, path: str, followlinks: bool = False) -> bool:
+    async def exists(self, path: str, followlinks: bool = True) -> bool:
         """Return whether the path points to an existing resource.
 
         :param path: The path to check.
@@ -841,7 +841,7 @@ class WebdavFileSystem(BaseFileSystem):
             ),
         )
 
-    async def stat(self, path: str, followlinks: bool = False) -> StatResult:
+    async def stat(self, path: str, followlinks: bool = True) -> StatResult:
         """Get metadata status for the path.
 
         :param path: Path without protocol.

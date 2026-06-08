@@ -329,7 +329,7 @@ class TestLocalFileSystem:
         os.symlink(real_dir, link_dir)
 
         protocol = self._create_protocol()
-        assert await protocol.is_dir(link_dir) is False
+        assert await protocol.is_dir(link_dir, followlinks=False) is False
         assert await protocol.is_dir(link_dir, followlinks=True) is True
 
     async def test_is_file_follow_symlink(self, temp_dir):
@@ -341,7 +341,7 @@ class TestLocalFileSystem:
         os.symlink(real_file, link_file)
 
         protocol = self._create_protocol()
-        assert await protocol.is_file(link_file) is False
+        assert await protocol.is_file(link_file, followlinks=False) is False
         assert await protocol.is_file(link_file, followlinks=True) is True
 
     async def test_is_dir_missing_returns_false(self, temp_dir):
