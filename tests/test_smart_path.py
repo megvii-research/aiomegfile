@@ -566,6 +566,18 @@ class TestSmartPathFileOperations:
         with pytest.raises(IsADirectoryError):
             await p.unlink()
 
+    async def test_unlink_directory_symlink(self, temp_dir):
+        """Test unlink removes a directory symlink without removing the target."""
+        real_dir = os.path.join(temp_dir, "real_dir")
+        link_dir = os.path.join(temp_dir, "link_dir")
+        os.mkdir(real_dir)
+        os.symlink(real_dir, link_dir)
+
+        await SmartPath(link_dir).unlink()
+
+        assert not os.path.lexists(link_dir)
+        assert os.path.isdir(real_dir)
+
     async def test_rmdir(self, temp_dir):
         new_dir = os.path.join(temp_dir, "to_remove_dir")
         os.mkdir(new_dir)

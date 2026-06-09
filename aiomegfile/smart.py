@@ -1260,7 +1260,7 @@ async def smart_sync(
     :param dst_path: Given destination path.
     :param callback: Called periodically during copy with source path and bytes
         written.
-    :param followlinks: False if regard symlink as file, else True.
+    :param followlinks: Whether to follow symbolic links.
     :param callback_after_copy_file: Called after copy success, and the input parameter
         is src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
@@ -1268,7 +1268,9 @@ async def smart_sync(
     :raises FileNotFoundError: If source path does not exist.
     """
     src_path_str = fspath(src_path)
-    if not has_magic(src_path_str) and not await smart_exists(src_path):
+    if not has_magic(src_path_str) and not await smart_exists(
+        src_path, followlinks=followlinks
+    ):
         raise FileNotFoundError(f"No match file: {src_path}")
 
     src_root_path = _get_sync_root_path(src_path)
@@ -1278,7 +1280,7 @@ async def smart_sync(
     dst_protocol = SmartPath(dst_root_path).filesystem.protocol
     sync_type = get_sync_type(src_protocol, dst_protocol)
 
-    dst_missing = not await smart_exists(dst_path)
+    dst_missing = not await smart_exists(dst_path, followlinks=followlinks)
     if dst_missing:
         force = True
         use_fast_sync = False
@@ -1342,7 +1344,7 @@ async def smart_sync_with_progress(
     :param dst_path: Given destination path.
     :param callback: Called periodically during copy with source path and bytes
         written.
-    :param followlinks: True if regard symlink as file, else False.
+    :param followlinks: Whether to follow symbolic links.
     :param force: Sync file forcible, do not ignore same files.
     :param callback_after_copy_file: Called after copy success, and the input parameter
         is src file path and dst file path.
@@ -1358,7 +1360,9 @@ async def smart_sync_with_progress(
         ) from exc
 
     src_path_str = fspath(src_path)
-    if not has_magic(src_path_str) and not await smart_exists(src_path):
+    if not has_magic(src_path_str) and not await smart_exists(
+        src_path, followlinks=followlinks
+    ):
         raise FileNotFoundError(f"No match file: {src_path}")
 
     tbar = tqdm(total=0, ascii=True, desc="Files (scanning)")
@@ -1404,7 +1408,7 @@ async def smart_sync_with_progress(
         dst_protocol = SmartPath(dst_root_path).filesystem.protocol
         sync_type = get_sync_type(src_protocol, dst_protocol)
 
-        dst_missing = not await smart_exists(dst_path)
+        dst_missing = not await smart_exists(dst_path, followlinks=followlinks)
         if dst_missing:
             force = True
             use_fast_sync = False
