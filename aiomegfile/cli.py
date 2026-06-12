@@ -46,7 +46,6 @@ from aiomegfile.utils.async_tools import maybe_await
 from aiomegfile.utils.parse import get_human_size
 
 options: dict[str, T.Any] = {}
-DEFAULT_HDFS_TIMEOUT = 10
 
 
 def _configure_logging(level: str) -> None:
@@ -1110,75 +1109,6 @@ def s3(
     with open(path, "w", encoding="utf-8") as fp:
         fp.write(text)
     click.echo(f"Your s3 config has been saved into {path}")
-
-
-@config.command(short_help="Update the config file for hdfs")
-@click.option(
-    "-p",
-    "--path",
-    default="~/.hdfscli.cfg",
-    help="hdfs config file, default is $HOME/.hdfscli.cfg",
-)
-@click.argument("url")
-@click.option("-n", "--profile-name", default="default", help="hdfs config file")
-@click.option("-u", "--user", help="user name")
-@click.option("-r", "--root", help="hdfs path's root dir")
-@click.option("-t", "--token", help="token for requesting hdfs server")
-@click.option(
-    "-o",
-    "--timeout",
-    help=f"request hdfs server timeout, default {DEFAULT_HDFS_TIMEOUT}",
-)
-@click.option("--no-cover", is_flag=True, help="Not cover the same-name config")
-def hdfs(
-    path: str,
-    url: str,
-    profile_name: str,
-    user: str | None,
-    root: str | None,
-    token: str | None,
-    timeout: str | None,
-    no_cover: bool,
-) -> None:
-    """Update HDFS configuration in the config file.
-
-    :param path: Config file path.
-    :param url: HDFS URL.
-    :param profile_name: Profile name.
-    :param user: HDFS user.
-    :param root: Root path.
-    :param token: Auth token.
-    :param timeout: Request timeout.
-    :param no_cover: Whether to forbid overwriting existing profile.
-    :return: None
-    :rtype: None
-    """
-    path = os.path.expanduser(path)
-    current_config = {
-        "url": url,
-        "user": user,
-        "root": root,
-        "token": token,
-        "timeout": timeout,
-    }
-    profile_section = f"{profile_name}.alias"
-    config = CaseSensitiveConfigParser()
-    if os.path.exists(path):
-        config.read(path)
-    if "global" not in config.sections():
-        config["global"] = {"default.alias": "default"}
-    if profile_section in config.sections():
-        if no_cover:
-            raise NameError(f"profile-name has been used: {profile_name}")
-    else:
-        config[profile_section] = {}
-    for key, value in current_config.items():
-        if value:
-            config[profile_section][key] = value
-    _safe_makedirs(os.path.dirname(path))
-    with open(path, "w", encoding="utf-8") as fp:
-        config.write(fp)
-    click.echo(f"Your hdfs config has been saved into {path}")
 
 
 @config.command(short_help="Update the config file for aliases")

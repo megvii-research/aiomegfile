@@ -1,4 +1,3 @@
-from aiomegfile.filesystem.hdfs import HdfsFileSystem
 from aiomegfile.filesystem.http import (
     HttpFileSystem,
     HttpsFileSystem,
@@ -13,7 +12,6 @@ from aiomegfile.filesystem.webdav import (
 )
 
 __all__ = [
-    "HdfsFileSystem",
     "HttpFileSystem",
     "HttpsFileSystem",
     "LocalFileSystem",

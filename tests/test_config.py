@@ -22,7 +22,6 @@ PROJECT_ENV_KEYS = {
     "MEGFILE_READER_MAX_BUFFER_SIZE",
     "MEGFILE_READER_LAZY_PREFETCH",
     "MEGFILE_S3_MAX_RETRY_TIMES",
-    "MEGFILE_HDFS_MAX_RETRY_TIMES",
     "MEGFILE_HTTP_MAX_RETRY_TIMES",
     "MEGFILE_SFTP_MAX_RETRY_TIMES",
     "MEGFILE_WEBDAV_MAX_RETRY_TIMES",
@@ -74,7 +73,6 @@ def test_config_uses_megfile_environment_overrides(monkeypatch):
             "MEGFILE_READER_MAX_BUFFER_SIZE": "8Mi",
             "MEGFILE_READER_LAZY_PREFETCH": "true",
             "MEGFILE_S3_MAX_RETRY_TIMES": "9",
-            "MEGFILE_HDFS_MAX_RETRY_TIMES": "7",
             "MEGFILE_HTTP_MAX_RETRY_TIMES": "5",
             "MEGFILE_SFTP_MAX_RETRY_TIMES": "4",
             "MEGFILE_WEBDAV_MAX_RETRY_TIMES": "6",
@@ -90,7 +88,6 @@ def test_config_uses_megfile_environment_overrides(monkeypatch):
     assert module.READER_MAX_BUFFER_SIZE == 8 * 1024 * 1024
     assert module.READER_LAZY_PREFETCH is True
     assert module.S3_MAX_RETRY_TIMES == 9
-    assert module.HDFS_MAX_RETRY_TIMES == 7
     assert module.HTTP_MAX_RETRY_TIMES == 5
     assert module.SFTP_MAX_RETRY_TIMES == 4
     assert module.WEBDAV_MAX_RETRY_TIMES == 6
@@ -136,7 +133,6 @@ def test_config_defaults_apply_when_retry_overrides_are_absent(monkeypatch):
 
     assert module.DEFAULT_MAX_RETRY_TIMES == 3
     assert module.S3_MAX_RETRY_TIMES == 3
-    assert module.HDFS_MAX_RETRY_TIMES == 3
     assert module.HTTP_MAX_RETRY_TIMES == 3
     assert module.SFTP_MAX_RETRY_TIMES == 3
     assert module.WEBDAV_MAX_RETRY_TIMES == 3

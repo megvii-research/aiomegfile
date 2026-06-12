@@ -20,5 +20,4 @@ FileSystem Modules
    aiomegfile.filesystem.http
    aiomegfile.filesystem.sftp
    aiomegfile.filesystem.stdio
-   aiomegfile.filesystem.hdfs
    aiomegfile.filesystem.webdav

@@ -28,7 +28,6 @@ Current backends in this repository include:
 - `http://` and `https://` for async read-oriented access
 - `sftp://`
 - `stdio://` for stdin/stdout/stderr bridging
-- `hdfs://` with the `hdfs` extra
 - `webdav://` and `webdavs://` with the `webdav` extra
 
 ## Installation
@@ -43,7 +42,6 @@ Install optional extras when you need them:
 
 ```bash
 pip install "aiomegfile[cli]"
-pip install "aiomegfile[hdfs]"
 pip install "aiomegfile[webdav]"
 ```
 
@@ -166,7 +164,6 @@ The CLI also provides helpers for common configuration tasks:
 
 ```bash
 amf config s3 <access_key> <secret_key> --profile-name default
-amf config hdfs http://namenode:9870 --profile-name prod
 amf config alias datasets s3://company-datasets/
 amf config env MEGFILE_MAX_WORKERS=16
 ```

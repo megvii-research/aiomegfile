@@ -35,9 +35,6 @@ dependencies = [
 cli = [
     "click>=8.1.7",
 ]
-hdfs = [
-    "hdfs",
-]
 webdav = [
     "aiodav",
 ]
@@ -72,7 +69,7 @@ typecheck = [
     "bandit-sarif-formatter",
 ]
 dev = [
-    "aiomegfile[cli,hdfs,webdav,doc,test,lint,typecheck]",
+    "aiomegfile[cli,webdav,doc,test,lint,typecheck]",
 ]
 
 [build-system]
