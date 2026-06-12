@@ -301,66 +301,6 @@ def test_cli_config_env_writes_config(tmp_path) -> None:
     assert isinstance(result.exception, NameError)
 
 
-def test_cli_config_hdfs_writes_config(tmp_path) -> None:
-    """CLI config hdfs should write config entries.
-
-    :param tmp_path: Pytest temporary path fixture.
-    :return: None
-    :rtype: None
-    """
-    runner = CliRunner()
-    config_path = tmp_path / "hdfscli.cfg"
-
-    result = runner.invoke(
-        cli,
-        [
-            "config",
-            "hdfs",
-            "--path",
-            str(config_path),
-            "http://localhost:9870",
-            "--profile-name",
-            "demo",
-            "--user",
-            "alice",
-            "--root",
-            "/data",
-            "--token",
-            "token123",
-            "--timeout",
-            "5",
-        ],
-    )
-    assert result.exit_code == 0
-
-    parser = configparser.ConfigParser()
-    parser.read(config_path)
-    assert parser.has_section("global")
-    assert parser.get("global", "default.alias") == "default"
-    assert parser.has_section("demo.alias")
-    assert parser.get("demo.alias", "url") == "http://localhost:9870"
-    assert parser.get("demo.alias", "user") == "alice"
-    assert parser.get("demo.alias", "root") == "/data"
-    assert parser.get("demo.alias", "token") == "token123"
-    assert parser.get("demo.alias", "timeout") == "5"
-
-    result = runner.invoke(
-        cli,
-        [
-            "config",
-            "hdfs",
-            "--path",
-            str(config_path),
-            "http://localhost:9870",
-            "--profile-name",
-            "demo",
-            "--no-cover",
-        ],
-    )
-    assert result.exit_code != 0
-    assert isinstance(result.exception, NameError)
-
-
 def test_path_type_shell_complete_local_paths(tmp_path) -> None:
     """PathType should complete local filesystem paths.
 

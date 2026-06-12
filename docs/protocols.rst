@@ -38,10 +38,6 @@ Supported Backends
      - ``stdio://-`` / ``stdio://0`` / ``stdio://1`` / ``stdio://2``
      - Built in
      - Bridge stdin, stdout, and stderr through the same async API.
-   * - HDFS
-     - ``hdfs://cluster/path``
-     - Optional
-     - Install ``aiomegfile[hdfs]`` to enable HDFS support.
    * - WebDAV / WebDAVS
      - ``webdav://host/path`` / ``webdavs://host/path``
      - Optional
