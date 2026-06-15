@@ -1566,7 +1566,9 @@ class S3FileSystem(BaseFileSystem):
         :param callback: Called periodically during download with bytes written.
         :return: ``None``.
         """
-        if not await self.exists(src_path):
+        try:
+            src_stat = await self.stat(src_path)
+        except S3FileNotFoundError:
             raise FileNotFoundError(f"No such file: {self.build_uri(src_path)!r}")
 
         bucket, key = parse_s3_path(src_path)
@@ -1579,6 +1581,7 @@ class S3FileSystem(BaseFileSystem):
 
         async with aiofiles.open(dst_path, "wb") as fileobj:
             await self._download_fileobj(src_path, fileobj, callback=callback)
+        os.utime(dst_path, (src_stat.st_mtime, src_stat.st_mtime))
 
     async def _download_fileobj(
         self,
