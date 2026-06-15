@@ -3,13 +3,6 @@ CLI
 
 aiomegfile ships with a CLI named ``amf``.
 
-Installation
-------------
-
-.. code-block:: bash
-
-   pip install "aiomegfile[cli]"
-
 Quick Examples
 --------------
 
