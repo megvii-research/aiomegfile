@@ -41,7 +41,6 @@ pip install aiomegfile
 Install optional extras when you need them:
 
 ```bash
-pip install "aiomegfile[cli]"
 pip install "aiomegfile[webdav]"
 ```
 
@@ -110,12 +109,6 @@ if __name__ == "__main__":
 ```
 
 ## CLI
-
-Install the CLI extra first:
-
-```bash
-pip install "aiomegfile[cli]"
-```
 
 Common commands:
 

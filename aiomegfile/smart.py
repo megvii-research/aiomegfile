@@ -4,6 +4,8 @@ import os
 import typing as T
 from collections import deque
 
+from tqdm import tqdm
+
 from aiomegfile.config import DEFAULT_COPY_BUFFER_SIZE, GLOBAL_MAX_WORKERS
 from aiomegfile.interfaces import Access, FileEntry, StatResult
 from aiomegfile.lib.cacher import NullCacher, SmartCacher
@@ -1360,15 +1362,7 @@ async def smart_sync_with_progress(
         input parameters are src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :raises FileNotFoundError: If source path does not exist.
-    :raises ImportError: If ``tqdm`` is not available.
     """
-    try:
-        from tqdm import tqdm
-    except ImportError as exc:
-        raise ImportError(
-            "tqdm is required for smart_sync_with_progress; install aiomegfile[cli]"
-        ) from exc
-
     src_path_str = fspath(src_path)
     if not has_magic(src_path_str) and not await smart_exists(
         src_path, followlinks=followlinks

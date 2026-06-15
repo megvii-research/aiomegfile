@@ -21,9 +21,6 @@ Use extras to enable optional integrations and tooling:
    * - Extra
      - Install command
      - Purpose
-   * - CLI
-     - ``pip install "aiomegfile[cli]"``
-     - Installs the ``amf`` command line interface.
    * - WebDAV
      - ``pip install "aiomegfile[webdav]"``
      - Enables ``webdav://`` and ``webdavs://`` support.
