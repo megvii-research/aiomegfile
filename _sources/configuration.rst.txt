@@ -9,7 +9,6 @@ Config Files
 - ``~/.config/megfile/megfile.conf`` for generic runtime environment values and
   alias mappings
 - ``~/.aws/credentials`` for S3 profiles written by ``amf config s3``
-- ``~/.hdfscli.cfg`` for HDFS profiles written by ``amf config hdfs``
 
 Main Runtime File
 -----------------
@@ -57,8 +56,6 @@ Common Environment Variables
      - Enables writer block auto-scaling when no explicit writer block size is set.
    * - ``MEGFILE_S3_MAX_RETRY_TIMES``
      - Retry limit for S3 operations.
-   * - ``MEGFILE_HDFS_MAX_RETRY_TIMES``
-     - Retry limit for HDFS operations.
    * - ``MEGFILE_HTTP_MAX_RETRY_TIMES``
      - Retry limit for HTTP and HTTPS operations.
    * - ``MEGFILE_SFTP_MAX_RETRY_TIMES``
@@ -95,16 +92,6 @@ WebDAV
 - ``WEBDAV_TIMEOUT``
 - ``WEBDAV_INSECURE``
 
-HDFS
-^^^^
-
-- ``HDFS_USER``
-- ``HDFS_URL``
-- ``HDFS_ROOT``
-- ``HDFS_TIMEOUT``
-- ``HDFS_TOKEN``
-- ``HDFS_CONFIG_PATH``
-
 Using CLI Helpers
 -----------------
 
@@ -113,7 +100,6 @@ The CLI can write the common config files for you:
 .. code-block:: bash
 
    amf config s3 <access_key> <secret_key> --profile-name default
-   amf config hdfs http://namenode:9870 --profile-name prod --user hdfs
    amf config alias datasets s3://company-datasets/
    amf config env MEGFILE_MAX_WORKERS=16
 

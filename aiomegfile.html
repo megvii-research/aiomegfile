@@ -67,7 +67,6 @@
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html">aiomegfile.filesystem.http module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.sftp.html">aiomegfile.filesystem.sftp module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.stdio.html">aiomegfile.filesystem.stdio module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html">aiomegfile.filesystem.hdfs module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.webdav.html">aiomegfile.filesystem.webdav module</a></li>
 </ul>
 </li>
@@ -394,6 +393,7 @@
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.from_uri"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.from_uri()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_dir"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.is_dir()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_file"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.is_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.is_symlink"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.is_symlink()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.open"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.open()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.parse_uri"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.parse_uri()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html#aiomegfile.filesystem.http.HttpFileSystem.protocol"><code class="docutils literal notranslate"><span class="pre">HttpFileSystem.protocol</span></code></a></li>
@@ -480,41 +480,6 @@
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.stdio.html#aiomegfile.filesystem.stdio.StdioFileSystem.stat"><code class="docutils literal notranslate"><span class="pre">StdioFileSystem.stat()</span></code></a></li>
 </ul>
 </li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html">aiomegfile.filesystem.hdfs module</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.absolute"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.absolute()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.access"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.access()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.build_uri"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.build_uri()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.copy"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.copy()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.download"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.download()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.exists"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.exists()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.from_uri"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.from_uri()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_absolute"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.is_absolute()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_dir"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.is_dir()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_file"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.is_file()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.is_symlink"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.is_symlink()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.md5"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.md5()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.mkdir"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.mkdir()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.move"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.move()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.open"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.open()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.parse_uri"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.parse_uri()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.protocol"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.protocol</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.readlink"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.readlink()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.remove"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.remove()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.same_endpoint"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.same_endpoint()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.samefile"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.samefile()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.scandir"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.scandir()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.scanfile"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.scanfile()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.stat"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.stat()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.symlink"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.symlink()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.HdfsFileSystem.upload"><code class="docutils literal notranslate"><span class="pre">HdfsFileSystem.upload()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.get_hdfs_client"><code class="docutils literal notranslate"><span class="pre">get_hdfs_client()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.get_hdfs_config"><code class="docutils literal notranslate"><span class="pre">get_hdfs_config()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html#aiomegfile.filesystem.hdfs.is_hdfs"><code class="docutils literal notranslate"><span class="pre">is_hdfs()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="aiomegfile.filesystem.webdav.html">aiomegfile.filesystem.webdav module</a><ul>

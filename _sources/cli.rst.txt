@@ -43,7 +43,6 @@ The CLI works with the same backend registry as the Python API:
 - ``http://`` and ``https://``
 - ``sftp://``
 - ``stdio://``
-- ``hdfs://`` when the HDFS extra is installed
 - ``webdav://`` and ``webdavs://`` when the WebDAV extra is installed
 
 Configuration
@@ -54,7 +53,6 @@ Helper commands are available for common configuration files:
 .. code-block:: bash
 
    amf config s3 <access_key> <secret_key> --profile-name default
-   amf config hdfs http://namenode:9870 --profile-name prod --user hdfs
    amf config alias datasets s3://company-datasets/
    amf config env MEGFILE_MAX_WORKERS=16
 

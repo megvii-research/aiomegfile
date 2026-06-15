@@ -129,7 +129,6 @@ It provides:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">http://</span></code> and <code class="docutils literal notranslate"><span class="pre">https://</span></code> for async read-oriented access</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">sftp://</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">stdio://</span></code> for stdin/stdout/stderr bridging</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">hdfs://</span></code> with the <code class="docutils literal notranslate"><span class="pre">hdfs</span></code> extra</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">webdav://</span></code> and <code class="docutils literal notranslate"><span class="pre">webdavs://</span></code> with the <code class="docutils literal notranslate"><span class="pre">webdav</span></code> extra</p></li>
 </ul>
 </section>
@@ -141,7 +140,6 @@ It provides:</p>
 </div>
 <p>Install optional extras when you need them:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;aiomegfile[cli]&quot;</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;aiomegfile[hdfs]&quot;</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;aiomegfile[webdav]&quot;</span>
 </pre></div>
 </div>
@@ -256,7 +254,6 @@ The file supports at least two useful sections:</p>
 <code class="docutils literal notranslate"><span class="pre">s3://company-datasets/images/cat.jpg</span></code>.</p>
 <p>The CLI also provides helpers for common configuration tasks:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>s3<span class="w"> </span>&lt;access_key&gt;<span class="w"> </span>&lt;secret_key&gt;<span class="w"> </span>--profile-name<span class="w"> </span>default
-amf<span class="w"> </span>config<span class="w"> </span>hdfs<span class="w"> </span>http://namenode:9870<span class="w"> </span>--profile-name<span class="w"> </span>prod
 amf<span class="w"> </span>config<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>datasets<span class="w"> </span>s3://company-datasets/
 amf<span class="w"> </span>config<span class="w"> </span>env<span class="w"> </span><span class="nv">MEGFILE_MAX_WORKERS</span><span class="o">=</span><span class="m">16</span>
 </pre></div>

@@ -24,9 +24,6 @@ Use extras to enable optional integrations and tooling:
    * - CLI
      - ``pip install "aiomegfile[cli]"``
      - Installs the ``amf`` command line interface.
-   * - HDFS
-     - ``pip install "aiomegfile[hdfs]"``
-     - Enables the ``hdfs://`` backend.
    * - WebDAV
      - ``pip install "aiomegfile[webdav]"``
      - Enables ``webdav://`` and ``webdavs://`` support.

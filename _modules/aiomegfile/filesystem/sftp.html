@@ -1147,7 +1147,7 @@
 
 <div class="viewcode-block" id="SftpFileSystem.is_dir">
 <a class="viewcode-back" href="../../../aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.is_dir">[docs]</a>
-    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when path points to a directory.</span>
 
 <span class="sd">        :param path: Path without protocol.</span>
@@ -1174,7 +1174,7 @@
 
 <div class="viewcode-block" id="SftpFileSystem.is_file">
 <a class="viewcode-back" href="../../../aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.is_file">[docs]</a>
-    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return True when path points to a regular file.</span>
 
 <span class="sd">        :param path: Path without protocol.</span>
@@ -1201,7 +1201,7 @@
 
 <div class="viewcode-block" id="SftpFileSystem.exists">
 <a class="viewcode-back" href="../../../aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.exists">[docs]</a>
-    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return whether path exists.</span>
 
 <span class="sd">        :param path: Path without protocol.</span>
@@ -1228,7 +1228,7 @@
 
 <div class="viewcode-block" id="SftpFileSystem.stat">
 <a class="viewcode-back" href="../../../aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.stat">[docs]</a>
-    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return stat information for path.</span>
 
 <span class="sd">        :param path: Path without protocol.</span>
@@ -1527,7 +1527,7 @@
                     <span class="n">dst_remote</span><span class="p">,</span>
                     <span class="n">preserve</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                     <span class="n">recurse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                    <span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">progress_handler</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_progress_handler</span><span class="p">(</span><span class="n">callback</span><span class="p">),</span>
                 <span class="p">)</span>
@@ -1566,9 +1566,9 @@
                 <span class="k">await</span> <span class="n">sftp_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                     <span class="n">src_remote</span><span class="p">,</span>
                     <span class="n">dst_path</span><span class="p">,</span>
-                    <span class="n">preserve</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">preserve</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">recurse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                    <span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                     <span class="n">progress_handler</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_progress_handler</span><span class="p">(</span><span class="n">callback</span><span class="p">),</span>
                 <span class="p">)</span>
@@ -1579,12 +1579,11 @@
 
 <div class="viewcode-block" id="SftpFileSystem.move">
 <a class="viewcode-back" href="../../../aiomegfile.filesystem.sftp.html#aiomegfile.filesystem.sftp.SftpFileSystem.move">[docs]</a>
-    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Move file or directory to a destination path.</span>
 
 <span class="sd">        :param src_path: Source path without protocol.</span>
 <span class="sd">        :param dst_path: Destination path without protocol.</span>
-<span class="sd">        :param overwrite: Overwrite destination when it exists.</span>
 <span class="sd">        :return: Destination path without protocol.</span>
 <span class="sd">        :rtype: str</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1594,10 +1593,7 @@
                 <span class="n">src_remote</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_remote_path</span><span class="p">(</span><span class="n">sftp_client</span><span class="p">,</span> <span class="n">src_path</span><span class="p">)</span>
                 <span class="n">dst_remote</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_remote_path</span><span class="p">(</span><span class="n">sftp_client</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">)</span>
 
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="k">await</span> <span class="n">sftp_client</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dst_remote</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File exists: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">build_uri</span><span class="p">(</span><span class="n">dst_path</span><span class="p">)</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-                <span class="k">if</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="k">await</span> <span class="n">sftp_client</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dst_remote</span><span class="p">):</span>
+                <span class="k">if</span> <span class="k">await</span> <span class="n">sftp_client</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dst_remote</span><span class="p">):</span>
                     <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_remove_remote_path</span><span class="p">(</span>
                         <span class="n">sftp_client</span><span class="p">,</span>
                         <span class="n">dst_remote</span><span class="p">,</span>

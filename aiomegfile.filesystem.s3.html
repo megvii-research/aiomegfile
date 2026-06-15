@@ -74,7 +74,6 @@
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.http.html">aiomegfile.filesystem.http module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.sftp.html">aiomegfile.filesystem.sftp module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.stdio.html">aiomegfile.filesystem.stdio module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.hdfs.html">aiomegfile.filesystem.hdfs module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="aiomegfile.filesystem.webdav.html">aiomegfile.filesystem.webdav module</a></li>
 </ul>
 </li>
@@ -203,7 +202,7 @@ Returns a new path object.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.copy">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.copy" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.copy" title="Link to this definition"></a></dt>
 <dd><p>Copy single file, not directory</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -212,7 +211,7 @@ Returns a new path object.</p>
 <li><p><strong>dst_path</strong> – Given destination path</p></li>
 <li><p><strong>callback</strong> – Called periodically during copy, and the input parameter is
 the data size (in bytes) of copy since the last call</p></li>
-<li><p><strong>followlinks</strong> – False if regard symlink as file, else True</p></li>
+<li><p><strong>followlinks</strong> – Ignored because S3 symlinks are unsupported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -241,13 +240,13 @@ the data size (in bytes) of copy since the last call</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.exists">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.exists" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.exists" title="Link to this definition"></a></dt>
 <dd><p>Return whether the path points to an existing file or directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – Path to check.</p></li>
-<li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>followlinks</strong> – Ignored because S3 symlinks are unsupported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -294,13 +293,13 @@ the data size (in bytes) of copy since the last call</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.is_dir">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.is_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.is_dir" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.is_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.is_dir" title="Link to this definition"></a></dt>
 <dd><p>Return True if the path points to a directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – Path to check.</p></li>
-<li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>followlinks</strong> – Ignored because S3 symlinks are unsupported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -311,13 +310,13 @@ the data size (in bytes) of copy since the last call</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.is_file">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.is_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.is_file" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.is_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.is_file" title="Link to this definition"></a></dt>
 <dd><p>Return True if the path points to a regular file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – Path to check.</p></li>
-<li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>followlinks</strong> – Ignored because S3 symlinks are unsupported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -329,13 +328,16 @@ the data size (in bytes) of copy since the last call</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.is_symlink">
 <em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_symlink</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.is_symlink"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.is_symlink" title="Link to this definition"></a></dt>
-<dd><p>Return True if the path points to a symbolic link.</p>
+<dd><p>Return False because S3 symlinks are unsupported.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>path</strong> – The path to check.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if the path is a symbolic link, otherwise False.</p>
+<dd class="field-even"><p>Always False.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
 </dd>
 </dl>
 </dd></dl>
@@ -349,7 +351,7 @@ the data size (in bytes) of copy since the last call</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – S3 path to compute MD5.</p></li>
 <li><p><strong>recalculate</strong> – If True, recompute MD5 by reading the object.</p></li>
-<li><p><strong>followlinks</strong> – If True, follow symbolic links.</p></li>
+<li><p><strong>followlinks</strong> – Ignored because S3 symlinks are unsupported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -382,21 +384,17 @@ the data size (in bytes) of copy since the last call</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.move">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.move" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">move</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.move"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.move" title="Link to this definition"></a></dt>
 <dd><p>Move file or directory.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>src_path</strong> – Given source path.</p></li>
 <li><p><strong>dst_path</strong> – Given destination path.</p></li>
-<li><p><strong>overwrite</strong> – Whether to overwrite file when exists.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Destination path after move.</p>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>FileExistsError</strong> – If destination exists and overwrite is False.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -445,13 +443,19 @@ the data size (in bytes) of copy since the last call</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.readlink">
 <em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">readlink</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.readlink"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.readlink" title="Link to this definition"></a></dt>
-<dd><p>Return a new path representing the symbolic link’s target.</p>
+<dd><p>Raise because S3 symlinks are unsupported.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>path</strong> – The symbolic link path.</p>
+<dd class="field-odd"><p><strong>path</strong> – Path.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Target path of the symbolic link.</p>
+<dd class="field-even"><p>Never returns.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>S3UnsupportedError</strong> – Always.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -532,13 +536,13 @@ Every iteration on generator yields FileEntry object.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.stat">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.stat" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">followlinks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="aiomegfile.interfaces.html#aiomegfile.interfaces.StatResult" title="aiomegfile.interfaces.StatResult"><span class="pre">StatResult</span></a></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.stat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.stat" title="Link to this definition"></a></dt>
 <dd><p>Get the status of the path.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – Path to stat.</p></li>
-<li><p><strong>followlinks</strong> – Whether to follow symbolic links.</p></li>
+<li><p><strong>followlinks</strong> – Ignored because S3 symlinks are unsupported.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
@@ -553,13 +557,16 @@ Every iteration on generator yields FileEntry object.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="aiomegfile.filesystem.s3.S3FileSystem.symlink">
 <em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">symlink</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/aiomegfile/filesystem/s3.html#S3FileSystem.symlink"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#aiomegfile.filesystem.s3.S3FileSystem.symlink" title="Link to this definition"></a></dt>
-<dd><p>Create a symbolic link pointing to self named dst_path.</p>
+<dd><p>Raise because S3 symlinks are unsupported.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>src_path</strong> – The source path the symbolic link points to.</p></li>
-<li><p><strong>dst_path</strong> – The symbolic link path.</p></li>
+<li><p><strong>src_path</strong> – Source path.</p></li>
+<li><p><strong>dst_path</strong> – Destination path.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>S3UnsupportedError</strong> – Always.</p>
 </dd>
 </dl>
 </dd></dl>

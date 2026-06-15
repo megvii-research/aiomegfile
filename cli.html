@@ -158,7 +158,6 @@ amf<span class="w"> </span>cat<span class="w"> </span>https://example.com/data.t
 <li><p><code class="docutils literal notranslate"><span class="pre">http://</span></code> and <code class="docutils literal notranslate"><span class="pre">https://</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">sftp://</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">stdio://</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">hdfs://</span></code> when the HDFS extra is installed</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">webdav://</span></code> and <code class="docutils literal notranslate"><span class="pre">webdavs://</span></code> when the WebDAV extra is installed</p></li>
 </ul>
 </section>
@@ -166,7 +165,6 @@ amf<span class="w"> </span>cat<span class="w"> </span>https://example.com/data.t
 <h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
 <p>Helper commands are available for common configuration files:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>s3<span class="w"> </span>&lt;access_key&gt;<span class="w"> </span>&lt;secret_key&gt;<span class="w"> </span>--profile-name<span class="w"> </span>default
-amf<span class="w"> </span>config<span class="w"> </span>hdfs<span class="w"> </span>http://namenode:9870<span class="w"> </span>--profile-name<span class="w"> </span>prod<span class="w"> </span>--user<span class="w"> </span>hdfs
 amf<span class="w"> </span>config<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>datasets<span class="w"> </span>s3://company-datasets/
 amf<span class="w"> </span>config<span class="w"> </span>env<span class="w"> </span><span class="nv">MEGFILE_MAX_WORKERS</span><span class="o">=</span><span class="m">16</span>
 </pre></div>
@@ -370,96 +368,6 @@ amf<span class="w"> </span>completion<span class="w"> </span>fish
 </dd></dl>
 
 </section>
-<section id="amf-config-hdfs">
-<h5>hdfs<a class="headerlink" href="#amf-config-hdfs" title="Link to this heading"></a></h5>
-<p>Update HDFS configuration in the config file.</p>
-<dl class="field-list simple">
-<dt class="field-odd">param path<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Config file path.</p>
-</dd>
-<dt class="field-even">param url<span class="colon">:</span></dt>
-<dd class="field-even"><p>HDFS URL.</p>
-</dd>
-<dt class="field-odd">param profile_name<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Profile name.</p>
-</dd>
-<dt class="field-even">param user<span class="colon">:</span></dt>
-<dd class="field-even"><p>HDFS user.</p>
-</dd>
-<dt class="field-odd">param root<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Root path.</p>
-</dd>
-<dt class="field-even">param token<span class="colon">:</span></dt>
-<dd class="field-even"><p>Auth token.</p>
-</dd>
-<dt class="field-odd">param timeout<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Request timeout.</p>
-</dd>
-<dt class="field-even">param no_cover<span class="colon">:</span></dt>
-<dd class="field-even"><p>Whether to forbid overwriting existing profile.</p>
-</dd>
-<dt class="field-odd">return<span class="colon">:</span></dt>
-<dd class="field-odd"><p>None</p>
-</dd>
-<dt class="field-even">rtype<span class="colon">:</span></dt>
-<dd class="field-even"><p>None</p>
-</dd>
-</dl>
-<p class="rubric">Usage</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>hdfs<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>URL
-</pre></div>
-</div>
-<p class="rubric">Options</p>
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-p">
-<span id="cmdoption-amf-config-hdfs-path"></span><span class="sig-name descname"><span class="pre">-p</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--path</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;path&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-p" title="Link to this definition"></a></dt>
-<dd><p>hdfs config file, default is $HOME/.hdfscli.cfg</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-n">
-<span id="cmdoption-amf-config-hdfs-profile-name"></span><span class="sig-name descname"><span class="pre">-n</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--profile-name</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;profile_name&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-n" title="Link to this definition"></a></dt>
-<dd><p>hdfs config file</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-u">
-<span id="cmdoption-amf-config-hdfs-user"></span><span class="sig-name descname"><span class="pre">-u</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--user</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;user&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-u" title="Link to this definition"></a></dt>
-<dd><p>user name</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-r">
-<span id="cmdoption-amf-config-hdfs-root"></span><span class="sig-name descname"><span class="pre">-r</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--root</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;root&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-r" title="Link to this definition"></a></dt>
-<dd><p>hdfs path’s root dir</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-t">
-<span id="cmdoption-amf-config-hdfs-token"></span><span class="sig-name descname"><span class="pre">-t</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--token</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;token&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-t" title="Link to this definition"></a></dt>
-<dd><p>token for requesting hdfs server</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-o">
-<span id="cmdoption-amf-config-hdfs-timeout"></span><span class="sig-name descname"><span class="pre">-o</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--timeout</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;timeout&gt;</span></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-o" title="Link to this definition"></a></dt>
-<dd><p>request hdfs server timeout, default 10</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-no-cover">
-<span class="sig-name descname"><span class="pre">--no-cover</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-no-cover" title="Link to this definition"></a></dt>
-<dd><p>Not cover the same-name config</p>
-</dd></dl>
-
-<p class="rubric">Arguments</p>
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-config-hdfs-arg-URL">
-<span class="sig-name descname"><span class="pre">URL</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-config-hdfs-arg-URL" title="Link to this definition"></a></dt>
-<dd><p>Required argument</p>
-</dd></dl>
-
-</section>
 <section id="amf-config-s3">
 <h5>s3<a class="headerlink" href="#amf-config-s3" title="Link to this heading"></a></h5>
 <p>Update S3 credentials in the AWS credentials file.</p>
@@ -549,12 +457,6 @@ amf<span class="w"> </span>completion<span class="w"> </span>fish
 <dt class="sig sig-object std" id="cmdoption-amf-cp-g">
 <span id="cmdoption-amf-cp-progress-bar"></span><span class="sig-name descname"><span class="pre">-g</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--progress-bar</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-g" title="Link to this definition"></a></dt>
 <dd><p>Show progress bar.</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-cp-skip">
-<span class="sig-name descname"><span class="pre">--skip</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-cp-skip" title="Link to this definition"></a></dt>
-<dd><p>Skip existed files.</p>
 </dd></dl>
 
 <p class="rubric">Arguments</p>
@@ -762,12 +664,6 @@ amf<span class="w"> </span>completion<span class="w"> </span>fish
 <dd><p>Show progress bar.</p>
 </dd></dl>
 
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-mv-skip">
-<span class="sig-name descname"><span class="pre">--skip</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-mv-skip" title="Link to this definition"></a></dt>
-<dd><p>Skip existed files.</p>
-</dd></dl>
-
 <p class="rubric">Arguments</p>
 <dl class="std option">
 <dt class="sig sig-object std" id="cmdoption-amf-mv-arg-SRC_PATH">
@@ -846,12 +742,6 @@ amf<span class="w"> </span>completion<span class="w"> </span>fish
 <dt class="sig sig-object std" id="cmdoption-amf-sync-f">
 <span id="cmdoption-amf-sync-force"></span><span class="sig-name descname"><span class="pre">-f</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--force</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-f" title="Link to this definition"></a></dt>
 <dd><p>Copy files forcible, ignore same files.</p>
-</dd></dl>
-
-<dl class="std option">
-<dt class="sig sig-object std" id="cmdoption-amf-sync-skip">
-<span class="sig-name descname"><span class="pre">--skip</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-amf-sync-skip" title="Link to this definition"></a></dt>
-<dd><p>Skip existed files.</p>
 </dd></dl>
 
 <dl class="std option">

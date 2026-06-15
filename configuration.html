@@ -56,7 +56,6 @@
 <li class="toctree-l2"><a class="reference internal" href="#protocol-specific-settings">Protocol-specific Settings</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#sftp">SFTP</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#webdav">WebDAV</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#hdfs">HDFS</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#using-cli-helpers">Using CLI Helpers</a></li>
@@ -105,7 +104,6 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">~/.config/megfile/megfile.conf</span></code> for generic runtime environment values and
 alias mappings</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">~/.aws/credentials</span></code> for S3 profiles written by <code class="docutils literal notranslate"><span class="pre">amf</span> <span class="pre">config</span> <span class="pre">s3</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">~/.hdfscli.cfg</span></code> for HDFS profiles written by <code class="docutils literal notranslate"><span class="pre">amf</span> <span class="pre">config</span> <span class="pre">hdfs</span></code></p></li>
 </ul>
 </section>
 <section id="main-runtime-file">
@@ -161,16 +159,13 @@ alias mappings</p></li>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_S3_MAX_RETRY_TIMES</span></code></p></td>
 <td><p>Retry limit for S3 operations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_HDFS_MAX_RETRY_TIMES</span></code></p></td>
-<td><p>Retry limit for HDFS operations.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_HTTP_MAX_RETRY_TIMES</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_HTTP_MAX_RETRY_TIMES</span></code></p></td>
 <td><p>Retry limit for HTTP and HTTPS operations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_SFTP_MAX_RETRY_TIMES</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_SFTP_MAX_RETRY_TIMES</span></code></p></td>
 <td><p>Retry limit for SFTP operations.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_WEBDAV_MAX_RETRY_TIMES</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MEGFILE_WEBDAV_MAX_RETRY_TIMES</span></code></p></td>
 <td><p>Retry limit for WebDAV and WebDAVS operations.</p></td>
 </tr>
 </tbody>
@@ -205,23 +200,11 @@ settings above.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">WEBDAV_INSECURE</span></code></p></li>
 </ul>
 </section>
-<section id="hdfs">
-<h3>HDFS<a class="headerlink" href="#hdfs" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">HDFS_USER</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">HDFS_URL</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">HDFS_ROOT</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">HDFS_TIMEOUT</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">HDFS_TOKEN</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">HDFS_CONFIG_PATH</span></code></p></li>
-</ul>
-</section>
 </section>
 <section id="using-cli-helpers">
 <h2>Using CLI Helpers<a class="headerlink" href="#using-cli-helpers" title="Link to this heading"></a></h2>
 <p>The CLI can write the common config files for you:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>amf<span class="w"> </span>config<span class="w"> </span>s3<span class="w"> </span>&lt;access_key&gt;<span class="w"> </span>&lt;secret_key&gt;<span class="w"> </span>--profile-name<span class="w"> </span>default
-amf<span class="w"> </span>config<span class="w"> </span>hdfs<span class="w"> </span>http://namenode:9870<span class="w"> </span>--profile-name<span class="w"> </span>prod<span class="w"> </span>--user<span class="w"> </span>hdfs
 amf<span class="w"> </span>config<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>datasets<span class="w"> </span>s3://company-datasets/
 amf<span class="w"> </span>config<span class="w"> </span>env<span class="w"> </span><span class="nv">MEGFILE_MAX_WORKERS</span><span class="o">=</span><span class="m">16</span>
 </pre></div>
