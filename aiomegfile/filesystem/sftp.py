@@ -1431,7 +1431,7 @@ class SftpFileSystem(BaseFileSystem):
                 await sftp_client.get(
                     src_remote,
                     dst_path,
-                    preserve=False,
+                    preserve=True,
                     recurse=False,
                     follow_symlinks=True,
                     sparse=True,

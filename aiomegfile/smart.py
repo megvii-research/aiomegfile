@@ -1005,7 +1005,8 @@ async def _run_sync_fast(
     :param dst_root_path: Destination root path.
     :param followlinks: Whether to follow symbolic links.
     :param callback: Callback for copied bytes.
-    :param callback_after_copy_file: Callback after each file copy.
+    :param callback_after_copy_file: Callback after each source file is processed,
+        including files skipped because the destination is already up to date.
     :param force: Whether to force copy even if files are the same.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :param sync_type: Sync type for file comparison.
@@ -1106,8 +1107,11 @@ async def _run_sync_fast(
                     )
                     if len(copy_tasks) >= max_in_flight:
                         copy_tasks = await _drain_copy_tasks(copy_tasks)
-                elif callback:
-                    callback(src_entry.path, src_entry.stat.st_size)
+                else:
+                    if callback:
+                        callback(src_entry.path, src_entry.stat.st_size)
+                    if callback_after_copy_file:
+                        callback_after_copy_file(src_entry.path, dst_abs_file_path)
                 src_take = True
                 dst_take = True
             elif src_key < dst_key:
@@ -1160,7 +1164,8 @@ async def _run_sync(
     :param dst_root_path: Destination root path.
     :param followlinks: Whether to follow symbolic links.
     :param callback: Callback for copied bytes.
-    :param callback_after_copy_file: Callback after each file copy.
+    :param callback_after_copy_file: Callback after each source file is processed,
+        including files skipped because the destination is already up to date.
     :param force: Whether to force copy even if files are the same.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :param sync_type: Sync type for file comparison.
@@ -1211,8 +1216,11 @@ async def _run_sync(
                 )
                 if callback_after_copy_file:
                     callback_after_copy_file(src_entry.path, dst_abs_file_path)
-            elif callback:
-                callback(src_entry.path, src_entry.stat.st_size)
+            else:
+                if callback:
+                    callback(src_entry.path, src_entry.stat.st_size)
+                if callback_after_copy_file:
+                    callback_after_copy_file(src_entry.path, dst_abs_file_path)
 
     error: T.Optional[Exception] = None
     try:
@@ -1261,8 +1269,9 @@ async def smart_sync(
     :param callback: Called periodically during copy with source path and bytes
         written.
     :param followlinks: Whether to follow symbolic links.
-    :param callback_after_copy_file: Called after copy success, and the input parameter
-        is src file path and dst file path.
+    :param callback_after_copy_file: Called after each source file is processed,
+        including files skipped because the destination is already up to date. The
+        input parameters are src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :param force: Sync file forcible, do not ignore same files.
     :raises FileNotFoundError: If source path does not exist.
@@ -1346,8 +1355,9 @@ async def smart_sync_with_progress(
         written.
     :param followlinks: Whether to follow symbolic links.
     :param force: Sync file forcible, do not ignore same files.
-    :param callback_after_copy_file: Called after copy success, and the input parameter
-        is src file path and dst file path.
+    :param callback_after_copy_file: Called after each source file is processed,
+        including files skipped because the destination is already up to date. The
+        input parameters are src file path and dst file path.
     :param worker: Maximum number of concurrent workers for copy tasks.
     :raises FileNotFoundError: If source path does not exist.
     :raises ImportError: If ``tqdm`` is not available.

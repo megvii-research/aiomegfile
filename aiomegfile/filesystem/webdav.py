@@ -1307,15 +1307,8 @@ class WebdavFileSystem(BaseFileSystem):
         progress = self._build_progress_handler(callback)
 
         client = await self._create_client()
-        is_dir = T.cast(
-            bool,
-            await _call_webdav(
-                uri,
-                self.max_retries,
-                lambda: client.is_directory(remote_path),
-                client,
-            ),
-        )
+        stat = await self.stat(src_path)
+        is_dir = stat.is_dir() if stat else False
         if is_dir:
             raise WebdavIsADirectoryError(f"Is a directory: {uri!r}")
 
@@ -1333,6 +1326,7 @@ class WebdavFileSystem(BaseFileSystem):
             ),
             client,
         )
+        os.utime(dst_path, (stat.st_mtime, stat.st_mtime))
 
     async def copy(
         self,
