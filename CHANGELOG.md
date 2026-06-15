@@ -1,3 +1,12 @@
+## 0.1.0 - 2026.06.15
+- breaking change
+    - To improve performance, we decided to remove S3 symlink support. This feature originally came from `megfile` and was never officially supported, with very few users, so it will no longer be supported in this new library.
+    - Removed the `overwrite` parameter because its behavior was somewhat ambiguous. The current behavior is now equivalent to `overwrite=True`.
+    - Removed the HDFS protocol because the current implementation does not provide native asyncio support.
+- fix
+    - Fix `follow_symlinks` bug in `copy` and `unlink`.
+    - Fix the bug where sync fast mode does not skip existing files.
+
 ## 0.0.6 - 2026.05.25
 - feat
     - Support sort param in `smart_glob` and `smart_iglob`.
